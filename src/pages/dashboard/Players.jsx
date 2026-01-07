@@ -50,7 +50,7 @@ export default function Players() {
                         <h1 className="text-2xl md:text-3xl font-display font-bold">Daftar Pemain</h1>
                         <p className="text-gray-400 mt-1">Warkop Cup Season 5 • {playersData.length} Pemain</p>
                     </div>
-                    <Button icon={Plus} onClick={() => setShowAddModal(true)}>Tambah Pemain</Button>
+                    <Button icon={Plus} onClick={() => navigate(`/dashboard/tournaments/${id}/players/add`)}>Tambah Pemain</Button>
                 </div>
             </div>
 
@@ -125,7 +125,7 @@ export default function Players() {
                     <Users className="w-16 h-16 mx-auto text-gray-600 mb-4" />
                     <h3 className="font-display font-bold text-xl mb-2">Tidak ada pemain</h3>
                     <p className="text-gray-500 mb-6">Tambahkan pemain untuk memulai turnamen</p>
-                    <Button icon={Plus} onClick={() => setShowAddModal(true)}>Tambah Pemain</Button>
+                    <Button icon={Plus} onClick={() => navigate(`/dashboard/tournaments/${id}/players/add`)}>Tambah Pemain</Button>
                 </div>
             )}
 

@@ -22,9 +22,9 @@ export default function DashboardLayout() {
     }
 
     return (
-        <div className="min-h-screen bg-darkBg flex">
+        <div className="h-screen bg-darkBg flex overflow-hidden">
             {/* Sidebar - Desktop */}
-            <aside className="hidden lg:flex lg:flex-col w-64 border-r border-white/10 bg-cardBg">
+            <aside className="hidden lg:flex lg:flex-col w-64 h-screen border-r border-white/10 bg-cardBg flex-shrink-0 sticky top-0">
                 {/* Logo */}
                 <div className="h-16 flex items-center gap-2 px-6 border-b border-white/10">
                     <Trophy className="w-6 h-6 text-neonGreen" />
@@ -134,9 +134,9 @@ export default function DashboardLayout() {
             </aside>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
                 {/* Top Header */}
-                <header className="h-16 flex items-center justify-between px-4 lg:px-8 border-b border-white/10 bg-cardBg/80 backdrop-blur-sm sticky top-0 z-30">
+                <header className="h-16 flex items-center justify-between px-4 lg:px-8 border-b border-white/10 bg-cardBg/80 backdrop-blur-sm flex-shrink-0 z-30">
                     {/* Mobile Menu Button */}
                     <button
                         onClick={() => setSidebarOpen(true)}
@@ -171,7 +171,7 @@ export default function DashboardLayout() {
                 </header>
 
                 {/* Page Content */}
-                <main className="flex-1 p-4 lg:p-8 overflow-y-auto overflow-x-hidden max-w-full">
+                <main className="flex-1 p-4 lg:p-8 overflow-y-auto overflow-x-hidden">
                     <Outlet />
                 </main>
             </div>

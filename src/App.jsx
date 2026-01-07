@@ -8,6 +8,7 @@ import TournamentDetail from './pages/dashboard/TournamentDetail'
 import Standings from './pages/dashboard/Standings'
 import Fixtures from './pages/dashboard/Fixtures'
 import Players from './pages/dashboard/Players'
+import AddPlayer from './pages/dashboard/AddPlayer'
 
 function App() {
     return (
@@ -24,6 +25,7 @@ function App() {
                 <Route path="tournaments/:id/standings" element={<Standings />} />
                 <Route path="tournaments/:id/fixtures" element={<Fixtures />} />
                 <Route path="tournaments/:id/players" element={<Players />} />
+                <Route path="tournaments/:id/players/add" element={<AddPlayer />} />
             </Route>
         </Routes>
     )
