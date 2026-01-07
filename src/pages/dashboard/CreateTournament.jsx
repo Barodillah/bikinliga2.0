@@ -76,7 +76,7 @@ export default function CreateTournament() {
     const [logoUrl, setLogoUrl] = useState('')
     const fileInputRef = useRef(null)
 
-    // Helper to generate logo URL based on ID (Updated to match PHP logic)
+    // Helper to generate logo URL based on ID (Consistent with PHP logic)
     const getLogoUrl = (id) => {
         const paddedId = String(id).padStart(4, '0')
         return `https://api.efootballdb.com/assets/2022/competitions/emb_${paddedId}_f_l.png.webp`
@@ -96,11 +96,16 @@ export default function CreateTournament() {
                         entry.entries?.forEach(teamEntry => {
                             teamEntry.team?.competitions?.forEach(comp => {
                                 const compData = comp.competition
-                                if (compData && !comps.find(c => c.id === compData.id)) {
+
+                                // Use pes_id if available, otherwise fallback to id
+                                const compId = compData.pes_id || compData.id
+
+                                if (compData && !comps.find(c => c.id === compId)) {
                                     comps.push({
-                                        id: compData.id,
+                                        id: compId,
                                         name: compData.competition_name,
-                                        logo: compData.competition_logo_url || getLogoUrl(compData.id)
+                                        // Generate logo URL using the specific format requested
+                                        logo: getLogoUrl(compId)
                                     })
                                 }
                             })
@@ -123,6 +128,13 @@ export default function CreateTournament() {
         const comp = competitions.find(c => c.name === leagueName)
         if (comp) {
             setFormData(prev => ({ ...prev, logo: comp.logo, logoType: 'preset' }))
+        } else {
+            console.warn(`Competition not found for: ${leagueName}`)
+            // Try to find by partial match if exact match fails
+            const partialMatch = competitions.find(c => c.name && c.name.includes(leagueName))
+            if (partialMatch) {
+                setFormData(prev => ({ ...prev, logo: partialMatch.logo, logoType: 'preset' }))
+            }
         }
     }
 
