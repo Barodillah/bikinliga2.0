@@ -76,6 +76,14 @@ export default function CreateTournament() {
     const [logoUrl, setLogoUrl] = useState('')
     const fileInputRef = useRef(null)
 
+    // Helper to generate logo URL based on ID
+    const getLogoUrl = (id) => {
+        const idNum = parseInt(id)
+        const folder1 = Math.floor(idNum / 65536)
+        const folder2 = Math.floor((idNum % 65536) / 256)
+        return `https://api.efootballdb.com/assets/2022/competitions/${folder1}/${folder2}/${idNum}.png`
+    }
+
     // Fetch competitions for logo selection
     useEffect(() => {
         const fetchCompetitions = async () => {
@@ -94,7 +102,7 @@ export default function CreateTournament() {
                                     comps.push({
                                         id: compData.id,
                                         name: compData.competition_name,
-                                        logo: compData.competition_logo_url || `https://api.efootballdb.com/assets/2022/competitions/${String(compData.id).padStart(6, '0')}.png.webp`
+                                        logo: compData.competition_logo_url || getLogoUrl(compData.id)
                                     })
                                 }
                             })
