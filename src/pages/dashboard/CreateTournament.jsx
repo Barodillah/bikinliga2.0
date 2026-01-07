@@ -25,7 +25,7 @@ const leagueOptions = [
     { value: 'English League', label: 'English League' },
     { value: 'Lega Italia', label: 'Lega Italia' },
     { value: 'Spanish League', label: 'Spanish League' },
-    { value: "Ligue 1 McDonald's", label: "Ligue 1 McDonald's" },
+    { value: "Ligue 1 McDonald’s", label: "Ligue 1 McDonald's" },
     { value: 'VriendenLoterij Eredivisie', label: 'VriendenLoterij Eredivisie' },
     { value: 'Liga Portugal Betclic', label: 'Liga Portugal Betclic' },
     { value: 'European Cup', label: 'European Cup' },

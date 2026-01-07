@@ -116,19 +116,27 @@ export default function TournamentList() {
                                     <span className="flex items-center gap-1">
                                         <Users className="w-4 h-4" /> {tournament.players}
                                     </span>
-                                    <span className="flex items-center gap-1">
-                                        <Calendar className="w-4 h-4" /> {tournament.matches} Match
-                                    </span>
+                                    {tournament.status !== 'draft' && (
+                                        <span className="flex items-center gap-1">
+                                            <Calendar className="w-4 h-4" /> {tournament.matches} Match
+                                        </span>
+                                    )}
                                 </div>
 
-                                {/* Progress Bar */}
-                                <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-neonGreen to-neonPink transition-all"
-                                        style={{ width: `${tournament.progress}%` }}
-                                    />
-                                </div>
-                                <div className="text-xs text-gray-500 mt-2">{tournament.progress}% completed</div>
+                                {/* Progress Bar - Hide if draft */}
+                                {tournament.status !== 'draft' ? (
+                                    <>
+                                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-neonGreen to-neonPink transition-all"
+                                                style={{ width: `${tournament.progress}%` }}
+                                            />
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-2">{tournament.progress}% completed</div>
+                                    </>
+                                ) : (
+                                    <div className="text-xs text-yellow-500 font-medium mt-2">Menunggu setup...</div>
+                                )}
                             </Card>
                         </Link>
                     ))}
@@ -148,19 +156,24 @@ export default function TournamentList() {
                                     </div>
                                     <div>
                                         <div className="font-medium">{tournament.name}</div>
-                                        <div className="text-xs text-gray-500">{tournament.type} • {tournament.players} Pemain • {tournament.matches} Match</div>
+                                        <div className="text-xs text-gray-500">
+                                            {tournament.type} • {tournament.players} Pemain
+                                            {tournament.status !== 'draft' && ` • ${tournament.matches} Match`}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(tournament.status)}`}>
                                         {getStatusLabel(tournament.status)}
                                     </span>
-                                    <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-neonGreen to-neonPink"
-                                            style={{ width: `${tournament.progress}%` }}
-                                        />
-                                    </div>
+                                    {tournament.status !== 'draft' && (
+                                        <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-neonGreen to-neonPink"
+                                                style={{ width: `${tournament.progress}%` }}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </Link>
                         ))}
