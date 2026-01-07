@@ -1,10 +1,53 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Loader2, User, Phone, Shield, Trophy } from 'lucide-react'
+import { ArrowLeft, Loader2, User, Phone, Shield, Trophy, Users, Calendar, BarChart2 } from 'lucide-react'
 import Card, { CardHeader, CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
+
+// Mock Data (Consistent with TournamentDetail.jsx)
+const getTournamentData = (id) => {
+    const tournaments = {
+        '1': {
+            id: 1,
+            name: 'Warkop Cup Season 5',
+            type: 'Liga',
+            status: 'active',
+            players: 8,
+            matches: 28,
+            completed: 12,
+            startDate: '2024-01-15',
+            description: 'Turnamen eFootball antar pemain regular warkop',
+            shareLink: 'bikinliga.com/t/warkop-cup-5'
+        },
+        '2': {
+            id: 2,
+            name: 'Ramadhan Cup 2024',
+            type: 'Knockout',
+            status: 'active',
+            players: 16,
+            matches: 15,
+            completed: 8,
+            startDate: '2024-03-10',
+            description: 'Turnamen knockout Ramadhan',
+            shareLink: 'bikinliga.com/t/ramadhan-cup'
+        },
+        '3': {
+            id: 3,
+            name: 'Sunday League',
+            type: 'Group+KO',
+            status: 'active',
+            players: 16,
+            matches: 24,
+            completed: 16,
+            startDate: '2024-02-01',
+            description: 'Group stage + knockout format',
+            shareLink: 'bikinliga.com/t/sunday-league'
+        }
+    }
+    return tournaments[id] || tournaments['1']
+}
 
 // League options from eFootball DB API (2025 Update)
 const leagueOptions = [
@@ -46,6 +89,7 @@ const leagueOptions = [
 export default function AddPlayer() {
     const { id } = useParams()
     const navigate = useNavigate()
+    const tournamentData = getTournamentData(id)
 
     const [formData, setFormData] = useState({
         league: '',
@@ -172,6 +216,7 @@ export default function AddPlayer() {
 
     return (
         <div className="space-y-6 max-w-2xl mx-auto">
+            {/* Header with Tournament Details */}
             <div>
                 <button
                     onClick={() => navigate(`/dashboard/tournaments/${id}/players`)}
@@ -179,14 +224,47 @@ export default function AddPlayer() {
                 >
                     <ArrowLeft className="w-4 h-4" /> Kembali ke daftar pemain
                 </button>
-                <h1 className="text-2xl md:text-3xl font-display font-bold">Tambah Pemain Baru</h1>
-                <p className="text-gray-400 mt-1">Daftarkan pemain baru untuk turnamen</p>
+
+                <h1 className="text-2xl md:text-3xl font-display font-bold mb-2">Tambah Pemain Baru</h1>
+
+                {/* Tournament Detail Summary */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-neonGreen/20 to-neonPink/20 flex items-center justify-center shrink-0">
+                            <Trophy className="w-6 h-6 text-neonGreen" />
+                        </div>
+                        <div>
+                            <div className="text-sm text-gray-400">Turnamen</div>
+                            <div className="font-bold font-display text-lg">{tournamentData.name}</div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-6 text-sm">
+                        <div className="flex flex-col">
+                            <span className="text-gray-500 text-xs">Tipe</span>
+                            <span className="font-medium text-neonPink">{tournamentData.type}</span>
+                        </div>
+                        <div className="w-px h-8 bg-white/10 hidden md:block"></div>
+                        <div className="flex flex-col">
+                            <span className="text-gray-500 text-xs">Pemain</span>
+                            <span className="font-medium flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {tournamentData.players} Tim
+                            </span>
+                        </div>
+                        <div className="w-px h-8 bg-white/10 hidden md:block"></div>
+                        <div className="flex flex-col">
+                            <span className="text-gray-500 text-xs">Status</span>
+                            <span className="font-medium text-neonGreen capitalize">{tournamentData.status}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <Card hover={false}>
                 <CardHeader>
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-neonGreen/20 to-neonPink/20 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
                             <User className="w-5 h-5 text-neonGreen" />
                         </div>
                         <div>
