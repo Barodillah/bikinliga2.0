@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BikinLiga - Platform Turnamen eFootball Terbaik</title>
+    <meta name="description" content="Kelola kompetisi eFootball kamu dengan mudah. Bracket otomatis, klasemen real-time, dan manajemen pemain dalam satu aplikasi.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Icons (Lucide) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        neonGreen: '#02FE02',
+                        neonPink: '#FE00C9',
+                        darkBg: '#050505',
+                        cardBg: '#121212',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'pulse-glow': 'pulse-glow 3s infinite',
+                        'bounce-slow': 'bounce 2s infinite',
+                        'spin-slow': 'spin 4s linear infinite',
+                        'ping-slow': 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+                        'wiggle': 'wiggle 1s ease-in-out infinite',
+                        'grow-bar': 'grow-bar 2s ease-in-out infinite alternate',
+                        'clash': 'clash 2s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        },
+                        'pulse-glow': {
+                            '0%, 100%': { opacity: '0.6' },
+                            '50%': { opacity: '1' },
+                        },
+                        wiggle: {
+                            '0%, 100%': { transform: 'rotate(-3deg)' },
+                            '50%': { transform: 'rotate(3deg)' },
+                        },
+                        'grow-bar': {
+                            '0%': { transform: 'scaleY(0.7)' },
+                            '100%': { transform: 'scaleY(1)' },
+                        },
+                        clash: {
+                            '0%, 100%': { transform: 'rotate(0deg) scale(1)' },
+                            '50%': { transform: 'rotate(15deg) scale(1.1)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Styles */
+        body {
+            background-color: #050505;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        .gradient-text {
+            background: linear-gradient(90deg, #02FE02, #FE00C9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .glass-panel {
+            background: rgba(18, 18, 18, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #02FE02, #00c400);
+            color: #000;
+            font-weight: 700;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(2, 254, 2, 0.6);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid #FE00C9;
+            color: #FE00C9;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #FE00C9;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(254, 0, 201, 0.6);
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease-out;
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .ambient-glow {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            filter: blur(100px);
+            z-index: -1;
+            opacity: 0.2;
+        }
+
+        .dashboard-item {
+            opacity: 0;
+            transform: translateX(-10px);
+            transition: all 0.6s ease-out;
+        }
+        .reveal.active .dashboard-item {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .step-visual {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transform: scale(0.9) translateY(10px);
+            transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .step-visual.active {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            pointer-events: auto;
+            z-index: 10;
+        }
+        
+        .step-trigger {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            border: 1px solid transparent;
+            position: relative;
+            z-index: 10; /* Keep above line */
+            background: rgba(18, 18, 18, 0.4); /* Slight bg to hide line behind content */
+            backdrop-filter: blur(4px);
+        }
+        .step-trigger:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .step-trigger.active {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(2, 254, 2, 0.2);
+        }
+        .step-trigger.active .step-circle {
+            background-color: #02FE02;
+            color: #000;
+            box-shadow: 0 0 15px rgba(2, 254, 2, 0.5);
+        }
+        .step-trigger.active h4 {
+            color: #02FE02;
+        }
+
+        /* Updated Progress Bar Logic */
+        .step-list-container {
+            position: relative;
+        }
+        
+        .step-line-bg {
+            position: absolute;
+            left: calc(1rem + 1.25rem - 1px); /* padding-left + half-width-circle - half-width-line */
+            top: 2.25rem; /* Center of first circle approx */
+            bottom: 2.25rem; /* Center of last circle approx */
+            width: 2px;
+            background: #333;
+            z-index: 0;
+        }
+        
+        .step-line-fill {
+            position: absolute;
+            left: calc(1rem + 1.25rem - 1px);
+            top: 2.25rem;
+            width: 2px;
+            background: #02FE02;
+            box-shadow: 0 0 10px #02FE02;
+            z-index: 0;
+            transition: height 0.5s ease-in-out;
+            max-height: calc(100% - 4.5rem); /* Prevents overshooting */
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-neonPink selection:text-white">
+
+    <!-- Decorative Ambient Backgrounds -->
+    <div class="ambient-glow bg-neonGreen top-0 left-0"></div>
+    <div class="ambient-glow bg-neonPink bottom-0 right-0"></div>
+
+    <!-- Navbar -->
+    <nav class="fixed w-full z-50 glass-panel border-b border-white/10 transition-all duration-300" id="navbar">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="trophy" class="w-8 h-8 text-neonGreen"></i>
+                    <span class="font-display font-bold text-2xl tracking-tight">Bikin<span class="text-neonPink">Liga</span></span>
+                </div>
+                
+                <!-- Desktop Menu -->
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-8">
+                        <a href="#fitur" class="hover:text-neonGreen transition-colors px-3 py-2 rounded-md text-sm font-medium">Fitur</a>
+                        <a href="#cara-kerja" class="hover:text-neonGreen transition-colors px-3 py-2 rounded-md text-sm font-medium">Cara Kerja</a>
+                        <a href="#harga" class="hover:text-neonGreen transition-colors px-3 py-2 rounded-md text-sm font-medium">Harga</a>
+                        <a href="#faq" class="hover:text-neonGreen transition-colors px-3 py-2 rounded-md text-sm font-medium">FAQ</a>
+                    </div>
+                </div>
+
+                <!-- CTA Button -->
+                <div class="hidden md:block">
+                    <a href="#" class="btn-primary px-6 py-2 rounded-full text-sm">Masuk / Daftar</a>
+                </div>
+
+                <!-- Mobile menu button -->
+                <div class="-mr-2 flex md:hidden">
+                    <button type="button" id="mobile-menu-btn" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div class="hidden md:hidden glass-panel border-t border-white/10" id="mobile-menu">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <a href="#fitur" class="text-gray-300 hover:text-neonGreen block px-3 py-2 rounded-md text-base font-medium">Fitur</a>
+                <a href="#cara-kerja" class="text-gray-300 hover:text-neonGreen block px-3 py-2 rounded-md text-base font-medium">Cara Kerja</a>
+                <a href="#harga" class="text-gray-300 hover:text-neonGreen block px-3 py-2 rounded-md text-base font-medium">Harga</a>
+                <a href="#" class="mt-4 block w-full text-center btn-primary px-6 py-3 rounded-md text-base">Masuk / Daftar</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="text-center max-w-4xl mx-auto">
+                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-neonGreen/30 bg-neonGreen/10 text-neonGreen text-sm font-semibold mb-6 animate-pulse-glow">
+                    <span class="w-2 h-2 rounded-full bg-neonGreen"></span>
+                    Platform #1 untuk Komunitas eFootball
+                </div>
+                
+                <h1 class="text-5xl md:text-7xl font-display font-bold tracking-tight mb-6 leading-tight">
+                    Kelola Turnamen <br>
+                    <span class="gradient-text">Semudah Kick-Off</span>
+                </h1>
+                
+                <p class="mt-4 text-xl text-gray-400 max-w-2xl mx-auto mb-10">
+                    BikinLiga adalah web apps pengelolaan kompetisi football game. Buat bracket, atur jadwal, dan pantau klasemen eFootball secara otomatis dan real-time.
+                </p>
+                
+                <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                    <a href="#" class="btn-primary w-full sm:w-auto px-8 py-4 rounded-full text-lg flex items-center justify-center gap-2">
+                        <i data-lucide="zap" class="w-5 h-5"></i>
+                        Buat Liga Sekarang
+                    </a>
+                    <a href="#demo" class="btn-secondary w-full sm:w-auto px-8 py-4 rounded-full text-lg flex items-center justify-center gap-2">
+                        <i data-lucide="play-circle" class="w-5 h-5"></i>
+                        Lihat Demo
+                    </a>
+                </div>
+            </div>
+
+            <!-- Hero Visual / Dashboard Preview -->
+            <div class="mt-16 relative mx-auto max-w-5xl reveal">
+                <div class="absolute -inset-1 bg-gradient-to-r from-neonGreen to-neonPink rounded-2xl blur opacity-30"></div>
+                <div class="relative rounded-2xl bg-cardBg border border-white/10 overflow-hidden shadow-2xl">
+                    <!-- Fake UI Browser Header -->
+                    <div class="h-8 bg-[#1a1a1a] border-b border-white/5 flex items-center px-4 gap-2">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <div class="ml-4 h-4 w-64 bg-white/10 rounded-full text-[10px] flex items-center px-2 text-gray-500 font-mono">BikinLiga.online</div>
+                    </div>
+                    <!-- Fake UI Content -->
+                    <div class="p-6 md:p-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Sidebar -->
+                        <div class="hidden md:block col-span-1 space-y-4">
+                            <div class="h-10 bg-white/5 rounded w-full dashboard-item" style="transition-delay: 200ms;"></div>
+                            <div class="h-10 bg-gradient-to-r from-neonGreen/20 to-transparent border-l-2 border-neonGreen rounded w-full flex items-center px-3 text-neonGreen text-sm font-bold dashboard-item" style="transition-delay: 300ms;">Klasemen Liga</div>
+                            <div class="h-10 bg-white/5 rounded w-full dashboard-item" style="transition-delay: 400ms;"></div>
+                            <div class="h-10 bg-white/5 rounded w-full dashboard-item" style="transition-delay: 500ms;"></div>
+                        </div>
+                        <!-- Main Content -->
+                        <div class="col-span-2 space-y-4">
+                            <div class="flex justify-between items-center mb-6 dashboard-item" style="transition-delay: 600ms;">
+                                <div class="h-8 w-48 bg-white/10 rounded"></div>
+                                <div class="h-8 w-24 bg-neonPink rounded animate-pulse"></div>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="h-12 bg-white/5 rounded flex items-center px-4 justify-between border border-white/5 dashboard-item hover:bg-white/10 transition-colors cursor-default" style="transition-delay: 700ms;">
+                                    <div class="flex gap-3">
+                                        <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-[10px] font-bold">1</div>
+                                        <div class="w-32 h-4 bg-white/20 rounded"></div>
+                                    </div>
+                                    <div class="w-8 h-4 bg-neonGreen/50 rounded"></div>
+                                </div>
+                                <div class="h-12 bg-white/5 rounded flex items-center px-4 justify-between border border-white/5 dashboard-item hover:bg-white/10 transition-colors cursor-default" style="transition-delay: 800ms;">
+                                    <div class="flex gap-3">
+                                        <div class="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold">2</div>
+                                        <div class="w-24 h-4 bg-white/20 rounded"></div>
+                                    </div>
+                                    <div class="w-8 h-4 bg-white/10 rounded"></div>
+                                </div>
+                                <div class="h-12 bg-white/5 rounded flex items-center px-4 justify-between border border-white/5 dashboard-item hover:bg-white/10 transition-colors cursor-default" style="transition-delay: 900ms;">
+                                    <div class="flex gap-3">
+                                        <div class="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-[10px] font-bold text-black">3</div>
+                                        <div class="w-28 h-4 bg-white/20 rounded"></div>
+                                    </div>
+                                    <div class="w-8 h-4 bg-white/10 rounded"></div>
+                                </div>
+                                <div class="h-12 bg-white/5 rounded flex items-center px-4 justify-between border border-white/5 dashboard-item hover:bg-white/10 transition-colors cursor-default" style="transition-delay: 1000ms;">
+                                    <div class="flex gap-3">
+                                        <div class="w-6 h-6 bg-white rounded-full flex items-center justify-center text-[10px] font-bold text-black">4</div>
+                                        <div class="w-32 h-4 bg-white/20 rounded"></div>
+                                    </div>
+                                    <div class="w-8 h-4 bg-white/10 rounded"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="py-10 border-y border-white/5 bg-white/5 backdrop-blur-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+                <div class="reveal">
+                    <div class="text-3xl md:text-4xl font-display font-bold text-neonGreen">500+</div>
+                    <div class="text-sm text-gray-400 mt-1">Liga Terbuat</div>
+                </div>
+                <div class="reveal transition-delay-100">
+                    <div class="text-3xl md:text-4xl font-display font-bold text-white">10k+</div>
+                    <div class="text-sm text-gray-400 mt-1">Pertandingan</div>
+                </div>
+                <div class="reveal transition-delay-200">
+                    <div class="text-3xl md:text-4xl font-display font-bold text-neonPink">5k+</div>
+                    <div class="text-sm text-gray-400 mt-1">Pemain Terdaftar</div>
+                </div>
+                <div class="reveal transition-delay-300">
+                    <div class="text-3xl md:text-4xl font-display font-bold text-white">24/7</div>
+                    <div class="text-sm text-gray-400 mt-1">Sistem Aktif</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section with Icon Animations -->
+    <section id="fitur" class="py-20 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16 reveal">
+                <h2 class="text-3xl md:text-5xl font-display font-bold mb-4">Fitur <span class="text-neonPink">Pro Player</span></h2>
+                <p class="text-gray-400 max-w-2xl mx-auto">Kami menyediakan alat yang dibutuhkan admin turnamen agar kompetisi berjalan adil, seru, dan profesional.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Feature 1: User Pulse -->
+                <div class="glass-panel p-8 rounded-2xl hover:border-neonGreen/50 transition-all duration-300 group reveal">
+                    <div class="w-14 h-14 rounded-full bg-neonGreen/10 flex items-center justify-center mb-6 group-hover:bg-neonGreen group-hover:text-black transition-colors text-neonGreen">
+                        <!-- Icon with ping animation on hover group -->
+                        <div class="relative">
+                            <i data-lucide="users" class="w-7 h-7 relative z-10"></i>
+                            <div class="absolute inset-0 bg-current rounded-full opacity-0 group-hover:animate-ping-slow"></div>
+                        </div>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 font-display">Manajemen Peserta</h3>
+                    <p class="text-gray-400 leading-relaxed">Input data peserta, nama tim eFootball, dan kontak dengan mudah. Mendukung format liga atau sistem gugur.</p>
+                </div>
+
+                <!-- Feature 2: Growing Bar Chart -->
+                <div class="glass-panel p-8 rounded-2xl hover:border-neonPink/50 transition-all duration-300 group reveal transition-delay-100">
+                    <div class="w-14 h-14 rounded-full bg-neonPink/10 flex items-center justify-center mb-6 group-hover:bg-neonPink group-hover:text-black transition-colors text-neonPink">
+                        <i data-lucide="bar-chart-2" class="w-7 h-7 group-hover:animate-grow-bar origin-bottom"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 font-display">Klasemen Otomatis</h3>
+                    <p class="text-gray-400 leading-relaxed">Cukup masukkan skor akhir, sistem akan otomatis menghitung poin, selisih gol, dan mengurutkan klasemen.</p>
+                </div>
+
+                <!-- Feature 3: Wiggle Calendar -->
+                <div class="glass-panel p-8 rounded-2xl hover:border-neonGreen/50 transition-all duration-300 group reveal transition-delay-200">
+                    <div class="w-14 h-14 rounded-full bg-neonGreen/10 flex items-center justify-center mb-6 group-hover:bg-neonGreen group-hover:text-black transition-colors text-neonGreen">
+                        <i data-lucide="calendar" class="w-7 h-7 group-hover:animate-wiggle"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 font-display">Jadwal Pintar</h3>
+                    <p class="text-gray-400 leading-relaxed">Generate jadwal pertandingan Home & Away secara otomatis tanpa bentrok. Export jadwal ke gambar untuk dishare.</p>
+                </div>
+
+                <!-- Feature 4: Share Pop -->
+                <div class="glass-panel p-8 rounded-2xl hover:border-neonPink/50 transition-all duration-300 group reveal">
+                    <div class="w-14 h-14 rounded-full bg-neonPink/10 flex items-center justify-center mb-6 group-hover:bg-neonPink group-hover:text-black transition-colors text-neonPink">
+                        <i data-lucide="share-2" class="w-7 h-7 group-hover:animate-bounce-slow"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 font-display">Public Link</h3>
+                    <p class="text-gray-400 leading-relaxed">Setiap turnamen memiliki link unik. Bagikan ke grup WhatsApp atau Discord agar peserta bisa pantau sendiri.</p>
+                </div>
+
+                <!-- Feature 5: Swords Clash -->
+                <div class="glass-panel p-8 rounded-2xl hover:border-neonGreen/50 transition-all duration-300 group reveal transition-delay-100">
+                    <div class="w-14 h-14 rounded-full bg-neonGreen/10 flex items-center justify-center mb-6 group-hover:bg-neonGreen group-hover:text-black transition-colors text-neonGreen">
+                        <i data-lucide="swords" class="w-7 h-7 group-hover:animate-clash"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 font-display">Head-to-Head</h3>
+                    <p class="text-gray-400 leading-relaxed">Lihat sejarah pertemuan antar player. Siapa yang benar-benar raja eFootball di tongkronganmu.</p>
+                </div>
+
+                <!-- Feature 6: Shield Pulse -->
+                <div class="glass-panel p-8 rounded-2xl hover:border-neonPink/50 transition-all duration-300 group reveal transition-delay-200">
+                    <div class="w-14 h-14 rounded-full bg-neonPink/10 flex items-center justify-center mb-6 group-hover:bg-neonPink group-hover:text-black transition-colors text-neonPink">
+                        <i data-lucide="shield-check" class="w-7 h-7 group-hover:animate-pulse"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 font-display">Validasi Skor</h3>
+                    <p class="text-gray-400 leading-relaxed">Fitur upload screenshot hasil pertandingan untuk meminimalisir sengketa skor antar pemain.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works (Fixed Timeline) -->
+    <section id="cara-kerja" class="py-20 bg-cardBg border-t border-b border-white/5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <div class="reveal relative">
+                    <h2 class="text-3xl md:text-5xl font-display font-bold mb-6">Mulai Turnamen dalam <span class="text-neonGreen">3 Langkah</span></h2>
+                    
+                    <div class="step-list-container space-y-4 relative z-10">
+                        <!-- Timeline Lines (Placed absolutely relative to this container) -->
+                        <div class="hidden md:block step-line-bg"></div>
+                        <div class="hidden md:block step-line-fill" id="progress-fill" style="height: 0;"></div>
+
+                        <!-- Step 1 Trigger -->
+                        <div class="step-trigger active flex gap-4 items-start" onclick="setStep(1)">
+                            <div class="flex-shrink-0 w-10 h-10 rounded-full border border-gray-600 bg-cardBg text-white font-bold flex items-center justify-center text-lg step-circle transition-all relative z-10">1</div>
+                            <div class="pt-1">
+                                <h4 class="text-xl font-bold text-white mb-2 transition-colors">Buat Turnamen</h4>
+                                <p class="text-gray-400 text-sm">Pilih jenis kompetisi (Liga/Cup), atur jumlah peserta, dan sistem poin.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 2 Trigger -->
+                        <div class="step-trigger flex gap-4 items-start" onclick="setStep(2)">
+                            <div class="flex-shrink-0 w-10 h-10 rounded-full border border-gray-600 bg-cardBg text-white font-bold flex items-center justify-center text-lg step-circle transition-all relative z-10">2</div>
+                            <div class="pt-1">
+                                <h4 class="text-xl font-bold text-white mb-2 transition-colors">Undang Pemain</h4>
+                                <p class="text-gray-400 text-sm">Share link pendaftaran atau input manual nama teman mabar kamu.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 Trigger -->
+                        <div class="step-trigger flex gap-4 items-start" onclick="setStep(3)">
+                            <div class="flex-shrink-0 w-10 h-10 rounded-full border border-gray-600 bg-cardBg text-white font-bold flex items-center justify-center text-lg step-circle transition-all relative z-10">3</div>
+                            <div class="pt-1">
+                                <h4 class="text-xl font-bold text-white mb-2 transition-colors">Main & Update</h4>
+                                <p class="text-gray-400 text-sm">Mainkan match eFootball kalian, input skor, dan lihat klasemen berubah.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-10 pl-14">
+                        <a href="#" class="text-neonGreen font-semibold hover:text-white transition-colors flex items-center gap-2">
+                            Pelajari dokumentasi lengkap <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Animated Visuals Right Side -->
+                <div class="relative reveal h-[350px] w-full">
+                    <div class="relative w-full h-full rounded-2xl overflow-hidden border border-neonPink/30 shadow-[0_0_50px_rgba(254,0,201,0.2)] bg-[#1a1a1a]">
+                        
+                        <!-- Visual Step 1: Create Form -->
+                        <div class="step-visual active" id="visual-1">
+                            <div class="w-full max-w-sm p-6 bg-[#252525] rounded-xl border border-white/10 shadow-xl transform transition-all duration-500">
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-10 h-10 rounded bg-neonGreen/20 flex items-center justify-center text-neonGreen">
+                                        <i data-lucide="plus-square" class="w-6 h-6"></i>
+                                    </div>
+                                    <div class="font-bold text-white">Buat Liga Baru</div>
+                                </div>
+                                <div class="space-y-3">
+                                    <div class="h-10 bg-black/40 rounded border border-white/5 w-full flex items-center px-3 text-sm text-gray-500">Nama Liga (e.g. Warkop Cup)</div>
+                                    <div class="flex gap-2">
+                                        <div class="h-10 bg-neonGreen rounded border border-neonGreen w-1/2 flex items-center justify-center text-sm text-black font-bold">Liga</div>
+                                        <div class="h-10 bg-black/40 rounded border border-white/5 w-1/2 flex items-center justify-center text-sm text-gray-500">Cup</div>
+                                    </div>
+                                    <div class="h-2 w-full bg-white/5 rounded mt-2"></div>
+                                    <div class="h-8 w-full bg-neonPink rounded flex items-center justify-center text-sm font-bold mt-4">Simpan</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Visual Step 2: Share / Invite -->
+                        <div class="step-visual" id="visual-2">
+                            <div class="w-full max-w-sm p-6 bg-[#252525] rounded-xl border border-white/10 shadow-xl text-center">
+                                <div class="w-16 h-16 bg-neonPink/20 rounded-full flex items-center justify-center text-neonPink mx-auto mb-4 animate-bounce">
+                                    <i data-lucide="share-2" class="w-8 h-8"></i>
+                                </div>
+                                <h4 class="text-white font-bold mb-2">Undang Teman</h4>
+                                <p class="text-xs text-gray-400 mb-4">Bagikan link ini ke grup WhatsApp</p>
+                                
+                                <div class="bg-black/40 p-3 rounded border border-white/5 flex items-center justify-between mb-4">
+                                    <span class="text-xs text-neonGreen truncate">bikinliga.com/invite/xyz123</span>
+                                    <i data-lucide="copy" class="w-4 h-4 text-gray-400"></i>
+                                </div>
+
+                                <div class="flex justify-center -space-x-2">
+                                    <div class="w-8 h-8 rounded-full bg-blue-500 border-2 border-[#252525]"></div>
+                                    <div class="w-8 h-8 rounded-full bg-green-500 border-2 border-[#252525]"></div>
+                                    <div class="w-8 h-8 rounded-full bg-yellow-500 border-2 border-[#252525]"></div>
+                                    <div class="w-8 h-8 rounded-full bg-gray-700 border-2 border-[#252525] flex items-center justify-center text-[10px] text-white">+5</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Visual Step 3: Match & Score (Existing) -->
+                        <div class="step-visual" id="visual-3">
+                            <div class="w-full max-w-sm space-y-4 px-6">
+                                <div class="bg-[#252525] p-4 rounded-xl border border-white/5 flex items-center justify-between animate-float">
+                                    <div class="flex flex-col items-center">
+                                        <div class="w-10 h-10 bg-blue-600 rounded-full mb-2"></div>
+                                        <span class="font-bold text-sm">FCB</span>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="text-2xl font-bold font-display text-neonGreen">3 - 1</div>
+                                        <div class="text-xs text-gray-500">FULL TIME</div>
+                                    </div>
+                                    <div class="flex flex-col items-center">
+                                        <div class="w-10 h-10 bg-red-600 rounded-full mb-2"></div>
+                                        <span class="font-bold text-sm">MU</span>
+                                    </div>
+                                </div>
+                                <div class="bg-[#252525] p-4 rounded-xl border border-white/5 flex items-center justify-between opacity-50 scale-95">
+                                    <div class="flex flex-col items-center">
+                                        <div class="w-10 h-10 bg-white rounded-full mb-2"></div>
+                                        <span class="font-bold text-sm">RMA</span>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="text-2xl font-bold font-display text-gray-400">VS</div>
+                                        <div class="text-xs text-gray-500">20:00</div>
+                                    </div>
+                                    <div class="flex flex-col items-center">
+                                        <div class="w-10 h-10 bg-yellow-500 rounded-full mb-2"></div>
+                                        <span class="font-bold text-sm">ARS</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="harga" class="py-20 relative">
+        <div class="ambient-glow bg-neonGreen/20 bottom-10 left-10 w-64 h-64"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16 reveal">
+                <h2 class="text-3xl md:text-5xl font-display font-bold mb-4">Pilih <span class="text-neonGreen">Paketmu</span></h2>
+                <p class="text-gray-400">Mulai gratis, upgrade untuk fitur turnamen skala besar.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+                <!-- Free Plan -->
+                <div class="glass-panel p-8 rounded-2xl reveal">
+                    <h3 class="text-xl font-bold text-gray-300">Komunitas Kecil</h3>
+                    <div class="my-4">
+                        <span class="text-4xl font-display font-bold">Rp 0</span>
+                        <span class="text-gray-500">/bulan</span>
+                    </div>
+                    <ul class="space-y-3 mb-8 text-gray-400 text-sm">
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-neonGreen"></i> 1 Turnamen Aktif</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-neonGreen"></i> Maks. 8 Peserta</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-neonGreen"></i> Klasemen Dasar</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-neonGreen"></i> Iklan Tampil</li>
+                    </ul>
+                    <a href="#" class="block w-full py-3 rounded-lg border border-white/20 text-center font-bold hover:bg-white/10 transition">Daftar Gratis</a>
+                </div>
+
+                <!-- Pro Plan (Highlight) -->
+                <div class="bg-[#1a1a1a] p-8 rounded-2xl border-2 border-neonPink relative transform md:-translate-y-4 shadow-[0_0_30px_rgba(254,0,201,0.15)] reveal transition-delay-100">
+                    <div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-neonPink text-white text-xs font-bold px-3 py-1 rounded-full">POPULER</div>
+                    <h3 class="text-xl font-bold text-neonPink">Rental / Warkop</h3>
+                    <div class="my-4">
+                        <span class="text-4xl font-display font-bold text-white">Rp 49rb</span>
+                        <span class="text-gray-500">/bulan</span>
+                    </div>
+                    <ul class="space-y-3 mb-8 text-gray-300 text-sm">
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-neonPink"></i> Unlimited Turnamen</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-neonPink"></i> Maks. 32 Peserta/Liga</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-neonPink"></i> Export Klasemen ke Image</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-neonPink"></i> Halaman Publik Custom</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-neonPink"></i> Tanpa Iklan</li>
+                    </ul>
+                    <a href="#" class="block w-full py-3 rounded-lg bg-neonPink text-white text-center font-bold hover:bg-pink-600 transition shadow-lg shadow-pink-500/30">Langganan Sekarang</a>
+                </div>
+
+                <!-- Organizer Plan -->
+                <div class="glass-panel p-8 rounded-2xl reveal transition-delay-200">
+                    <h3 class="text-xl font-bold text-gray-300">Event Organizer</h3>
+                    <div class="my-4">
+                        <span class="text-4xl font-display font-bold">Rp 199rb</span>
+                        <span class="text-gray-500">/event</span>
+                    </div>
+                    <ul class="space-y-3 mb-8 text-gray-400 text-sm">
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-neonGreen"></i> Bracket Hingga 128 Peserta</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-neonGreen"></i> Sistem Registrasi Online</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-neonGreen"></i> Ticket Management</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-neonGreen"></i> API Access</li>
+                    </ul>
+                    <a href="#" class="block w-full py-3 rounded-lg border border-white/20 text-center font-bold hover:bg-white/10 transition">Hubungi Sales</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section id="faq" class="py-20 bg-cardBg">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl font-display font-bold text-center mb-10">Pertanyaan Umum</h2>
+            
+            <div class="space-y-4 reveal">
+                <!-- FAQ Item 1 -->
+                <div class="border border-white/10 rounded-lg overflow-hidden">
+                    <button class="w-full text-left px-6 py-4 bg-[#1a1a1a] hover:bg-[#222] flex justify-between items-center transition-colors focus:outline-none" onclick="toggleFaq(this)">
+                        <span class="font-semibold">Apakah aplikasi ini gratis?</span>
+                        <i data-lucide="chevron-down" class="w-5 h-5 transition-transform"></i>
+                    </button>
+                    <div class="hidden px-6 py-4 bg-[#121212] text-gray-400 text-sm border-t border-white/5">
+                        Ya! Paket dasar BikinLiga 100% gratis selamanya untuk komunitas kecil hingga 8 peserta. Cocok untuk mabar sirkel.
+                    </div>
+                </div>
+
+                <!-- FAQ Item 2 -->
+                <div class="border border-white/10 rounded-lg overflow-hidden">
+                    <button class="w-full text-left px-6 py-4 bg-[#1a1a1a] hover:bg-[#222] flex justify-between items-center transition-colors focus:outline-none" onclick="toggleFaq(this)">
+                        <span class="font-semibold">Game apa saja yang didukung?</span>
+                        <i data-lucide="chevron-down" class="w-5 h-5 transition-transform"></i>
+                    </button>
+                    <div class="hidden px-6 py-4 bg-[#121212] text-gray-400 text-sm border-t border-white/5">
+                        Fokus utama kami adalah eFootball (PES), namun sistem kami fleksibel dan bisa digunakan untuk FIFA (EA FC), Mobile Legends, atau futsal sungguhan.
+                    </div>
+                </div>
+
+                <!-- FAQ Item 3 -->
+                <div class="border border-white/10 rounded-lg overflow-hidden">
+                    <button class="w-full text-left px-6 py-4 bg-[#1a1a1a] hover:bg-[#222] flex justify-between items-center transition-colors focus:outline-none" onclick="toggleFaq(this)">
+                        <span class="font-semibold">Apakah ada fitur bracket knockout?</span>
+                        <i data-lucide="chevron-down" class="w-5 h-5 transition-transform"></i>
+                    </button>
+                    <div class="hidden px-6 py-4 bg-[#121212] text-gray-400 text-sm border-t border-white/5">
+                        Tentu saja. Anda bisa membuat format Full Liga (klasemen), Cup (Gugur), atau Group Stage + Knockout (seperti Piala Dunia).
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 bg-black pt-16 pb-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+                <div class="col-span-1 md:col-span-1">
+                    <div class="flex items-center gap-2 mb-4">
+                        <i data-lucide="trophy" class="w-6 h-6 text-neonGreen"></i>
+                        <span class="font-display font-bold text-xl">Bikin<span class="text-neonPink">Liga</span></span>
+                    </div>
+                    <p class="text-gray-500 text-sm leading-relaxed">
+                        Platform manajemen turnamen esport termudah untuk komunitas Indonesia.
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold text-white mb-4">Produk</h4>
+                    <ul class="space-y-2 text-sm text-gray-500">
+                        <li><a href="#" class="hover:text-neonGreen transition">Fitur</a></li>
+                        <li><a href="#" class="hover:text-neonGreen transition">Harga</a></li>
+                        <li><a href="#" class="hover:text-neonGreen transition">API</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-white mb-4">Dukungan</h4>
+                    <ul class="space-y-2 text-sm text-gray-500">
+                        <li><a href="#" class="hover:text-neonGreen transition">Pusat Bantuan</a></li>
+                        <li><a href="#" class="hover:text-neonGreen transition">Komunitas Discord</a></li>
+                        <li><a href="#" class="hover:text-neonGreen transition">Kontak Kami</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-white mb-4">Newsletter</h4>
+                    <div class="flex flex-col gap-2">
+                        <input type="email" placeholder="Email kamu" class="bg-white/5 border border-white/10 rounded px-4 py-2 text-sm focus:outline-none focus:border-neonGreen text-white">
+                        <button class="bg-neonGreen text-black font-bold text-sm py-2 rounded hover:bg-[#00c400] transition">Subscribe</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="text-gray-600 text-sm">
+                    &copy; 2024 BikinLiga Indonesia. All rights reserved.
+                </div>
+                <div class="flex gap-4">
+                    <a href="#" class="text-gray-500 hover:text-white transition"><i data-lucide="instagram" class="w-5 h-5"></i></a>
+                    <a href="#" class="text-gray-500 hover:text-white transition"><i data-lucide="twitter" class="w-5 h-5"></i></a>
+                    <a href="#" class="text-gray-500 hover:text-white transition"><i data-lucide="facebook" class="w-5 h-5"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Navbar Scroll Effect
+        const navbar = document.getElementById('navbar');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                navbar.classList.add('bg-black/80', 'shadow-lg');
+            } else {
+                navbar.classList.remove('bg-black/80', 'shadow-lg');
+            }
+        });
+
+        // Mobile Menu Toggle
+        const btn = document.getElementById('mobile-menu-btn');
+        const menu = document.getElementById('mobile-menu');
+
+        btn.addEventListener('click', () => {
+            menu.classList.toggle('hidden');
+        });
+
+        // Intersection Observer for Scroll Animations
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.reveal').forEach(el => {
+            observer.observe(el);
+        });
+
+        // FAQ Toggle Function
+        function toggleFaq(button) {
+            const content = button.nextElementSibling;
+            const icon = button.querySelector('i');
+            
+            content.classList.toggle('hidden');
+            
+            if (content.classList.contains('hidden')) {
+                icon.style.transform = 'rotate(0deg)';
+                button.classList.remove('text-neonGreen');
+            } else {
+                icon.style.transform = 'rotate(180deg)';
+                button.classList.add('text-neonGreen');
+            }
+        }
+
+        // How It Works Slider Logic
+        let currentStep = 1;
+        const totalSteps = 3;
+        const autoSlideInterval = 4000; // 4 seconds
+        let slideTimer;
+
+        function setStep(step) {
+            currentStep = step;
+            
+            // Reset visuals and triggers
+            document.querySelectorAll('.step-visual').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.step-trigger').forEach(el => el.classList.remove('active'));
+            
+            // Activate current
+            document.getElementById(`visual-${step}`).classList.add('active');
+            document.querySelectorAll('.step-trigger')[step - 1].classList.add('active');
+
+            // Update Progress Bar Height
+            // Using precise percentage based on the number of gaps
+            let height = '0%';
+            if(step === 1) height = '0%';
+            if(step === 2) height = '50%';
+            if(step === 3) height = '100%';
+            
+            document.getElementById('progress-fill').style.height = height;
+
+            // Reset Timer on manual click
+            clearInterval(slideTimer);
+            slideTimer = setInterval(nextStep, autoSlideInterval);
+        }
+
+        function nextStep() {
+            let next = currentStep + 1;
+            if (next > totalSteps) next = 1;
+            setStep(next);
+        }
+
+        // Initialize Slider
+        document.addEventListener('DOMContentLoaded', () => {
+            slideTimer = setInterval(nextStep, autoSlideInterval);
+            // Set initial state
+            document.getElementById('progress-fill').style.height = '0%';
+        });
+
+    </script>
+</body>
+</html>
