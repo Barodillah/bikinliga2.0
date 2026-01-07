@@ -78,7 +78,8 @@ export default function AddPlayer() {
             setFormData(prev => ({ ...prev, team: '', teamId: '', teamLogo: '' }))
 
             try {
-                const response = await fetch('https://api.efootballdb.com/api/2022/competitions')
+                // Use proxy API to avoid CORS issues on Vercel
+                const response = await fetch('/api/teams')
                 const data = await response.json()
 
                 if (data?.data) {
