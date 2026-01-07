@@ -59,8 +59,8 @@ function GroupStage({ groups }) {
                     <CardHeader className="py-3">
                         <h3 className="font-display font-bold text-neonGreen">{group.name}</h3>
                     </CardHeader>
-                    <CardContent className="p-0">
-                        <table className="w-full text-sm">
+                    <CardContent className="p-0 overflow-x-auto">
+                        <table className="w-full text-sm min-w-[400px]">
                             <thead>
                                 <tr className="border-b border-white/10 text-gray-400">
                                     <th className="py-2 px-3 text-left">#</th>
@@ -111,8 +111,8 @@ function GroupStage({ groups }) {
 // Enhanced Bracket for knockout tournaments
 function KnockoutBracket({ rounds }) {
     return (
-        <div className="overflow-x-auto pb-4">
-            <div className="min-w-[800px] flex items-start justify-center gap-4">
+        <div className="overflow-x-auto pb-4 -mx-4 px-4">
+            <div className="min-w-[700px] flex items-start justify-center gap-4">
                 {rounds.map((round, roundIdx) => (
                     <div key={round.name} className="flex flex-col items-center">
                         <div className="text-sm font-medium text-gray-400 mb-4 text-center">
@@ -301,8 +301,8 @@ export default function TournamentDetail() {
                             <h1 className="text-2xl md:text-3xl font-display font-bold">{tournamentData.name}</h1>
                             <div className="flex items-center gap-3 mt-1">
                                 <span className={`text-sm px-2 py-0.5 rounded ${isKnockout ? 'bg-neonPink/20 text-neonPink' :
-                                        isGroupKO ? 'bg-blue-500/20 text-blue-400' :
-                                            'bg-gray-500/20 text-gray-300'
+                                    isGroupKO ? 'bg-blue-500/20 text-blue-400' :
+                                        'bg-gray-500/20 text-gray-300'
                                     }`}>
                                     {tournamentData.type}
                                 </span>
@@ -382,173 +382,175 @@ export default function TournamentDetail() {
                 </div>
             </div>
 
-            {/* Tab Content */}
+            {/* Tab Content - Scrollable on mobile */}
+            <div className="overflow-x-auto">
 
-            {/* Overview - different based on type */}
-            {activeTab === 'overview' && (
-                <div className="grid lg:grid-cols-2 gap-6">
-                    {isLeague && (
-                        <Card hover={false}>
-                            <CardHeader>
-                                <h3 className="font-display font-bold">Klasemen Sementara</h3>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                                <StandingsTable compact />
-                            </CardContent>
-                        </Card>
-                    )}
+                {/* Overview - different based on type */}
+                {activeTab === 'overview' && (
+                    <div className="grid lg:grid-cols-2 gap-6 min-w-[600px] md:min-w-0">
+                        {isLeague && (
+                            <Card hover={false}>
+                                <CardHeader>
+                                    <h3 className="font-display font-bold">Klasemen Sementara</h3>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <StandingsTable compact />
+                                </CardContent>
+                            </Card>
+                        )}
 
-                    {(isKnockout || isGroupKO) && (
-                        <Card hover={false}>
-                            <CardHeader>
-                                <h3 className="font-display font-bold flex items-center gap-2">
-                                    <GitMerge className="w-5 h-5 text-neonPink" />
-                                    Bracket Preview
-                                </h3>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-3">
-                                    <div className="text-sm text-gray-400 mb-2">Semi Finals</div>
-                                    <MatchCard home="Barcelona" away="Real Madrid" homeScore={2} awayScore={1} status="completed" />
-                                    <MatchCard home="Man City" away="Bayern" time="TBD" status="upcoming" />
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
+                        {(isKnockout || isGroupKO) && (
+                            <Card hover={false}>
+                                <CardHeader>
+                                    <h3 className="font-display font-bold flex items-center gap-2">
+                                        <GitMerge className="w-5 h-5 text-neonPink" />
+                                        Bracket Preview
+                                    </h3>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-3">
+                                        <div className="text-sm text-gray-400 mb-2">Semi Finals</div>
+                                        <MatchCard home="Barcelona" away="Real Madrid" homeScore={2} awayScore={1} status="completed" />
+                                        <MatchCard home="Man City" away="Bayern" time="TBD" status="upcoming" />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
 
-                    {isGroupKO && (
-                        <Card hover={false}>
-                            <CardHeader>
-                                <h3 className="font-display font-bold flex items-center gap-2">
-                                    <Grid3X3 className="w-5 h-5 text-blue-400" />
-                                    Group Stage Status
-                                </h3>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {groupsData.slice(0, 4).map(group => (
-                                        <div key={group.name} className="p-3 bg-white/5 rounded-lg">
-                                            <div className="text-sm font-bold text-neonGreen mb-2">{group.name}</div>
-                                            <div className="text-xs text-gray-400">
-                                                {group.teams[0].name} & {group.teams[1].name}
+                        {isGroupKO && (
+                            <Card hover={false}>
+                                <CardHeader>
+                                    <h3 className="font-display font-bold flex items-center gap-2">
+                                        <Grid3X3 className="w-5 h-5 text-blue-400" />
+                                        Group Stage Status
+                                    </h3>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {groupsData.slice(0, 4).map(group => (
+                                            <div key={group.name} className="p-3 bg-white/5 rounded-lg">
+                                                <div className="text-sm font-bold text-neonGreen mb-2">{group.name}</div>
+                                                <div className="text-xs text-gray-400">
+                                                    {group.teams[0].name} & {group.teams[1].name}
+                                                </div>
+                                                <div className="text-xs text-gray-500 mt-1">lolos ke knockout</div>
                                             </div>
-                                            <div className="text-xs text-gray-500 mt-1">lolos ke knockout</div>
-                                        </div>
-                                    ))}
-                                </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        <Card hover={false}>
+                            <CardHeader>
+                                <h3 className="font-display font-bold">Pertandingan Terakhir</h3>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <MatchCard home="FCB" away="MU" homeScore={3} awayScore={1} status="completed" />
+                                <MatchCard home="RMA" away="ARS" homeScore={2} awayScore={2} status="completed" />
+                                <MatchCard home="LIV" away="CHE" homeScore={1} awayScore={0} status="completed" />
                             </CardContent>
                         </Card>
-                    )}
-
-                    <Card hover={false}>
-                        <CardHeader>
-                            <h3 className="font-display font-bold">Pertandingan Terakhir</h3>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <MatchCard home="FCB" away="MU" homeScore={3} awayScore={1} status="completed" />
-                            <MatchCard home="RMA" away="ARS" homeScore={2} awayScore={2} status="completed" />
-                            <MatchCard home="LIV" away="CHE" homeScore={1} awayScore={0} status="completed" />
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
-
-            {/* Standings - Liga only */}
-            {activeTab === 'standings' && isLeague && (
-                <Card hover={false}>
-                    <CardHeader className="flex items-center justify-between">
-                        <h3 className="font-display font-bold">Klasemen Liga</h3>
-                        <Button variant="ghost" size="sm">Export Gambar</Button>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <StandingsTable />
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* Group Stage - Group+KO only */}
-            {activeTab === 'groups' && isGroupKO && (
-                <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                        <h3 className="font-display font-bold text-xl flex items-center gap-2">
-                            <Grid3X3 className="w-6 h-6 text-blue-400" />
-                            Group Stage
-                        </h3>
-                        <div className="text-sm text-gray-400">
-                            Top 2 dari setiap grup lolos ke Knockout Stage
-                        </div>
                     </div>
-                    <GroupStage groups={groupsData} />
-                </div>
-            )}
+                )}
 
-            {/* Bracket - Knockout & Group+KO */}
-            {activeTab === 'bracket' && (isKnockout || isGroupKO) && (
-                <div className="space-y-6">
+                {/* Standings - Liga only */}
+                {activeTab === 'standings' && isLeague && (
                     <Card hover={false}>
                         <CardHeader className="flex items-center justify-between">
-                            <h3 className="font-display font-bold flex items-center gap-2">
-                                <GitMerge className="w-5 h-5 text-neonPink" />
-                                {isGroupKO ? 'Knockout Stage' : 'Tournament Bracket'}
-                            </h3>
+                            <h3 className="font-display font-bold">Klasemen Liga</h3>
                             <Button variant="ghost" size="sm">Export Gambar</Button>
                         </CardHeader>
-                        <CardContent>
-                            <KnockoutBracket rounds={knockoutRounds} />
+                        <CardContent className="p-0">
+                            <StandingsTable />
                         </CardContent>
                     </Card>
-                </div>
-            )}
+                )}
 
-            {/* Fixtures */}
-            {activeTab === 'fixtures' && (
-                <div className="space-y-6">
-                    <Card className="p-4">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-display font-bold">
-                                {isKnockout ? 'Quarter Finals' : isGroupKO ? 'Knockout Round' : 'Matchweek 5'}
+                {/* Group Stage - Group+KO only */}
+                {activeTab === 'groups' && isGroupKO && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-display font-bold text-xl flex items-center gap-2">
+                                <Grid3X3 className="w-6 h-6 text-blue-400" />
+                                Group Stage
                             </h3>
-                            <span className="text-sm text-gray-400">4 pertandingan</span>
+                            <div className="text-sm text-gray-400">
+                                Top 2 dari setiap grup lolos ke Knockout Stage
+                            </div>
                         </div>
-                        <div className="space-y-3">
-                            <MatchCard home="FCB" away="RMA" time="Hari ini, 20:00" status="upcoming" />
-                            <MatchCard home="MU" away="ARS" time="Besok, 19:30" status="upcoming" />
-                            <MatchCard home="LIV" away="CHE" time="Besok, 21:00" status="upcoming" />
-                            <MatchCard home="PSG" away="BAY" time="Sabtu, 20:00" status="upcoming" />
-                        </div>
-                    </Card>
-                </div>
-            )}
+                        <GroupStage groups={groupsData} />
+                    </div>
+                )}
 
-            {/* Players */}
-            {activeTab === 'players' && (
-                <Card hover={false}>
-                    <CardHeader className="flex items-center justify-between">
-                        <h3 className="font-display font-bold">Daftar Pemain</h3>
-                        <Button size="sm">Tambah Pemain</Button>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <div className="divide-y divide-white/5">
-                            {['Barcelona FC', 'Real Madrid', 'Manchester United', 'Arsenal', 'Liverpool', 'Chelsea', 'PSG', 'Bayern Munich'].map((team, i) => (
-                                <div key={team} className="flex items-center justify-between p-4 hover:bg-white/5 transition">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neonGreen/30 to-neonPink/30 flex items-center justify-center font-bold">
-                                            {i + 1}
+                {/* Bracket - Knockout & Group+KO */}
+                {activeTab === 'bracket' && (isKnockout || isGroupKO) && (
+                    <div className="space-y-6">
+                        <Card hover={false}>
+                            <CardHeader className="flex items-center justify-between">
+                                <h3 className="font-display font-bold flex items-center gap-2">
+                                    <GitMerge className="w-5 h-5 text-neonPink" />
+                                    {isGroupKO ? 'Knockout Stage' : 'Tournament Bracket'}
+                                </h3>
+                                <Button variant="ghost" size="sm">Export Gambar</Button>
+                            </CardHeader>
+                            <CardContent>
+                                <KnockoutBracket rounds={knockoutRounds} />
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {/* Fixtures */}
+                {activeTab === 'fixtures' && (
+                    <div className="space-y-6">
+                        <Card className="p-4">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-display font-bold">
+                                    {isKnockout ? 'Quarter Finals' : isGroupKO ? 'Knockout Round' : 'Matchweek 5'}
+                                </h3>
+                                <span className="text-sm text-gray-400">4 pertandingan</span>
+                            </div>
+                            <div className="space-y-3">
+                                <MatchCard home="FCB" away="RMA" time="Hari ini, 20:00" status="upcoming" />
+                                <MatchCard home="MU" away="ARS" time="Besok, 19:30" status="upcoming" />
+                                <MatchCard home="LIV" away="CHE" time="Besok, 21:00" status="upcoming" />
+                                <MatchCard home="PSG" away="BAY" time="Sabtu, 20:00" status="upcoming" />
+                            </div>
+                        </Card>
+                    </div>
+                )}
+
+                {/* Players */}
+                {activeTab === 'players' && (
+                    <Card hover={false}>
+                        <CardHeader className="flex items-center justify-between">
+                            <h3 className="font-display font-bold">Daftar Pemain</h3>
+                            <Button size="sm">Tambah Pemain</Button>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="divide-y divide-white/5">
+                                {['Barcelona FC', 'Real Madrid', 'Manchester United', 'Arsenal', 'Liverpool', 'Chelsea', 'PSG', 'Bayern Munich'].map((team, i) => (
+                                    <div key={team} className="flex items-center justify-between p-4 hover:bg-white/5 transition">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neonGreen/30 to-neonPink/30 flex items-center justify-center font-bold">
+                                                {i + 1}
+                                            </div>
+                                            <div>
+                                                <div className="font-medium">{team}</div>
+                                                <div className="text-xs text-gray-500">Player_{i + 1}</div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <div className="font-medium">{team}</div>
-                                            <div className="text-xs text-gray-500">Player_{i + 1}</div>
-                                        </div>
+                                        <Button variant="ghost" size="sm">
+                                            <Edit className="w-4 h-4" />
+                                        </Button>
                                     </div>
-                                    <Button variant="ghost" size="sm">
-                                        <Edit className="w-4 h-4" />
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
         </div>
     )
 }

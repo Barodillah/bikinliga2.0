@@ -23,8 +23,8 @@ export default function StandingsTable({ compact = false }) {
     }
 
     return (
-        <div className="overflow-x-auto">
-            <table className="w-full">
+        <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+            <table className="w-full min-w-[500px]">
                 <thead>
                     <tr className="border-b border-white/10 text-sm text-gray-400">
                         <th className="py-3 px-3 text-left w-12">#</th>

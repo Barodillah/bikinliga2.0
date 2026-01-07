@@ -8,7 +8,7 @@ import {
 
 const sidebarLinks = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, exact: true },
-    { name: 'Turnamen Saya', href: '/dashboard/tournaments', icon: List },
+    { name: 'Turnamen Saya', href: '/dashboard/tournaments', icon: List, exact: true },
     { name: 'Buat Turnamen', href: '/dashboard/tournaments/new', icon: Plus },
 ]
 
@@ -81,7 +81,7 @@ export default function DashboardLayout() {
             )}
 
             {/* Sidebar - Mobile */}
-            <aside className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-cardBg border-r border-white/10 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <aside className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-cardBg border-r border-white/10 transform transition-transform duration-300 flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="h-16 flex items-center justify-between px-6 border-b border-white/10">
                     <div className="flex items-center gap-2">
                         <Trophy className="w-6 h-6 text-neonGreen" />
@@ -93,7 +93,7 @@ export default function DashboardLayout() {
                         <X className="w-5 h-5" />
                     </button>
                 </div>
-                <nav className="p-4 space-y-2">
+                <nav className="flex-1 p-4 space-y-2">
                     {sidebarLinks.map((link) => (
                         <NavLink
                             key={link.href}
@@ -112,6 +112,25 @@ export default function DashboardLayout() {
                         </NavLink>
                     ))}
                 </nav>
+                {/* Bottom Actions - Mobile */}
+                <div className="p-4 border-t border-white/10 space-y-2">
+                    <Link
+                        to="#"
+                        onClick={() => setSidebarOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white transition"
+                    >
+                        <Settings className="w-5 h-5" />
+                        Pengaturan
+                    </Link>
+                    <Link
+                        to="/"
+                        onClick={() => setSidebarOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-red-400 transition"
+                    >
+                        <LogOut className="w-5 h-5" />
+                        Keluar
+                    </Link>
+                </div>
             </aside>
 
             {/* Main Content */}
