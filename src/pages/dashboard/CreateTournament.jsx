@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Trophy, Users, Calendar, ArrowLeft, ArrowRight, Check } from 'lucide-react'
+import { Trophy, Users, Calendar, ArrowLeft, ArrowRight, Check, Image, Upload, Link, Loader2 } from 'lucide-react'
 import Card, { CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
@@ -18,17 +18,129 @@ const pointSystems = [
     { value: '3-0', label: '3-0 (No Draw)' },
 ]
 
+// League options for logo selection (2025 Update)
+const leagueOptions = [
+    { value: '', label: 'Pilih Liga untuk Logo...' },
+    { value: '全国都道府県対抗eスポーツ選手権 2024 SAGA', label: '全国都道府県対抗eスポーツ選手権 2024 SAGA' },
+    { value: 'English League', label: 'English League' },
+    { value: 'Lega Italia', label: 'Lega Italia' },
+    { value: 'Spanish League', label: 'Spanish League' },
+    { value: "Ligue 1 McDonald's", label: "Ligue 1 McDonald's" },
+    { value: 'VriendenLoterij Eredivisie', label: 'VriendenLoterij Eredivisie' },
+    { value: 'Liga Portugal Betclic', label: 'Liga Portugal Betclic' },
+    { value: 'European Cup', label: 'European Cup' },
+    { value: 'English 2nd Division', label: 'English 2nd Division' },
+    { value: 'Spanish 2nd Division', label: 'Spanish 2nd Division' },
+    { value: 'Ligue 2 BKT', label: 'Ligue 2 BKT' },
+    { value: 'Italian 2nd Division', label: 'Italian 2nd Division' },
+    { value: 'Swiss League', label: 'Swiss League' },
+    { value: 'Trendyol Süper Lig', label: 'Trendyol Süper Lig' },
+    { value: 'Scottish Premiership', label: 'Scottish Premiership' },
+    { value: 'Danish League', label: 'Danish League' },
+    { value: 'Belgian League', label: 'Belgian League' },
+    { value: 'AFC Champions League Elite™', label: 'AFC Champions League Elite™' },
+    { value: 'AFC Asian Qualifiers™', label: 'AFC Asian Qualifiers™' },
+    { value: 'MEIJI YASUDA J1 LEAGUE', label: 'MEIJI YASUDA J1 LEAGUE' },
+    { value: 'MEIJI YASUDA J2 LEAGUE', label: 'MEIJI YASUDA J2 LEAGUE' },
+    { value: 'BYD SEALION 6 LEAGUE 1', label: 'BYD SEALION 6 LEAGUE 1' },
+    { value: 'Korean League', label: 'Korean League' },
+    { value: 'AFC Champions League Two™', label: 'AFC Champions League Two™' },
+    { value: 'Brazilian League', label: 'Brazilian League' },
+    { value: 'Argentine League', label: 'Argentine League' },
+    { value: 'American Cup', label: 'American Cup' },
+    { value: 'Chilean League', label: 'Chilean League' },
+    { value: 'Colombian League', label: 'Colombian League' },
+    { value: 'Brazilian 2nd Division', label: 'Brazilian 2nd Division' },
+    { value: 'CAF AFRICA CUP OF NATIONS 25', label: 'CAF AFRICA CUP OF NATIONS 25' },
+    { value: 'American League', label: 'American League' },
+]
+
 export default function CreateTournament() {
     const navigate = useNavigate()
     const [step, setStep] = useState(1)
     const [formData, setFormData] = useState({
         name: '',
+        logo: '',
+        logoType: 'preset', // 'preset', 'upload', 'url'
         type: 'league',
         playerCount: 8,
         pointSystem: '3-1-0',
         homeAway: true,
         description: ''
     })
+
+    // Logo states
+    const [selectedLeague, setSelectedLeague] = useState('')
+    const [competitions, setCompetitions] = useState([])
+    const [loadingLogos, setLoadingLogos] = useState(false)
+    const [logoUrl, setLogoUrl] = useState('')
+    const fileInputRef = useRef(null)
+
+    // Fetch competitions for logo selection
+    useEffect(() => {
+        const fetchCompetitions = async () => {
+            setLoadingLogos(true)
+            try {
+                const response = await fetch('/api/teams')
+                const data = await response.json()
+                if (data?.data) {
+                    // Extract unique competitions with logos
+                    const comps = []
+                    data.data.forEach(entry => {
+                        entry.entries?.forEach(teamEntry => {
+                            teamEntry.team?.competitions?.forEach(comp => {
+                                const compData = comp.competition
+                                if (compData && !comps.find(c => c.id === compData.id)) {
+                                    comps.push({
+                                        id: compData.id,
+                                        name: compData.competition_name,
+                                        logo: compData.competition_logo_url || `https://api.efootballdb.com/assets/2022/competitions/${String(compData.id).padStart(6, '0')}.png.webp`
+                                    })
+                                }
+                            })
+                        })
+                    })
+                    setCompetitions(comps)
+                }
+            } catch (err) {
+                console.error('Error fetching competitions:', err)
+            } finally {
+                setLoadingLogos(false)
+            }
+        }
+        fetchCompetitions()
+    }, [])
+
+    // Handle league selection for preset logo
+    const handleLeagueLogoSelect = (leagueName) => {
+        setSelectedLeague(leagueName)
+        const comp = competitions.find(c => c.name === leagueName)
+        if (comp) {
+            setFormData(prev => ({ ...prev, logo: comp.logo, logoType: 'preset' }))
+        }
+    }
+
+    // Handle file upload
+    const handleFileUpload = (e) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Hanya file gambar yang diperbolehkan!')
+                return
+            }
+            const reader = new FileReader()
+            reader.onload = (event) => {
+                setFormData(prev => ({ ...prev, logo: event.target.result, logoType: 'upload' }))
+            }
+            reader.readAsDataURL(file)
+        }
+    }
+
+    // Handle URL input
+    const handleUrlInput = (url) => {
+        setLogoUrl(url)
+        setFormData(prev => ({ ...prev, logo: url, logoType: 'url' }))
+    }
 
     const handleChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }))
@@ -61,8 +173,8 @@ export default function CreateTournament() {
                 {[1, 2, 3].map((s) => (
                     <div key={s} className="flex items-center">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition ${step >= s
-                                ? 'bg-neonGreen text-black'
-                                : 'bg-white/10 text-gray-500'
+                            ? 'bg-neonGreen text-black'
+                            : 'bg-white/10 text-gray-500'
                             }`}>
                             {step > s ? <Check className="w-5 h-5" /> : s}
                         </div>
@@ -91,6 +203,135 @@ export default function CreateTournament() {
                                 required
                             />
 
+                            {/* Logo Selection */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <Image className="w-4 h-4 text-neonPink" />
+                                        Logo Turnamen
+                                    </div>
+                                </label>
+
+                                {/* Logo Type Tabs */}
+                                <div className="flex gap-2 mb-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleChange('logoType', 'preset')}
+                                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2 ${formData.logoType === 'preset'
+                                            ? 'bg-neonGreen/20 text-neonGreen border border-neonGreen/50'
+                                            : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/30'
+                                            }`}
+                                    >
+                                        <Trophy className="w-4 h-4" />
+                                        Liga
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleChange('logoType', 'upload')}
+                                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2 ${formData.logoType === 'upload'
+                                            ? 'bg-neonGreen/20 text-neonGreen border border-neonGreen/50'
+                                            : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/30'
+                                            }`}
+                                    >
+                                        <Upload className="w-4 h-4" />
+                                        Upload
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleChange('logoType', 'url')}
+                                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2 ${formData.logoType === 'url'
+                                            ? 'bg-neonGreen/20 text-neonGreen border border-neonGreen/50'
+                                            : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/30'
+                                            }`}
+                                    >
+                                        <Link className="w-4 h-4" />
+                                        URL
+                                    </button>
+                                </div>
+
+                                {/* Preset Logo Selection */}
+                                {formData.logoType === 'preset' && (
+                                    <div className="space-y-3">
+                                        <Select
+                                            options={leagueOptions}
+                                            value={selectedLeague}
+                                            onChange={(e) => handleLeagueLogoSelect(e.target.value)}
+                                        />
+                                        {loadingLogos && (
+                                            <div className="flex items-center gap-2 text-gray-400 text-sm">
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Memuat logo liga...
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Upload Logo */}
+                                {formData.logoType === 'upload' && (
+                                    <div
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center cursor-pointer hover:border-neonGreen/50 transition"
+                                    >
+                                        <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                                        <p className="text-sm text-gray-400">
+                                            Klik untuk upload gambar
+                                        </p>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Format: JPG, PNG, GIF, WebP
+                                        </p>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleFileUpload}
+                                            className="hidden"
+                                        />
+                                    </div>
+                                )}
+
+                                {/* URL Input */}
+                                {formData.logoType === 'url' && (
+                                    <Input
+                                        placeholder="https://example.com/logo.png"
+                                        value={logoUrl}
+                                        onChange={(e) => handleUrlInput(e.target.value)}
+                                    />
+                                )}
+
+                                {/* Logo Preview */}
+                                {formData.logo && (
+                                    <div className="mt-4 flex items-center gap-4 p-4 bg-white/5 rounded-lg border border-white/10">
+                                        <img
+                                            src={formData.logo}
+                                            alt="Logo Preview"
+                                            className="w-16 h-16 object-contain rounded-lg bg-white/10 p-2"
+                                            onError={(e) => {
+                                                e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🏆</text></svg>'
+                                            }}
+                                        />
+                                        <div>
+                                            <p className="text-sm font-medium text-white">Preview Logo</p>
+                                            <p className="text-xs text-gray-500">
+                                                {formData.logoType === 'preset' && 'Logo dari Liga'}
+                                                {formData.logoType === 'upload' && 'Logo dari Upload'}
+                                                {formData.logoType === 'url' && 'Logo dari URL'}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setFormData(prev => ({ ...prev, logo: '' }))
+                                                    setSelectedLeague('')
+                                                    setLogoUrl('')
+                                                }}
+                                                className="text-xs text-red-400 hover:text-red-300 mt-1"
+                                            >
+                                                Hapus Logo
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-3">Jenis Kompetisi</label>
                                 <div className="grid gap-3">
@@ -98,8 +339,8 @@ export default function CreateTournament() {
                                         <label
                                             key={type.value}
                                             className={`p-4 rounded-lg border cursor-pointer transition ${formData.type === type.value
-                                                    ? 'border-neonGreen bg-neonGreen/10'
-                                                    : 'border-white/10 hover:border-white/30'
+                                                ? 'border-neonGreen bg-neonGreen/10'
+                                                : 'border-white/10 hover:border-white/30'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-3">
@@ -161,8 +402,8 @@ export default function CreateTournament() {
                                             type="button"
                                             onClick={() => handleChange('playerCount', num)}
                                             className={`py-3 rounded-lg border text-center font-bold transition ${formData.playerCount === num
-                                                    ? 'border-neonGreen bg-neonGreen/10 text-neonGreen'
-                                                    : 'border-white/10 hover:border-white/30'
+                                                ? 'border-neonGreen bg-neonGreen/10 text-neonGreen'
+                                                : 'border-white/10 hover:border-white/30'
                                                 }`}
                                         >
                                             {num}
@@ -213,10 +454,28 @@ export default function CreateTournament() {
                         </h2>
 
                         <div className="space-y-4 mb-8">
-                            <div className="p-4 bg-white/5 rounded-lg">
-                                <div className="text-sm text-gray-500 mb-1">Nama Turnamen</div>
-                                <div className="font-bold text-lg">{formData.name || '-'}</div>
+                            {/* Logo & Name Preview */}
+                            <div className="p-4 bg-white/5 rounded-lg flex items-center gap-4">
+                                {formData.logo ? (
+                                    <img
+                                        src={formData.logo}
+                                        alt="Tournament Logo"
+                                        className="w-14 h-14 object-contain rounded-lg bg-white/10 p-2"
+                                        onError={(e) => {
+                                            e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🏆</text></svg>'
+                                        }}
+                                    />
+                                ) : (
+                                    <div className="w-14 h-14 rounded-lg bg-white/10 flex items-center justify-center">
+                                        <Trophy className="w-6 h-6 text-gray-500" />
+                                    </div>
+                                )}
+                                <div>
+                                    <div className="text-sm text-gray-500 mb-1">Nama Turnamen</div>
+                                    <div className="font-bold text-lg">{formData.name || '-'}</div>
+                                </div>
                             </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="p-4 bg-white/5 rounded-lg">
                                     <div className="text-sm text-gray-500 mb-1">Jenis</div>
@@ -261,3 +520,4 @@ export default function CreateTournament() {
         </div>
     )
 }
+
