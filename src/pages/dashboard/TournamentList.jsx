@@ -9,8 +9,8 @@ import Input from '../../components/ui/Input'
 const tournaments = [
     { id: 1, name: 'Warkop Cup Season 5', type: 'Liga', players: 16, matches: 12, status: 'active', startDate: '2024-01-15', progress: 65 },
     { id: 2, name: 'Ramadhan Cup 2024', type: 'Knockout', players: 32, matches: 31, status: 'completed', startDate: '2024-03-10', progress: 100 },
-    { id: 3, name: 'Sunday League', type: 'Liga', players: 8, matches: 4, status: 'active', startDate: '2024-02-01', progress: 35 },
-    { id: 4, name: 'Merdeka Tournament', type: 'Group+KO', players: 24, matches: 0, status: 'draft', startDate: '2024-08-17', progress: 0 },
+    { id: 3, name: 'Sunday League', type: 'Group+KO', players: 8, matches: 4, status: 'active', startDate: '2024-02-01', progress: 35 },
+    { id: 4, name: 'Merdeka Tournament', type: 'Liga', players: 24, matches: 0, status: 'draft', startDate: '2024-08-17', progress: 0 },
     { id: 5, name: 'Weekend Warriors', type: 'Liga', players: 12, matches: 22, status: 'completed', startDate: '2023-12-01', progress: 100 },
 ]
 
