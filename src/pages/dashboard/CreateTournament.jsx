@@ -76,12 +76,10 @@ export default function CreateTournament() {
     const [logoUrl, setLogoUrl] = useState('')
     const fileInputRef = useRef(null)
 
-    // Helper to generate logo URL based on ID
+    // Helper to generate logo URL based on ID (Updated to match PHP logic)
     const getLogoUrl = (id) => {
-        const idNum = parseInt(id)
-        const folder1 = Math.floor(idNum / 65536)
-        const folder2 = Math.floor((idNum % 65536) / 256)
-        return `https://api.efootballdb.com/assets/2022/competitions/${folder1}/${folder2}/${idNum}.png`
+        const paddedId = String(id).padStart(4, '0')
+        return `https://api.efootballdb.com/assets/2022/competitions/emb_${paddedId}_f_l.png.webp`
     }
 
     // Fetch competitions for logo selection
