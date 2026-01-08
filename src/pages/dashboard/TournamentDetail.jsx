@@ -45,52 +45,212 @@ const getTournamentData = (id) => {
             startDate: '2024-02-01',
             description: 'Group stage + knockout format',
             shareLink: 'bikinliga.com/t/sunday-league'
-        },
-        '4': {
-            id: 4,
-            name: 'Merdeka Tournament',
-            type: 'Liga',
-            status: 'draft',
-            players: 24,
-            matches: 0,
-            completed: 0,
-            startDate: '2024-08-17',
-            description: 'Turnamen kemerdekaan (Draft Mode)',
-            shareLink: 'bikinliga.com/t/merdeka-cup'
         }
     }
     return tournaments[id] || tournaments['1']
 }
 
-// ... existing components ...
+// Group Stage Component
+function GroupStage({ groups }) {
+    return (
+        <div className="grid md:grid-cols-2 gap-6">
+            {groups.map((group) => (
+                <Card key={group.name} hover={false}>
+                    <CardHeader className="py-3">
+                        <h3 className="font-display font-bold text-neonGreen">{group.name}</h3>
+                    </CardHeader>
+                    <CardContent className="p-0 overflow-x-auto">
+                        <table className="w-full text-sm" style={{ minWidth: '350px' }}>
+                            <thead>
+                                <tr className="border-b border-white/10 text-gray-400">
+                                    <th className="py-2 px-3 text-left">#</th>
+                                    <th className="py-2 px-3 text-left">Tim</th>
+                                    <th className="py-2 px-3 text-center">P</th>
+                                    <th className="py-2 px-3 text-center">W</th>
+                                    <th className="py-2 px-3 text-center">D</th>
+                                    <th className="py-2 px-3 text-center">L</th>
+                                    <th className="py-2 px-3 text-center">GD</th>
+                                    <th className="py-2 px-3 text-center">Pts</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {group.teams.map((team, i) => (
+                                    <tr key={team.name} className={`border-b border-white/5 ${i < 2 ? 'bg-neonGreen/5' : ''}`}>
+                                        <td className="py-2 px-3">
+                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${i < 2 ? 'bg-neonGreen text-black' : 'bg-white/10'
+                                                }`}>
+                                                {i + 1}
+                                            </div>
+                                        </td>
+                                        <td className="py-2 px-3 font-medium">{team.name}</td>
+                                        <td className="py-2 px-3 text-center text-gray-400">{team.played}</td>
+                                        <td className="py-2 px-3 text-center text-neonGreen">{team.won}</td>
+                                        <td className="py-2 px-3 text-center text-yellow-400">{team.drawn}</td>
+                                        <td className="py-2 px-3 text-center text-red-400">{team.lost}</td>
+                                        <td className="py-2 px-3 text-center">
+                                            <span className={team.gd > 0 ? 'text-neonGreen' : team.gd < 0 ? 'text-red-400' : ''}>
+                                                {team.gd > 0 ? '+' : ''}{team.gd}
+                                            </span>
+                                        </td>
+                                        <td className="py-2 px-3 text-center font-display font-bold">{team.pts}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <div className="p-2 text-xs text-gray-500 flex items-center gap-2">
+                            <div className="w-3 h-3 rounded bg-neonGreen/30"></div>
+                            Lolos ke Knockout Stage
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+        </div>
+    )
+}
+
+// Enhanced Bracket for knockout tournaments
+function KnockoutBracket({ rounds }) {
+    return (
+        <div className="w-full overflow-x-auto pb-4">
+            <div className="inline-flex items-start justify-start gap-4 p-4" style={{ minWidth: '700px' }}>
+                {rounds.map((round, roundIdx) => (
+                    <div key={round.name} className="flex flex-col items-center">
+                        <div className="text-sm font-medium text-gray-400 mb-4 text-center">
+                            {round.name}
+                        </div>
+                        <div className="space-y-4" style={{ marginTop: roundIdx * 40 }}>
+                            {round.matches.map((match) => (
+                                <div
+                                    key={match.id}
+                                    className={`w-48 bg-cardBg border rounded-lg overflow-hidden ${round.name === 'Final' ? 'border-yellow-500/50' : 'border-white/10'
+                                        }`}
+                                >
+                                    <div className={`flex items-center justify-between p-2 border-b border-white/5 ${match.homeWin ? 'bg-neonGreen/10' : ''
+                                        }`}>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded bg-blue-500/30 flex items-center justify-center text-xs font-bold">
+                                                {match.home?.charAt(0) || '?'}
+                                            </div>
+                                            <span className={`text-sm ${match.homeWin ? 'font-bold text-neonGreen' : ''}`}>
+                                                {match.home || 'TBD'}
+                                            </span>
+                                        </div>
+                                        <span className={`font-display font-bold ${match.homeWin ? 'text-neonGreen' : 'text-gray-400'}`}>
+                                            {match.homeScore ?? '-'}
+                                        </span>
+                                    </div>
+                                    <div className={`flex items-center justify-between p-2 ${match.awayWin ? 'bg-neonGreen/10' : ''
+                                        }`}>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded bg-red-500/30 flex items-center justify-center text-xs font-bold">
+                                                {match.away?.charAt(0) || '?'}
+                                            </div>
+                                            <span className={`text-sm ${match.awayWin ? 'font-bold text-neonGreen' : ''}`}>
+                                                {match.away || 'TBD'}
+                                            </span>
+                                        </div>
+                                        <span className={`font-display font-bold ${match.awayWin ? 'text-neonGreen' : 'text-gray-400'}`}>
+                                            {match.awayScore ?? '-'}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+
+                {/* Champion */}
+                <div className="flex flex-col items-center" style={{ marginTop: 80 }}>
+                    <div className="text-sm font-medium text-yellow-400 mb-4">🏆 Juara</div>
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center">
+                        <Trophy className="w-10 h-10 text-white" />
+                    </div>
+                    <div className="mt-2 text-center font-display font-bold">TBD</div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+// Sample group stage data
+const groupsData = [
+    {
+        name: 'Group A',
+        teams: [
+            { name: 'Barcelona', played: 3, won: 3, drawn: 0, lost: 0, gd: 7, pts: 9 },
+            { name: 'Arsenal', played: 3, won: 2, drawn: 0, lost: 1, gd: 2, pts: 6 },
+            { name: 'PSG', played: 3, won: 1, drawn: 0, lost: 2, gd: -3, pts: 3 },
+            { name: 'Ajax', played: 3, won: 0, drawn: 0, lost: 3, gd: -6, pts: 0 },
+        ]
+    },
+    {
+        name: 'Group B',
+        teams: [
+            { name: 'Real Madrid', played: 3, won: 2, drawn: 1, lost: 0, gd: 5, pts: 7 },
+            { name: 'Liverpool', played: 3, won: 2, drawn: 0, lost: 1, gd: 3, pts: 6 },
+            { name: 'Juventus', played: 3, won: 1, drawn: 0, lost: 2, gd: -2, pts: 3 },
+            { name: 'Porto', played: 3, won: 0, drawn: 1, lost: 2, gd: -6, pts: 1 },
+        ]
+    },
+    {
+        name: 'Group C',
+        teams: [
+            { name: 'Man United', played: 3, won: 2, drawn: 1, lost: 0, gd: 4, pts: 7 },
+            { name: 'Bayern', played: 3, won: 2, drawn: 1, lost: 0, gd: 3, pts: 7 },
+            { name: 'Inter', played: 3, won: 1, drawn: 0, lost: 2, gd: -1, pts: 3 },
+            { name: 'Benfica', played: 3, won: 0, drawn: 0, lost: 3, gd: -6, pts: 0 },
+        ]
+    },
+    {
+        name: 'Group D',
+        teams: [
+            { name: 'Man City', played: 3, won: 3, drawn: 0, lost: 0, gd: 8, pts: 9 },
+            { name: 'Chelsea', played: 3, won: 1, drawn: 1, lost: 1, gd: 1, pts: 4 },
+            { name: 'Dortmund', played: 3, won: 1, drawn: 1, lost: 1, gd: 0, pts: 4 },
+            { name: 'Napoli', played: 3, won: 0, drawn: 0, lost: 3, gd: -9, pts: 0 },
+        ]
+    }
+]
+
+// Sample knockout bracket data
+const knockoutRounds = [
+    {
+        name: 'Quarter Finals',
+        matches: [
+            { id: 1, home: 'Barcelona', away: 'Liverpool', homeScore: 3, awayScore: 1, homeWin: true },
+            { id: 2, home: 'Real Madrid', away: 'Arsenal', homeScore: 2, awayScore: 2, pen: '4-3', homeWin: true },
+            { id: 3, home: 'Man United', away: 'Man City', homeScore: 1, awayScore: 2, awayWin: true },
+            { id: 4, home: 'Bayern', away: 'Chelsea', homeScore: 3, awayScore: 0, homeWin: true },
+        ]
+    },
+    {
+        name: 'Semi Finals',
+        matches: [
+            { id: 5, home: 'Barcelona', away: 'Real Madrid', homeScore: 2, awayScore: 1, homeWin: true },
+            { id: 6, home: 'Man City', away: 'Bayern', homeScore: null, awayScore: null },
+        ]
+    },
+    {
+        name: 'Final',
+        matches: [
+            { id: 7, home: 'Barcelona', away: null, homeScore: null, awayScore: null },
+        ]
+    },
+]
 
 export default function TournamentDetail() {
     const { id } = useParams()
     const navigate = useNavigate()
+    const [activeTab, setActiveTab] = useState('overview')
+    const [copied, setCopied] = useState(false)
 
-    // Get data
     const tournamentData = getTournamentData(id)
     const isKnockout = tournamentData.type === 'Knockout'
     const isGroupKO = tournamentData.type === 'Group+KO'
     const isLeague = tournamentData.type === 'Liga'
 
-    // Check if draft
-    const isDraft = tournamentData.status === 'draft'
-
-    // Initialize state - default to 'players' if draft
-    const [activeTab, setActiveTab] = useState(isDraft ? 'players' : 'overview')
-    const [copied, setCopied] = useState(false)
-
-    // Dynamic tabs based on tournament type and status
+    // Dynamic tabs based on tournament type
     const getTabs = () => {
-        // If draft, only show Overview and Players
-        if (isDraft) {
-            return [
-                { id: 'overview', label: 'Overview', icon: Trophy },
-                { id: 'players', label: 'Pemain', icon: Users }
-            ]
-        }
-
         const baseTabs = [
             { id: 'overview', label: 'Overview', icon: Trophy },
         ]
@@ -180,47 +340,29 @@ export default function TournamentDetail() {
                 </div>
             </Card>
 
-            {/* Quick Stats - always 2x2 grid (Hidden in Draft) */}
-            {!isDraft && (
-                <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                    <Card className="p-3 sm:p-4 text-center">
-                        <Users className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-neonPink" />
-                        <div className="text-xl sm:text-2xl font-display font-bold">{tournamentData.players}</div>
-                        <div className="text-xs text-gray-500">Pemain</div>
-                    </Card>
-                    <Card className="p-3 sm:p-4 text-center">
-                        <Calendar className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-blue-400" />
-                        <div className="text-xl sm:text-2xl font-display font-bold">{tournamentData.matches}</div>
-                        <div className="text-xs text-gray-500">Total Match</div>
-                    </Card>
-                    <Card className="p-3 sm:p-4 text-center">
-                        <BarChart2 className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-neonGreen" />
-                        <div className="text-xl sm:text-2xl font-display font-bold">{tournamentData.completed}</div>
-                        <div className="text-xs text-gray-500">Selesai</div>
-                    </Card>
-                    <Card className="p-3 sm:p-4 text-center">
-                        <Trophy className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-yellow-400" />
-                        <div className="text-xl sm:text-2xl font-display font-bold">{Math.round((tournamentData.completed / tournamentData.matches) * 100)}%</div>
-                        <div className="text-xs text-gray-500">Progress</div>
-                    </Card>
-                </div>
-            )}
-
-            {/* Draft Mode Notice */}
-            {isDraft && (
-                <Card className="p-6 text-center border-yellow-500/20 bg-yellow-500/5">
-                    <div className="w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-3">
-                        <Settings className="w-6 h-6 text-yellow-500" />
-                    </div>
-                    <h3 className="font-display font-bold text-lg text-yellow-500 mb-2">Turnamen dalam Mode Draft</h3>
-                    <p className="text-gray-400 text-sm max-w-sm mx-auto mb-4">
-                        Tambahkan pemain dan atur jadwal pertandingan untuk memulai turnamen ini.
-                    </p>
-                    <Button onClick={() => setActiveTab('players')} size="sm">
-                        Kelola Pemain
-                    </Button>
+            {/* Quick Stats - always 2x2 grid */}
+            <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                <Card className="p-3 sm:p-4 text-center">
+                    <Users className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-neonPink" />
+                    <div className="text-xl sm:text-2xl font-display font-bold">{tournamentData.players}</div>
+                    <div className="text-xs text-gray-500">Pemain</div>
                 </Card>
-            )}
+                <Card className="p-3 sm:p-4 text-center">
+                    <Calendar className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-blue-400" />
+                    <div className="text-xl sm:text-2xl font-display font-bold">{tournamentData.matches}</div>
+                    <div className="text-xs text-gray-500">Total Match</div>
+                </Card>
+                <Card className="p-3 sm:p-4 text-center">
+                    <BarChart2 className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-neonGreen" />
+                    <div className="text-xl sm:text-2xl font-display font-bold">{tournamentData.completed}</div>
+                    <div className="text-xs text-gray-500">Selesai</div>
+                </Card>
+                <Card className="p-3 sm:p-4 text-center">
+                    <Trophy className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-yellow-400" />
+                    <div className="text-xl sm:text-2xl font-display font-bold">{Math.round((tournamentData.completed / tournamentData.matches) * 100)}%</div>
+                    <div className="text-xs text-gray-500">Progress</div>
+                </Card>
+            </div>
 
             {/* Tabs */}
             <div className="border-b border-white/10 -mx-4 px-4 lg:mx-0 lg:px-0">

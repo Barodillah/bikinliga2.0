@@ -18,42 +18,8 @@ const pointSystems = [
     { value: '3-0', label: '3-0 (No Draw)' },
 ]
 
-// League options for logo selection (2025 Update)
-const leagueOptions = [
-    { value: '', label: 'Pilih Liga untuk Logo...' },
-    { value: '全国都道府県対抗eスポーツ選手権 2024 SAGA', label: '全国都道府県対抗eスポーツ選手権 2024 SAGA' },
-    { value: 'English League', label: 'English League' },
-    { value: 'Lega Italia', label: 'Lega Italia' },
-    { value: 'Spanish League', label: 'Spanish League' },
-    { value: "Ligue 1 McDonald’s", label: "Ligue 1 McDonald's" },
-    { value: 'VriendenLoterij Eredivisie', label: 'VriendenLoterij Eredivisie' },
-    { value: 'Liga Portugal Betclic', label: 'Liga Portugal Betclic' },
-    { value: 'European Cup', label: 'European Cup' },
-    { value: 'English 2nd Division', label: 'English 2nd Division' },
-    { value: 'Spanish 2nd Division', label: 'Spanish 2nd Division' },
-    { value: 'Ligue 2 BKT', label: 'Ligue 2 BKT' },
-    { value: 'Italian 2nd Division', label: 'Italian 2nd Division' },
-    { value: 'Swiss League', label: 'Swiss League' },
-    { value: 'Trendyol Süper Lig', label: 'Trendyol Süper Lig' },
-    { value: 'Scottish Premiership', label: 'Scottish Premiership' },
-    { value: 'Danish League', label: 'Danish League' },
-    { value: 'Belgian League', label: 'Belgian League' },
-    { value: 'AFC Champions League Elite™', label: 'AFC Champions League Elite™' },
-    { value: 'AFC Asian Qualifiers™', label: 'AFC Asian Qualifiers™' },
-    { value: 'MEIJI YASUDA J1 LEAGUE', label: 'MEIJI YASUDA J1 LEAGUE' },
-    { value: 'MEIJI YASUDA J2 LEAGUE', label: 'MEIJI YASUDA J2 LEAGUE' },
-    { value: 'BYD SEALION 6 LEAGUE 1', label: 'BYD SEALION 6 LEAGUE 1' },
-    { value: 'Korean League', label: 'Korean League' },
-    { value: 'AFC Champions League Two™', label: 'AFC Champions League Two™' },
-    { value: 'Brazilian League', label: 'Brazilian League' },
-    { value: 'Argentine League', label: 'Argentine League' },
-    { value: 'American Cup', label: 'American Cup' },
-    { value: 'Chilean League', label: 'Chilean League' },
-    { value: 'Colombian League', label: 'Colombian League' },
-    { value: 'Brazilian 2nd Division', label: 'Brazilian 2nd Division' },
-    { value: 'CAF AFRICA CUP OF NATIONS 25', label: 'CAF AFRICA CUP OF NATIONS 25' },
-    { value: 'American League', label: 'American League' },
-]
+// API-Sports.io configuration
+const API_SPORTS_KEY = "49b9fe3ec72917be10caaa5aa2ec161124c14382"
 
 export default function CreateTournament() {
     const navigate = useNavigate()
@@ -71,70 +37,75 @@ export default function CreateTournament() {
 
     // Logo states
     const [selectedLeague, setSelectedLeague] = useState('')
-    const [competitions, setCompetitions] = useState([])
+    const [leagues, setLeagues] = useState([])
+    const [leagueOptions, setLeagueOptions] = useState([{ value: '', label: 'Pilih Liga untuk Logo...' }])
     const [loadingLogos, setLoadingLogos] = useState(false)
     const [logoUrl, setLogoUrl] = useState('')
     const fileInputRef = useRef(null)
 
-    // Helper to generate logo URL based on ID (Consistent with PHP logic)
-    const getLogoUrl = (id) => {
-        const paddedId = String(id).padStart(4, '0')
-        return `https://api.efootballdb.com/assets/2022/competitions/emb_${paddedId}_f_l.png.webp`
+    // Helper to generate logo URL based on league ID from api-sports.io
+    const getLogoUrl = (leagueId) => {
+        return `https://media.api-sports.io/football/leagues/${leagueId}.png`
     }
 
-    // Fetch competitions for logo selection
+    // Fetch leagues from api-sports.io
     useEffect(() => {
-        const fetchCompetitions = async () => {
+        const fetchLeagues = async () => {
             setLoadingLogos(true)
             try {
-                const response = await fetch('/api/teams')
+                const response = await fetch("https://v3.football.api-sports.io/leagues", {
+                    method: 'GET',
+                    headers: {
+                        "x-apisports-key": API_SPORTS_KEY
+                    },
+                    redirect: 'follow'
+                })
                 const data = await response.json()
-                if (data?.data) {
-                    // Extract unique competitions with logos
-                    const comps = []
-                    data.data.forEach(entry => {
-                        entry.entries?.forEach(teamEntry => {
-                            teamEntry.team?.competitions?.forEach(comp => {
-                                const compData = comp.competition
 
-                                // Use pes_id if available, otherwise fallback to id
-                                const compId = compData.pes_id || compData.id
+                if (data?.response) {
+                    // Extract leagues with their IDs and logos
+                    const leaguesData = data.response.map(item => ({
+                        id: item.league.id,
+                        name: item.league.name,
+                        country: item.country?.name || 'International',
+                        logo: getLogoUrl(item.league.id)
+                    }))
 
-                                if (compData && !comps.find(c => c.id === compId)) {
-                                    comps.push({
-                                        id: compId,
-                                        name: compData.competition_name,
-                                        // Generate logo URL using the specific format requested
-                                        logo: getLogoUrl(compId)
-                                    })
-                                }
-                            })
-                        })
+                    // Sort by country then name
+                    leaguesData.sort((a, b) => {
+                        if (a.country !== b.country) return a.country.localeCompare(b.country)
+                        return a.name.localeCompare(b.name)
                     })
-                    setCompetitions(comps)
+
+                    setLeagues(leaguesData)
+
+                    // Create options for select dropdown
+                    const options = [
+                        { value: '', label: 'Pilih Liga untuk Logo...' },
+                        ...leaguesData.map(league => ({
+                            value: league.id.toString(),
+                            label: `${league.name} (${league.country})`
+                        }))
+                    ]
+                    setLeagueOptions(options)
                 }
             } catch (err) {
-                console.error('Error fetching competitions:', err)
+                console.error('Error fetching leagues:', err)
             } finally {
                 setLoadingLogos(false)
             }
         }
-        fetchCompetitions()
+        fetchLeagues()
     }, [])
 
     // Handle league selection for preset logo
-    const handleLeagueLogoSelect = (leagueName) => {
-        setSelectedLeague(leagueName)
-        const comp = competitions.find(c => c.name === leagueName)
-        if (comp) {
-            setFormData(prev => ({ ...prev, logo: comp.logo, logoType: 'preset' }))
+    const handleLeagueLogoSelect = (leagueId) => {
+        setSelectedLeague(leagueId)
+        if (leagueId) {
+            const logoUrl = getLogoUrl(leagueId)
+            setFormData(prev => ({ ...prev, logo: logoUrl, logoType: 'preset' }))
         } else {
-            console.warn(`Competition not found for: ${leagueName}`)
-            // Try to find by partial match if exact match fails
-            const partialMatch = competitions.find(c => c.name && c.name.includes(leagueName))
-            if (partialMatch) {
-                setFormData(prev => ({ ...prev, logo: partialMatch.logo, logoType: 'preset' }))
-            }
+            setFormData(prev => ({ ...prev, logo: '', logoType: 'preset' }))
         }
     }
 
