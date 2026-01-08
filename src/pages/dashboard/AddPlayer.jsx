@@ -5,6 +5,7 @@ import Card, { CardHeader, CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
+import SearchableSelect from '../../components/ui/SearchableSelect'
 
 // Mock Data (Consistent with TournamentDetail.jsx)
 const getTournamentData = (id) => {
@@ -289,10 +290,11 @@ export default function AddPlayer() {
                                     Liga
                                 </div>
                             </label>
-                            <Select
+                            <SearchableSelect
                                 options={leagueOptions}
                                 value={formData.league}
                                 onChange={(e) => setFormData(prev => ({ ...prev, league: e.target.value }))}
+                                placeholder="Pilih Liga..."
                             />
                         </div>
 
@@ -305,10 +307,11 @@ export default function AddPlayer() {
                                     {loadingTeams && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
                                 </div>
                             </label>
-                            <Select
+                            <SearchableSelect
                                 options={teamOptions}
                                 value={formData.teamId}
                                 onChange={handleTeamChange}
+                                placeholder={loadingTeams ? 'Memuat tim...' : 'Pilih Tim...'}
                                 disabled={!formData.league || loadingTeams}
                             />
                             {/* Show selected team logo */}

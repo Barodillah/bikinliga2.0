@@ -5,6 +5,7 @@ import Card, { CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
+import SearchableSelect from '../../components/ui/SearchableSelect'
 
 const tournamentTypes = [
     { value: 'league', label: 'Liga (Round Robin)', desc: 'Semua tim bermain melawan satu sama lain' },
@@ -17,9 +18,6 @@ const pointSystems = [
     { value: '2-1-0', label: '2-1-0 (Classic)' },
     { value: '3-0', label: '3-0 (No Draw)' },
 ]
-
-// API-Sports.io configuration
-const API_SPORTS_KEY = "49b9fe3ec72917be10caaa5aa2ec161124c14382"
 
 export default function CreateTournament() {
     const navigate = useNavigate()
@@ -48,18 +46,13 @@ export default function CreateTournament() {
         return `https://media.api-sports.io/football/leagues/${leagueId}.png`
     }
 
-    // Fetch leagues from api-sports.io
+    // Fetch leagues from api-sports.io via proxy
     useEffect(() => {
         const fetchLeagues = async () => {
             setLoadingLogos(true)
             try {
-                const response = await fetch("https://v3.football.api-sports.io/leagues", {
-                    method: 'GET',
-                    headers: {
-                        "x-apisports-key": API_SPORTS_KEY
-                    },
-                    redirect: 'follow'
-                })
+                // Use local proxy to avoid CORS issues
+                const response = await fetch("/api/leagues")
                 const data = await response.json()
 
                 if (data?.response) {
@@ -241,10 +234,11 @@ export default function CreateTournament() {
                                 {/* Preset Logo Selection */}
                                 {formData.logoType === 'preset' && (
                                     <div className="space-y-3">
-                                        <Select
+                                        <SearchableSelect
                                             options={leagueOptions}
                                             value={selectedLeague}
                                             onChange={(e) => handleLeagueLogoSelect(e.target.value)}
+                                            placeholder="Pilih Liga untuk Logo..."
                                         />
                                         {loadingLogos && (
                                             <div className="flex items-center gap-2 text-gray-400 text-sm">
