@@ -26,7 +26,7 @@ export default function Navbar() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-20">
                     <Link to="/" className="flex items-center gap-2">
-                        <Trophy className="w-8 h-8 text-neonGreen" />
+                        <img src="/logo.png" alt="BikinLiga" className="h-7" />
                         <span className="font-display font-bold text-2xl tracking-tight">
                             Bikin<span className="text-neonPink">Liga</span>
                         </span>
@@ -48,9 +48,12 @@ export default function Navbar() {
                     </div>
 
                     {/* CTA Button */}
-                    <div className="hidden md:block">
-                        <Link to="/dashboard" className="btn-primary px-6 py-2 rounded-full text-sm">
-                            Masuk / Daftar
+                    <div className="hidden md:flex items-center gap-3">
+                        <Link to="/login" className="text-sm font-medium hover:text-neonGreen transition-colors">
+                            Masuk
+                        </Link>
+                        <Link to="/register" className="btn-primary px-5 py-2 rounded-full text-sm">
+                            Daftar
                         </Link>
                     </div>
 
@@ -81,10 +84,18 @@ export default function Navbar() {
                             </a>
                         ))}
                         <Link
-                            to="/dashboard"
-                            className="mt-4 block w-full text-center btn-primary px-6 py-3 rounded-md text-base"
+                            to="/login"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="mt-4 block w-full text-center border border-white/20 hover:bg-white/10 px-6 py-3 rounded-md text-base transition-colors"
                         >
-                            Masuk / Daftar
+                            Masuk
+                        </Link>
+                        <Link
+                            to="/register"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="mt-2 block w-full text-center btn-primary px-6 py-3 rounded-md text-base"
+                        >
+                            Daftar
                         </Link>
                     </div>
                 </div>

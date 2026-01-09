@@ -19,7 +19,7 @@ export default function Footer() {
                     {/* Logo & Description */}
                     <div className="col-span-1 md:col-span-1">
                         <Link to="/" className="flex items-center gap-2 mb-4">
-                            <Trophy className="w-6 h-6 text-neonGreen" />
+                            <img src="/logo.png" alt="BikinLiga" className="h-7" />
                             <span className="font-display font-bold text-xl">
                                 Bikin<span className="text-neonPink">Liga</span>
                             </span>

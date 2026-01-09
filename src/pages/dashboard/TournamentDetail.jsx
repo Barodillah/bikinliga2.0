@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { Trophy, Users, Calendar, BarChart2, Settings, Share2, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3 } from 'lucide-react'
+import { Trophy, Users, Calendar, BarChart2, Settings, Share2, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import StandingsTable from '../../components/tournament/StandingsTable'
@@ -45,9 +45,160 @@ const getTournamentData = (id) => {
             startDate: '2024-02-01',
             description: 'Group stage + knockout format',
             shareLink: 'bikinliga.com/t/sunday-league'
+        },
+        '4': {
+            id: 4,
+            name: 'Weekend Warriors Cup',
+            type: 'Liga',
+            status: 'draft',
+            players: 0,
+            matches: 0,
+            completed: 0,
+            startDate: '2024-04-01',
+            description: 'Turnamen akhir pekan untuk komunitas gaming',
+            shareLink: 'bikinliga.com/t/weekend-warriors'
         }
     }
     return tournaments[id] || tournaments['1']
+}
+
+// Sample draft players data
+const draftPlayersData = [
+    { id: 1, name: 'Ahmad Fadli', team: 'Barcelona FC', status: 'approved', paymentStatus: 'paid', registeredAt: '2024-03-25' },
+    { id: 2, name: 'Budi Santoso', team: 'Real Madrid', status: 'approved', paymentStatus: 'unpaid', registeredAt: '2024-03-26' },
+    { id: 3, name: 'Candra Wijaya', team: 'Manchester United', status: 'queued', paymentStatus: 'unpaid', registeredAt: '2024-03-27' },
+    { id: 4, name: 'Deni Pratama', team: 'Arsenal', status: 'queued', paymentStatus: 'unpaid', registeredAt: '2024-03-27' },
+    { id: 5, name: 'Eko Saputra', team: 'Liverpool', status: 'rejected', paymentStatus: 'unpaid', registeredAt: '2024-03-26' },
+    { id: 6, name: 'Fajar Ramadhan', team: 'Chelsea', status: 'approved', paymentStatus: 'paid', registeredAt: '2024-03-25' },
+    { id: 7, name: 'Gilang Permana', team: 'PSG', status: 'queued', paymentStatus: 'unpaid', registeredAt: '2024-03-28' },
+    { id: 8, name: 'Hadi Kusuma', team: 'Bayern Munich', status: 'rejected', paymentStatus: 'unpaid', registeredAt: '2024-03-24' },
+]
+
+// Draft Players List Component
+function DraftPlayerList({ players, tournamentId, navigate }) {
+    const [filter, setFilter] = useState('all')
+
+    const filteredPlayers = filter === 'all'
+        ? players
+        : players.filter(p => p.status === filter)
+
+    const getStatusBadge = (status) => {
+        switch (status) {
+            case 'approved':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-neonGreen/20 text-neonGreen">
+                        <CheckCircle className="w-3 h-3" /> Approved
+                    </span>
+                )
+            case 'rejected':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-400">
+                        <XCircle className="w-3 h-3" /> Rejected
+                    </span>
+                )
+            case 'queued':
+            default:
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400">
+                        <Clock className="w-3 h-3" /> Queued
+                    </span>
+                )
+        }
+    }
+
+    const getPaymentBadge = (paymentStatus) => {
+        if (paymentStatus === 'paid') {
+            return (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400">
+                    <CreditCard className="w-3 h-3" /> Paid
+                </span>
+            )
+        }
+        return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-500/20 text-gray-400">
+                <CreditCard className="w-3 h-3" /> Unpaid
+            </span>
+        )
+    }
+
+    const statusCounts = {
+        all: players.length,
+        queued: players.filter(p => p.status === 'queued').length,
+        approved: players.filter(p => p.status === 'approved').length,
+        rejected: players.filter(p => p.status === 'rejected').length,
+    }
+
+    return (
+        <Card hover={false}>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h3 className="font-display font-bold flex items-center gap-2">
+                        <Users className="w-5 h-5 text-neonGreen" />
+                        Daftar Pendaftar
+                    </h3>
+                    <p className="text-sm text-gray-400 mt-1">Kelola pemain yang mendaftar di turnamen ini</p>
+                </div>
+                <Button size="sm" onClick={() => navigate(`/dashboard/tournaments/${tournamentId}/players/add`)}>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Tambah Pemain
+                </Button>
+            </CardHeader>
+            <CardContent>
+                {/* Filter Tabs */}
+                <div className="flex flex-wrap gap-2 mb-4 pb-4 border-b border-white/10">
+                    {['all', 'queued', 'approved', 'rejected'].map((status) => (
+                        <button
+                            key={status}
+                            onClick={() => setFilter(status)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${filter === status
+                                ? 'bg-neonGreen/20 text-neonGreen'
+                                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                                }`}
+                        >
+                            {status === 'all' ? 'Semua' : status.charAt(0).toUpperCase() + status.slice(1)}
+                            <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-xs bg-white/10">
+                                {statusCounts[status]}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Players List */}
+                {filteredPlayers.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                        <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p>Belum ada pemain dengan status ini</p>
+                    </div>
+                ) : (
+                    <div className="divide-y divide-white/5">
+                        {filteredPlayers.map((player) => (
+                            <div key={player.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neonGreen/30 to-neonPink/30 flex items-center justify-center font-bold text-sm">
+                                        {player.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <div className="font-medium">{player.name}</div>
+                                        <div className="text-xs text-gray-500">{player.team}</div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                                    {getStatusBadge(player.status)}
+                                    {getPaymentBadge(player.paymentStatus)}
+                                    <div className="text-xs text-gray-500">
+                                        {new Date(player.registeredAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                                    </div>
+                                    <Button variant="ghost" size="sm">
+                                        <Edit className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    )
 }
 
 // Group Stage Component
@@ -241,16 +392,24 @@ const knockoutRounds = [
 export default function TournamentDetail() {
     const { id } = useParams()
     const navigate = useNavigate()
-    const [activeTab, setActiveTab] = useState('overview')
-    const [copied, setCopied] = useState(false)
-
     const tournamentData = getTournamentData(id)
+    const isDraft = tournamentData.status === 'draft'
+
+    const [activeTab, setActiveTab] = useState(isDraft ? 'players' : 'overview')
+    const [copied, setCopied] = useState(false)
     const isKnockout = tournamentData.type === 'Knockout'
     const isGroupKO = tournamentData.type === 'Group+KO'
     const isLeague = tournamentData.type === 'Liga'
 
     // Dynamic tabs based on tournament type
     const getTabs = () => {
+        // Draft tournaments only show players tab
+        if (isDraft) {
+            return [
+                { id: 'players', label: 'Pendaftar', icon: Users },
+            ]
+        }
+
         const baseTabs = [
             { id: 'overview', label: 'Overview', icon: Trophy },
         ]
@@ -307,7 +466,12 @@ export default function TournamentDetail() {
                                     }`}>
                                     {tournamentData.type}
                                 </span>
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-neonGreen/20 text-neonGreen">Aktif</span>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${isDraft
+                                    ? 'bg-yellow-500/20 text-yellow-400'
+                                    : 'bg-neonGreen/20 text-neonGreen'
+                                    }`}>
+                                    {isDraft ? 'Draft' : 'Aktif'}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -340,29 +504,55 @@ export default function TournamentDetail() {
                 </div>
             </Card>
 
-            {/* Quick Stats - always 2x2 grid */}
-            <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                <Card className="p-3 sm:p-4 text-center">
-                    <Users className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-neonPink" />
-                    <div className="text-xl sm:text-2xl font-display font-bold">{tournamentData.players}</div>
-                    <div className="text-xs text-gray-500">Pemain</div>
-                </Card>
-                <Card className="p-3 sm:p-4 text-center">
-                    <Calendar className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-blue-400" />
-                    <div className="text-xl sm:text-2xl font-display font-bold">{tournamentData.matches}</div>
-                    <div className="text-xs text-gray-500">Total Match</div>
-                </Card>
-                <Card className="p-3 sm:p-4 text-center">
-                    <BarChart2 className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-neonGreen" />
-                    <div className="text-xl sm:text-2xl font-display font-bold">{tournamentData.completed}</div>
-                    <div className="text-xs text-gray-500">Selesai</div>
-                </Card>
-                <Card className="p-3 sm:p-4 text-center">
-                    <Trophy className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-yellow-400" />
-                    <div className="text-xl sm:text-2xl font-display font-bold">{Math.round((tournamentData.completed / tournamentData.matches) * 100)}%</div>
-                    <div className="text-xs text-gray-500">Progress</div>
-                </Card>
-            </div>
+            {/* Quick Stats - different for draft vs active */}
+            {isDraft ? (
+                <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                    <Card className="p-3 sm:p-4 text-center">
+                        <Clock className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-yellow-400" />
+                        <div className="text-xl sm:text-2xl font-display font-bold">
+                            {draftPlayersData.filter(p => p.status === 'queued').length}
+                        </div>
+                        <div className="text-xs text-gray-500">Menunggu</div>
+                    </Card>
+                    <Card className="p-3 sm:p-4 text-center">
+                        <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-neonGreen" />
+                        <div className="text-xl sm:text-2xl font-display font-bold">
+                            {draftPlayersData.filter(p => p.status === 'approved').length}
+                        </div>
+                        <div className="text-xs text-gray-500">Diterima</div>
+                    </Card>
+                    <Card className="p-3 sm:p-4 text-center">
+                        <XCircle className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-red-400" />
+                        <div className="text-xl sm:text-2xl font-display font-bold">
+                            {draftPlayersData.filter(p => p.status === 'rejected').length}
+                        </div>
+                        <div className="text-xs text-gray-500">Ditolak</div>
+                    </Card>
+                </div>
+            ) : (
+                <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                    <Card className="p-3 sm:p-4 text-center">
+                        <Users className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-neonPink" />
+                        <div className="text-xl sm:text-2xl font-display font-bold">{tournamentData.players}</div>
+                        <div className="text-xs text-gray-500">Pemain</div>
+                    </Card>
+                    <Card className="p-3 sm:p-4 text-center">
+                        <Calendar className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-blue-400" />
+                        <div className="text-xl sm:text-2xl font-display font-bold">{tournamentData.matches}</div>
+                        <div className="text-xs text-gray-500">Total Match</div>
+                    </Card>
+                    <Card className="p-3 sm:p-4 text-center">
+                        <BarChart2 className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-neonGreen" />
+                        <div className="text-xl sm:text-2xl font-display font-bold">{tournamentData.completed}</div>
+                        <div className="text-xs text-gray-500">Selesai</div>
+                    </Card>
+                    <Card className="p-3 sm:p-4 text-center">
+                        <Trophy className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-yellow-400" />
+                        <div className="text-xl sm:text-2xl font-display font-bold">{Math.round((tournamentData.completed / tournamentData.matches) * 100)}%</div>
+                        <div className="text-xs text-gray-500">Progress</div>
+                    </Card>
+                </div>
+            )}
 
             {/* Tabs */}
             <div className="border-b border-white/10 -mx-4 px-4 lg:mx-0 lg:px-0">
@@ -519,12 +709,23 @@ export default function TournamentDetail() {
                 </Card>
             )}
 
-            {/* Players */}
-            {activeTab === 'players' && (
+            {/* Players - Different view for draft vs active */}
+            {activeTab === 'players' && isDraft && (
+                <DraftPlayerList
+                    players={draftPlayersData}
+                    tournamentId={id}
+                    navigate={navigate}
+                />
+            )}
+
+            {activeTab === 'players' && !isDraft && (
                 <Card hover={false}>
                     <CardHeader className="flex items-center justify-between">
                         <h3 className="font-display font-bold">Daftar Pemain</h3>
-                        <Button size="sm">Tambah Pemain</Button>
+                        <Button size="sm" onClick={() => navigate(`/dashboard/tournaments/${id}/players/add`)}>
+                            <UserPlus className="w-4 h-4 mr-2" />
+                            Tambah Pemain
+                        </Button>
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="divide-y divide-white/5">

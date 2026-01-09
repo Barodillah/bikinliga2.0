@@ -1,5 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import LandingPage from './pages/landing/LandingPage'
+import LoginPage from './pages/auth/LoginPage'
+import RegisterPage from './pages/auth/RegisterPage'
 import DashboardLayout from './layouts/DashboardLayout'
 import Dashboard from './pages/dashboard/Dashboard'
 import TournamentList from './pages/dashboard/TournamentList'
@@ -15,6 +17,10 @@ function App() {
         <Routes>
             {/* Landing Page */}
             <Route path="/" element={<LandingPage />} />
+
+            {/* Auth Pages */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
 
             {/* Dashboard Routes */}
             <Route path="/dashboard" element={<DashboardLayout />}>

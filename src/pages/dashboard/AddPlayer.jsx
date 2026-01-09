@@ -45,6 +45,18 @@ const getTournamentData = (id) => {
             startDate: '2024-02-01',
             description: 'Group stage + knockout format',
             shareLink: 'bikinliga.com/t/sunday-league'
+        },
+        '4': {
+            id: 4,
+            name: 'Weekend Warriors Cup',
+            type: 'Liga',
+            status: 'draft',
+            players: 0,
+            matches: 0,
+            completed: 0,
+            startDate: '2024-04-01',
+            description: 'Turnamen akhir pekan untuk komunitas gaming',
+            shareLink: 'bikinliga.com/t/weekend-warriors'
         }
     }
     return tournaments[id] || tournaments['1']

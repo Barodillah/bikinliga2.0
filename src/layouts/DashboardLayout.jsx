@@ -3,13 +3,16 @@ import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
 import {
     Trophy, LayoutDashboard, List, Plus, Users,
     Calendar, BarChart2, Settings, LogOut, Menu, X,
-    ChevronRight
+    ChevronRight, Wallet, Shield
 } from 'lucide-react'
 
 const sidebarLinks = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, exact: true },
     { name: 'Turnamen Saya', href: '/dashboard/tournaments', icon: List, exact: true },
     { name: 'Buat Turnamen', href: '/dashboard/tournaments/new', icon: Plus },
+    { name: 'Top Up', href: '/dashboard/topup', icon: Wallet },
+    { name: 'eClub', href: '/dashboard/eclub', icon: Shield },
+    { name: 'Ranking', href: '/dashboard/ranking', icon: BarChart2 },
 ]
 
 export default function DashboardLayout() {
@@ -27,7 +30,7 @@ export default function DashboardLayout() {
             <aside className="hidden lg:flex lg:flex-col w-64 h-screen border-r border-white/10 bg-cardBg flex-shrink-0 sticky top-0">
                 {/* Logo */}
                 <div className="h-16 flex items-center gap-2 px-6 border-b border-white/10">
-                    <Trophy className="w-6 h-6 text-neonGreen" />
+                    <img src="/logo.png" alt="BikinLiga" className="h-7" />
                     <span className="font-display font-bold text-xl">
                         Bikin<span className="text-neonPink">Liga</span>
                     </span>
@@ -52,6 +55,27 @@ export default function DashboardLayout() {
                         </NavLink>
                     ))}
                 </nav>
+
+                {/* Subscription Card */}
+                <div className="p-4 border-t border-white/10">
+                    <div className="bg-gradient-to-br from-white/5 to-white/10 rounded-xl p-4 border border-white/10">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <img src="/coin.png" alt="Coin" className="w-5 h-5" />
+                                <span className="font-display font-bold text-lg text-yellow-400">1,250</span>
+                            </div>
+                            <span className="text-xs px-2 py-1 rounded-full bg-neonGreen/20 text-neonGreen font-medium">
+                                Free
+                            </span>
+                        </div>
+                        <Link
+                            to="/dashboard/upgrade"
+                            className="block w-full text-center py-2 rounded-lg bg-gradient-to-r from-neonGreen to-neonPink text-black text-sm font-bold hover:opacity-90 transition"
+                        >
+                            Upgrade
+                        </Link>
+                    </div>
+                </div>
 
                 {/* Bottom Actions */}
                 <div className="p-4 border-t border-white/10 space-y-2">
@@ -160,6 +184,15 @@ export default function DashboardLayout() {
 
                     {/* User Menu */}
                     <div className="flex items-center gap-4">
+                        {/* Virtual Coins */}
+                        <Link
+                            to="/dashboard/topup"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 transition"
+                        >
+                            <img src="/coin.png" alt="Coin" className="w-5 h-5" />
+                            <span className="font-display font-bold text-yellow-400">1,250</span>
+                        </Link>
+
                         <div className="text-right hidden sm:block">
                             <div className="text-sm font-medium">Admin User</div>
                             <div className="text-xs text-gray-500">admin@bikinliga.com</div>
