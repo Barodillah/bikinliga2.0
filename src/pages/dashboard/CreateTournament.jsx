@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import SearchableSelect from '../../components/ui/SearchableSelect'
+import AdSlot, { AdSlotWrapper } from '../../components/ui/AdSlot'
 
 const tournamentTypes = [
     { value: 'league', label: 'Liga (Round Robin)', desc: 'Semua tim bermain melawan satu sama lain' },
@@ -500,6 +501,11 @@ export default function CreateTournament() {
                     </Card>
                 )}
             </form>
+
+            {/* Ad Slot */}
+            <div className="mt-6">
+                <AdSlot variant="banner" adId="create-tournament" />
+            </div>
         </div>
     )
 }

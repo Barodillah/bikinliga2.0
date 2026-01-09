@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import SearchableSelect from '../../components/ui/SearchableSelect'
+import AdSlot, { AdSlotWrapper } from '../../components/ui/AdSlot'
 
 // Mock Data (Consistent with TournamentDetail.jsx)
 const getTournamentData = (id) => {
@@ -402,6 +403,11 @@ export default function AddPlayer() {
                     </form>
                 </CardContent>
             </Card>
+
+            {/* Ad Slot - Sidebar style on desktop */}
+            <div className="mt-6">
+                <AdSlot variant="banner" adId="add-player-form" />
+            </div>
         </div>
     )
 }

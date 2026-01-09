@@ -7,6 +7,7 @@ import MatchCard from '../../components/tournament/MatchCard'
 import Modal from '../../components/ui/Modal'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
+import AdSlot from '../../components/ui/AdSlot'
 
 const matchweeks = [
     {
@@ -74,28 +75,32 @@ export default function Fixtures() {
             </div>
 
             {/* Matchweeks */}
-            {matchweeks.map((mw) => (
-                <Card key={mw.week} className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                            <Calendar className="w-5 h-5 text-neonPink" />
-                            <div>
-                                <h3 className="font-display font-bold">Matchweek {mw.week}</h3>
-                                <div className="text-sm text-gray-500">{mw.date}</div>
+            {matchweeks.map((mw, index) => (
+                <React.Fragment key={mw.week}>
+                    <Card className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <Calendar className="w-5 h-5 text-neonPink" />
+                                <div>
+                                    <h3 className="font-display font-bold">Matchweek {mw.week}</h3>
+                                    <div className="text-sm text-gray-500">{mw.date}</div>
+                                </div>
                             </div>
+                            <span className="text-sm text-gray-400">{mw.matches.length} pertandingan</span>
                         </div>
-                        <span className="text-sm text-gray-400">{mw.matches.length} pertandingan</span>
-                    </div>
-                    <div className="space-y-3">
-                        {mw.matches.map((match) => (
-                            <MatchCard
-                                key={match.id}
-                                {...match}
-                                onInputScore={match.status === 'upcoming' ? () => handleInputScore(match) : undefined}
-                            />
-                        ))}
-                    </div>
-                </Card>
+                        <div className="space-y-3">
+                            {mw.matches.map((match) => (
+                                <MatchCard
+                                    key={match.id}
+                                    {...match}
+                                    onInputScore={match.status === 'upcoming' ? () => handleInputScore(match) : undefined}
+                                />
+                            ))}
+                        </div>
+                    </Card>
+                    {/* Ad between matchweeks */}
+                    {index === 0 && <AdSlot variant="inline" adId="fixtures-between" />}
+                </React.Fragment>
             ))}
 
             {/* Score Input Modal */}

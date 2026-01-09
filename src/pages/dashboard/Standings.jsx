@@ -4,6 +4,7 @@ import { ArrowLeft, Download, Trophy } from 'lucide-react'
 import Card, { CardHeader, CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import StandingsTable from '../../components/tournament/StandingsTable'
+import AdSlot from '../../components/ui/AdSlot'
 
 export default function Standings() {
     const { id } = useParams()
@@ -38,6 +39,9 @@ export default function Standings() {
                     <StandingsTable />
                 </CardContent>
             </Card>
+
+            {/* Ad Slot */}
+            <AdSlot variant="inline" adId="standings-stats" />
 
             {/* Top Stats */}
             <div className="grid md:grid-cols-3 gap-6">
@@ -104,8 +108,8 @@ export default function Standings() {
                                 <div className="flex gap-1">
                                     {item.form.map((result, i) => (
                                         <div key={i} className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${result === 'W' ? 'bg-neonGreen text-black' :
-                                                result === 'D' ? 'bg-yellow-500 text-black' :
-                                                    'bg-red-500 text-white'
+                                            result === 'D' ? 'bg-yellow-500 text-black' :
+                                                'bg-red-500 text-white'
                                             }`}>
                                             {result}
                                         </div>

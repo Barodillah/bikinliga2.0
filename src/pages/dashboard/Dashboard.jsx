@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Plus, Trophy, Calendar, Users, TrendingUp, ArrowRight, BarChart2 } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
+import AdSlot from '../../components/ui/AdSlot'
 
 // Sample data  
 const recentTournaments = [
@@ -55,6 +56,9 @@ export default function Dashboard() {
                 ))}
             </div>
 
+            {/* Ad Slot - Banner */}
+            <AdSlot variant="banner" adId="dashboard-main" />
+
             <div className="grid lg:grid-cols-2 gap-8">
                 {/* Recent Tournaments */}
                 <Card hover={false}>
@@ -83,8 +87,8 @@ export default function Dashboard() {
                                     </div>
                                     <div className="text-right">
                                         <span className={`text-xs px-2 py-1 rounded-full ${tournament.status === 'active'
-                                                ? 'bg-neonGreen/20 text-neonGreen'
-                                                : 'bg-gray-500/20 text-gray-400'
+                                            ? 'bg-neonGreen/20 text-neonGreen'
+                                            : 'bg-gray-500/20 text-gray-400'
                                             }`}>
                                             {tournament.status === 'active' ? 'Aktif' : 'Selesai'}
                                         </span>

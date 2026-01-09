@@ -4,6 +4,7 @@ import { Plus, Search, Filter, Trophy, Calendar, Users, MoreVertical, Grid, List
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
+import AdSlot from '../../components/ui/AdSlot'
 
 // Sample data
 const tournaments = [
@@ -94,6 +95,9 @@ export default function TournamentList() {
                     </div>
                 </div>
             </div>
+
+            {/* Ad Slot */}
+            <AdSlot variant="leaderboard" adId="tournament-list" />
 
             {/* Tournament Grid/List */}
             {viewMode === 'grid' ? (

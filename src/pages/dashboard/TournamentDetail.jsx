@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button'
 import StandingsTable from '../../components/tournament/StandingsTable'
 import MatchCard from '../../components/tournament/MatchCard'
 import Bracket from '../../components/tournament/Bracket'
+import AdSlot from '../../components/ui/AdSlot'
 
 // Sample data - simulate different tournament types based on ID
 const getTournamentData = (id) => {
@@ -503,6 +504,9 @@ export default function TournamentDetail() {
                     </button>
                 </div>
             </Card>
+
+            {/* Ad Slot */}
+            <AdSlot variant="banner" adId="tournament-detail" />
 
             {/* Quick Stats - different for draft vs active */}
             {isDraft ? (

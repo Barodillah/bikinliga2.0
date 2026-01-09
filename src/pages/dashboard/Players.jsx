@@ -5,6 +5,7 @@ import Card, { CardHeader, CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Modal from '../../components/ui/Modal'
+import AdSlot from '../../components/ui/AdSlot'
 
 const playersData = [
     { id: 1, name: 'Barcelona FC', playerName: 'Andi', contact: '081234567890', wins: 5, draws: 2, losses: 1 },
@@ -119,6 +120,9 @@ export default function Players() {
                     </table>
                 </div>
             </Card>
+
+            {/* Ad Slot */}
+            <AdSlot variant="banner" adId="players-list" />
 
             {filteredPlayers.length === 0 && (
                 <div className="text-center py-12">
