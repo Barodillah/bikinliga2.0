@@ -108,7 +108,7 @@ export default function DashboardLayout() {
             <aside className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-cardBg border-r border-white/10 transform transition-transform duration-300 flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="h-16 flex items-center justify-between px-6 border-b border-white/10">
                     <div className="flex items-center gap-2">
-                        <Trophy className="w-6 h-6 text-neonGreen" />
+                        <img src="/logo.png" alt="BikinLiga" className="h-7" />
                         <span className="font-display font-bold text-xl">
                             Bikin<span className="text-neonPink">Liga</span>
                         </span>
