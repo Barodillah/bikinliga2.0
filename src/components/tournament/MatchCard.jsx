@@ -8,14 +8,18 @@ export default function MatchCard({
     awayScore,
     time,
     status = 'upcoming',
-    onInputScore
+    onInputScore,
+    onClick
 }) {
     const isCompleted = status === 'completed'
     const homeWin = isCompleted && homeScore > awayScore
     const awayWin = isCompleted && awayScore > homeScore
 
     return (
-        <div className="p-4 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition">
+        <div
+            onClick={onClick}
+            className={`p-4 rounded-xl bg-white/5 border border-white/5 transition relative overflow-hidden ${onClick ? 'cursor-pointer hover:bg-white/10 hover:border-white/20' : 'hover:border-white/10'}`}
+        >
             <div className="flex items-center justify-between">
                 {/* Home Team */}
                 <div className={`flex items-center gap-3 flex-1 ${homeWin ? 'opacity-100' : awayWin ? 'opacity-50' : ''}`}>

@@ -379,21 +379,82 @@ export default function CreateTournament() {
                         <div className="space-y-6">
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Jumlah Peserta</label>
-                                <div className="grid grid-cols-4 gap-3">
-                                    {[4, 8, 12, 16, 20, 24, 28, 32].map((num) => (
-                                        <button
-                                            key={num}
-                                            type="button"
-                                            onClick={() => handleChange('playerCount', num)}
-                                            className={`py-3 rounded-lg border text-center font-bold transition ${formData.playerCount === num
-                                                ? 'border-neonGreen bg-neonGreen/10 text-neonGreen'
-                                                : 'border-white/10 hover:border-white/30'
-                                                }`}
-                                        >
-                                            {num}
-                                        </button>
-                                    ))}
-                                </div>
+
+                                {/* LEAGUE Logic */}
+                                {formData.type === 'league' && (
+                                    <div className="space-y-4">
+                                        <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg flex gap-3">
+                                            <div className="mt-1">
+                                                <Users className="w-5 h-5 text-blue-400" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-blue-400 font-medium mb-1">Liga (Round Robin)</h4>
+                                                <p className="text-sm text-gray-400">
+                                                    Tidak ada batasan kaku jumlah peserta. Liga akan berjalan sesuai jumlah tim yang mendaftar.
+                                                    <span className="block mt-1 text-white/80">Minimal 3 tim diperlukan.</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Input
+                                            type="number"
+                                            min="3"
+                                            value={formData.playerCount}
+                                            onChange={(e) => handleChange('playerCount', parseInt(e.target.value) || 0)}
+                                            placeholder="Masukkan jumlah tim..."
+                                            label="Estimasi Jumlah Tim"
+                                        />
+                                    </div>
+                                )}
+
+                                {/* KNOCKOUT Logic */}
+                                {formData.type === 'knockout' && (
+                                    <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+                                        {[4, 8, 16, 32, 64].map((num) => (
+                                            <button
+                                                key={num}
+                                                type="button"
+                                                onClick={() => handleChange('playerCount', num)}
+                                                className={`py-3 rounded-lg border text-center font-bold transition ${formData.playerCount === num
+                                                    ? 'border-neonGreen bg-neonGreen/10 text-neonGreen'
+                                                    : 'border-white/10 hover:border-white/30'
+                                                    }`}
+                                            >
+                                                {num} Tim
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* GROUP STAGE Logic */}
+                                {formData.type === 'group' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {[
+                                            { total: 6, label: '6 Tim', sub: '2 Grup @ 3 Tim' },
+                                            { total: 8, label: '8 Tim', sub: '2 Grup @ 4 Tim' },
+                                            { total: 12, label: '12 Tim', sub: '4 Grup @ 3 Tim' },
+                                            { total: 16, label: '16 Tim', sub: '4 Grup @ 4 Tim' },
+                                            { total: 24, label: '24 Tim', sub: '4 Grup @ 6 Tim' },
+                                            { total: 32, label: '32 Tim', sub: '8 Grup @ 4 Tim' },
+                                        ].map((opt) => (
+                                            <button
+                                                key={opt.total}
+                                                type="button"
+                                                onClick={() => handleChange('playerCount', opt.total)}
+                                                className={`p-4 rounded-lg border text-left transition ${formData.playerCount === opt.total
+                                                    ? 'border-neonGreen bg-neonGreen/10'
+                                                    : 'border-white/10 hover:border-white/30'
+                                                    }`}
+                                            >
+                                                <div className={`font-bold ${formData.playerCount === opt.total ? 'text-neonGreen' : 'text-white'}`}>
+                                                    {opt.label}
+                                                </div>
+                                                <div className="text-sm text-gray-500">
+                                                    {opt.sub}
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             <Select
@@ -422,7 +483,17 @@ export default function CreateTournament() {
                             <Button type="button" variant="ghost" onClick={() => setStep(1)}>
                                 <ArrowLeft className="w-4 h-4 mr-2" /> Kembali
                             </Button>
-                            <Button type="button" onClick={() => setStep(3)} icon={ArrowRight}>
+                            <Button
+                                type="button"
+                                onClick={() => {
+                                    if (formData.type === 'league' && formData.playerCount < 3) {
+                                        alert('Minimal 3 tim untuk Liga!')
+                                        return
+                                    }
+                                    setStep(3)
+                                }}
+                                icon={ArrowRight}
+                            >
                                 Lanjut
                             </Button>
                         </div>

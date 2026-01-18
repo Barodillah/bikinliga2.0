@@ -23,12 +23,12 @@ export default function StandingsTable({ compact = false }) {
     }
 
     return (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto scroll-container">
             <table className="w-full" style={{ minWidth: '450px' }}>
                 <thead>
                     <tr className="border-b border-white/10 text-sm text-gray-400">
-                        <th className="py-3 px-3 text-left w-12">#</th>
-                        <th className="py-3 px-3 text-left">Tim</th>
+                        <th className="py-3 px-1 text-center w-8 sticky left-0 z-10 bg-[#0a0a0a]">#</th>
+                        <th className="py-3 px-1 text-left sticky left-8 z-10 bg-[#0a0a0a] border-r border-white/5 shadow-xl w-12 md:w-32">Tim</th>
                         <th className="py-3 px-3 text-center w-10">P</th>
                         {!compact && (
                             <>
@@ -49,17 +49,17 @@ export default function StandingsTable({ compact = false }) {
                             key={row.pos}
                             className="border-b border-white/5 hover:bg-white/5 transition"
                         >
-                            <td className="py-3 px-3">
-                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${getPositionStyle(row.pos)}`}>
+                            <td className="py-3 px-1 sticky left-0 z-10 bg-[#0a0a0a]">
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${getPositionStyle(row.pos)}`}>
                                     {row.pos}
                                 </div>
                             </td>
-                            <td className="py-3 px-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-xs font-bold">
+                            <td className="py-3 px-1 sticky left-8 z-10 bg-[#0a0a0a] border-r border-white/5 shadow-xl w-12 md:w-32">
+                                <div className="flex items-center gap-1">
+                                    <div className="w-5 h-5 shrink-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-[8px] font-bold">
                                         {row.team.substring(0, 2).toUpperCase()}
                                     </div>
-                                    <span className="font-medium">{row.team}</span>
+                                    <span className="font-medium text-[10px] md:text-sm whitespace-normal leading-tight flex-1 min-w-0 break-words">{row.team}</span>
                                 </div>
                             </td>
                             <td className="py-3 px-3 text-center text-gray-400">{row.played}</td>

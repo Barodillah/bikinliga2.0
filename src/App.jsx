@@ -10,8 +10,15 @@ import CreateTournament from './pages/dashboard/CreateTournament'
 import TournamentDetail from './pages/dashboard/TournamentDetail'
 import Standings from './pages/dashboard/Standings'
 import Fixtures from './pages/dashboard/Fixtures'
+import MatchManagement from './pages/dashboard/MatchManagement'
 import Players from './pages/dashboard/Players'
 import AddPlayer from './pages/dashboard/AddPlayer'
+import TopUp from './pages/dashboard/TopUp'
+import EClub from './pages/dashboard/EClub'
+import CommunityDetail from './pages/dashboard/CommunityDetail'
+import Ranking from './pages/dashboard/Ranking'
+import Settings from './pages/dashboard/Settings'
+
 
 function App() {
     return (
@@ -34,6 +41,13 @@ function App() {
                     <Route path="tournaments/:id/fixtures" element={<Fixtures />} />
                     <Route path="tournaments/:id/players" element={<Players />} />
                     <Route path="tournaments/:id/players/add" element={<AddPlayer />} />
+                    <Route path="tournaments/:id/match/:matchId" element={<MatchManagement />} />
+                    <Route path="topup" element={<TopUp />} />
+                    <Route path="eclub" element={<EClub />} />
+                    <Route path="eclub/community/:id" element={<CommunityDetail />} />
+                    <Route path="settings" element={<Settings />} />
+                    <Route path="ranking" element={<Ranking />} />
+
                 </Route>
             </Routes>
         </AdProvider>

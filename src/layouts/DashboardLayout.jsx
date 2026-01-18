@@ -3,12 +3,12 @@ import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
 import {
     Trophy, LayoutDashboard, List, Plus, Users,
     Calendar, BarChart2, Settings, LogOut, Menu, X,
-    ChevronRight, Wallet, Shield
+    ChevronRight, Wallet, Shield, FileText
 } from 'lucide-react'
 
 const sidebarLinks = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, exact: true },
-    { name: 'Turnamen Saya', href: '/dashboard/tournaments', icon: List, exact: true },
+    { name: 'Turnamen Saya', href: '/dashboard/tournaments', icon: List },
     { name: 'Buat Turnamen', href: '/dashboard/tournaments/new', icon: Plus },
     { name: 'Top Up', href: '/dashboard/topup', icon: Wallet },
     { name: 'eClub', href: '/dashboard/eclub', icon: Shield },
@@ -43,12 +43,14 @@ export default function DashboardLayout() {
                             key={link.href}
                             to={link.href}
                             end={link.exact}
-                            className={({ isActive }) =>
-                                `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${isActive
+                            className={({ isActive }) => {
+                                const isOverridden = link.href === '/dashboard/tournaments' && location.pathname === '/dashboard/tournaments/new'
+                                const active = isActive && !isOverridden
+                                return `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${active
                                     ? 'bg-neonGreen/10 text-neonGreen border-l-2 border-neonGreen'
                                     : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                                }`
-                            }
+                                    }`
+                            }}
                         >
                             <link.icon className="w-5 h-5" />
                             {link.name}
@@ -80,8 +82,11 @@ export default function DashboardLayout() {
                 {/* Bottom Actions */}
                 <div className="p-4 border-t border-white/10 space-y-2">
                     <Link
-                        to="#"
-                        className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white transition"
+                        to="/dashboard/settings"
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${location.pathname === '/dashboard/settings'
+                            ? 'bg-neonGreen/10 text-neonGreen border-l-2 border-neonGreen'
+                            : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                            }`}
                     >
                         <Settings className="w-5 h-5" />
                         Pengaturan
@@ -124,12 +129,14 @@ export default function DashboardLayout() {
                             to={link.href}
                             end={link.exact}
                             onClick={() => setSidebarOpen(false)}
-                            className={({ isActive }) =>
-                                `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${isActive
+                            className={({ isActive }) => {
+                                const isOverridden = link.href === '/dashboard/tournaments' && location.pathname === '/dashboard/tournaments/new'
+                                const active = isActive && !isOverridden
+                                return `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${active
                                     ? 'bg-neonGreen/10 text-neonGreen border-l-2 border-neonGreen'
                                     : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                                }`
-                            }
+                                    }`
+                            }}
                         >
                             <link.icon className="w-5 h-5" />
                             {link.name}
@@ -139,9 +146,12 @@ export default function DashboardLayout() {
                 {/* Bottom Actions - Mobile */}
                 <div className="p-4 border-t border-white/10 space-y-2">
                     <Link
-                        to="#"
+                        to="/dashboard/settings"
                         onClick={() => setSidebarOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white transition"
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${location.pathname === '/dashboard/settings'
+                            ? 'bg-neonGreen/10 text-neonGreen border-l-2 border-neonGreen'
+                            : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                            }`}
                     >
                         <Settings className="w-5 h-5" />
                         Pengaturan

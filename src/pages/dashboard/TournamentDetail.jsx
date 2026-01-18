@@ -1,9 +1,12 @@
+
 import React, { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { Trophy, Users, Calendar, BarChart2, Settings, Share2, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard } from 'lucide-react'
+import { Trophy, Users, Calendar, BarChart2, Settings, Share2, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import StandingsTable from '../../components/tournament/StandingsTable'
+import TopScorerList from '../../components/tournament/TopScorerList'
+import TournamentStatistics from '../../components/tournament/TournamentStatistics'
 import MatchCard from '../../components/tournament/MatchCard'
 import Bracket from '../../components/tournament/Bracket'
 import AdSlot from '../../components/ui/AdSlot'
@@ -207,16 +210,16 @@ function GroupStage({ groups }) {
     return (
         <div className="grid md:grid-cols-2 gap-6">
             {groups.map((group) => (
-                <Card key={group.name} hover={false}>
+                <Card key={group.name} hover={false} className="min-w-0">
                     <CardHeader className="py-3">
                         <h3 className="font-display font-bold text-neonGreen">{group.name}</h3>
                     </CardHeader>
-                    <CardContent className="p-0 overflow-x-auto">
-                        <table className="w-full text-sm" style={{ minWidth: '350px' }}>
+                    <CardContent className="p-0 overflow-x-auto scroll-container">
+                        <table className="w-full text-sm" style={{ minWidth: '500px' }}>
                             <thead>
                                 <tr className="border-b border-white/10 text-gray-400">
-                                    <th className="py-2 px-3 text-left">#</th>
-                                    <th className="py-2 px-3 text-left">Tim</th>
+                                    <th className="py-2 px-1 text-center w-8 sticky left-0 z-10 bg-[#0a0a0a]">#</th>
+                                    <th className="py-2 px-1 text-left sticky left-8 z-10 bg-[#0a0a0a] border-r border-white/5 shadow-xl w-12 md:w-32">Tim</th>
                                     <th className="py-2 px-3 text-center">P</th>
                                     <th className="py-2 px-3 text-center">W</th>
                                     <th className="py-2 px-3 text-center">D</th>
@@ -228,13 +231,13 @@ function GroupStage({ groups }) {
                             <tbody>
                                 {group.teams.map((team, i) => (
                                     <tr key={team.name} className={`border-b border-white/5 ${i < 2 ? 'bg-neonGreen/5' : ''}`}>
-                                        <td className="py-2 px-3">
-                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${i < 2 ? 'bg-neonGreen text-black' : 'bg-white/10'
+                                        <td className="py-2 px-1 sticky left-0 z-10 bg-[#0a0a0a]">
+                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${i < 2 ? 'bg-neonGreen text-black' : 'bg-white/10'
                                                 }`}>
                                                 {i + 1}
                                             </div>
                                         </td>
-                                        <td className="py-2 px-3 font-medium">{team.name}</td>
+                                        <td className="py-2 px-1 font-medium sticky left-8 z-10 bg-[#0a0a0a] border-r border-white/5 shadow-xl w-12 md:w-32 whitespace-normal leading-tight text-[10px] md:text-sm break-words">{team.name}</td>
                                         <td className="py-2 px-3 text-center text-gray-400">{team.played}</td>
                                         <td className="py-2 px-3 text-center text-neonGreen">{team.won}</td>
                                         <td className="py-2 px-3 text-center text-yellow-400">{team.drawn}</td>
@@ -256,70 +259,6 @@ function GroupStage({ groups }) {
                     </CardContent>
                 </Card>
             ))}
-        </div>
-    )
-}
-
-// Enhanced Bracket for knockout tournaments
-function KnockoutBracket({ rounds }) {
-    return (
-        <div className="w-full overflow-x-auto pb-4">
-            <div className="inline-flex items-start justify-start gap-4 p-4" style={{ minWidth: '700px' }}>
-                {rounds.map((round, roundIdx) => (
-                    <div key={round.name} className="flex flex-col items-center">
-                        <div className="text-sm font-medium text-gray-400 mb-4 text-center">
-                            {round.name}
-                        </div>
-                        <div className="space-y-4" style={{ marginTop: roundIdx * 40 }}>
-                            {round.matches.map((match) => (
-                                <div
-                                    key={match.id}
-                                    className={`w-48 bg-cardBg border rounded-lg overflow-hidden ${round.name === 'Final' ? 'border-yellow-500/50' : 'border-white/10'
-                                        }`}
-                                >
-                                    <div className={`flex items-center justify-between p-2 border-b border-white/5 ${match.homeWin ? 'bg-neonGreen/10' : ''
-                                        }`}>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded bg-blue-500/30 flex items-center justify-center text-xs font-bold">
-                                                {match.home?.charAt(0) || '?'}
-                                            </div>
-                                            <span className={`text-sm ${match.homeWin ? 'font-bold text-neonGreen' : ''}`}>
-                                                {match.home || 'TBD'}
-                                            </span>
-                                        </div>
-                                        <span className={`font-display font-bold ${match.homeWin ? 'text-neonGreen' : 'text-gray-400'}`}>
-                                            {match.homeScore ?? '-'}
-                                        </span>
-                                    </div>
-                                    <div className={`flex items-center justify-between p-2 ${match.awayWin ? 'bg-neonGreen/10' : ''
-                                        }`}>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded bg-red-500/30 flex items-center justify-center text-xs font-bold">
-                                                {match.away?.charAt(0) || '?'}
-                                            </div>
-                                            <span className={`text-sm ${match.awayWin ? 'font-bold text-neonGreen' : ''}`}>
-                                                {match.away || 'TBD'}
-                                            </span>
-                                        </div>
-                                        <span className={`font-display font-bold ${match.awayWin ? 'text-neonGreen' : 'text-gray-400'}`}>
-                                            {match.awayScore ?? '-'}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ))}
-
-                {/* Champion */}
-                <div className="flex flex-col items-center" style={{ marginTop: 80 }}>
-                    <div className="text-sm font-medium text-yellow-400 mb-4">🏆 Juara</div>
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center">
-                        <Trophy className="w-10 h-10 text-white" />
-                    </div>
-                    <div className="mt-2 text-center font-display font-bold">TBD</div>
-                </div>
-            </div>
         </div>
     )
 }
@@ -428,6 +367,9 @@ export default function TournamentDetail() {
             baseTabs.push({ id: 'bracket', label: 'Bracket', icon: GitMerge })
         }
 
+
+        baseTabs.push({ id: 'top_scores', label: 'Top Score', icon: TrendingUp })
+        baseTabs.push({ id: 'statistics', label: 'Statistic', icon: Activity })
         baseTabs.push({ id: 'fixtures', label: 'Jadwal', icon: Calendar })
         baseTabs.push({ id: 'players', label: 'Pemain', icon: Users })
 
@@ -440,6 +382,10 @@ export default function TournamentDetail() {
         navigator.clipboard.writeText(tournamentData.shareLink)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
+    }
+
+    const handleMatchClick = (matchId = 1) => {
+        navigate(`/dashboard/tournaments/${id}/match/${matchId}`)
     }
 
     return (
@@ -584,7 +530,7 @@ export default function TournamentDetail() {
                 <div className="space-y-4">
                     <div className="grid md:grid-cols-2 gap-4">
                         {isLeague && (
-                            <Card hover={false}>
+                            <Card hover={false} className="min-w-0">
                                 <CardHeader>
                                     <h3 className="font-display font-bold">Klasemen Sementara</h3>
                                 </CardHeader>
@@ -595,7 +541,7 @@ export default function TournamentDetail() {
                         )}
 
                         {(isKnockout || isGroupKO) && (
-                            <Card hover={false}>
+                            <Card hover={false} className="min-w-0">
                                 <CardHeader>
                                     <h3 className="font-display font-bold flex items-center gap-2">
                                         <GitMerge className="w-5 h-5 text-neonPink" />
@@ -605,15 +551,15 @@ export default function TournamentDetail() {
                                 <CardContent>
                                     <div className="space-y-3">
                                         <div className="text-sm text-gray-400 mb-2">Semi Finals</div>
-                                        <MatchCard home="Barcelona" away="Real Madrid" homeScore={2} awayScore={1} status="completed" />
-                                        <MatchCard home="Man City" away="Bayern" time="TBD" status="upcoming" />
+                                        <MatchCard home="BAR" away="RMA" homeScore={2} awayScore={1} status="completed" onClick={() => handleMatchClick(5)} />
+                                        <MatchCard home="MCI" away="BAY" time="TBD" status="upcoming" onClick={() => handleMatchClick(6)} />
                                     </div>
                                 </CardContent>
                             </Card>
                         )}
 
                         {isGroupKO && (
-                            <Card hover={false}>
+                            <Card hover={false} className="min-w-0">
                                 <CardHeader>
                                     <h3 className="font-display font-bold flex items-center gap-2">
                                         <Grid3X3 className="w-5 h-5 text-blue-400" />
@@ -621,7 +567,7 @@ export default function TournamentDetail() {
                                     </h3>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {groupsData.slice(0, 4).map(group => (
                                             <div key={group.name} className="p-3 bg-white/5 rounded-lg">
                                                 <div className="text-sm font-bold text-neonGreen mb-2">{group.name}</div>
@@ -636,14 +582,14 @@ export default function TournamentDetail() {
                             </Card>
                         )}
 
-                        <Card hover={false}>
+                        <Card hover={false} className="min-w-0">
                             <CardHeader>
                                 <h3 className="font-display font-bold">Pertandingan Terakhir</h3>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                <MatchCard home="FCB" away="MU" homeScore={3} awayScore={1} status="completed" />
-                                <MatchCard home="RMA" away="ARS" homeScore={2} awayScore={2} status="completed" />
-                                <MatchCard home="LIV" away="CHE" homeScore={1} awayScore={0} status="completed" />
+                                <MatchCard home="FCB" away="MU" homeScore={3} awayScore={1} status="completed" onClick={() => handleMatchClick(7)} />
+                                <MatchCard home="RMA" away="ARS" homeScore={2} awayScore={2} status="completed" onClick={() => handleMatchClick(8)} />
+                                <MatchCard home="LIV" away="CHE" homeScore={1} awayScore={0} status="completed" onClick={() => handleMatchClick(9)} />
                             </CardContent>
                         </Card>
                     </div>
@@ -690,9 +636,20 @@ export default function TournamentDetail() {
                         <Button variant="ghost" size="sm">Export Gambar</Button>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <KnockoutBracket rounds={knockoutRounds} />
+                        <Bracket rounds={knockoutRounds} onMatchClick={handleMatchClick} />
                     </CardContent>
                 </Card>
+            )}
+
+
+            {/* Top Scores */}
+            {activeTab === 'top_scores' && (
+                <TopScorerList />
+            )}
+
+            {/* Statistics */}
+            {activeTab === 'statistics' && (
+                <TournamentStatistics />
             )}
 
             {/* Fixtures */}
@@ -705,10 +662,10 @@ export default function TournamentDetail() {
                         <span className="text-sm text-gray-400">4 pertandingan</span>
                     </div>
                     <div className="space-y-3">
-                        <MatchCard home="FCB" away="RMA" time="Hari ini, 20:00" status="upcoming" />
-                        <MatchCard home="MU" away="ARS" time="Besok, 19:30" status="upcoming" />
-                        <MatchCard home="LIV" away="CHE" time="Besok, 21:00" status="upcoming" />
-                        <MatchCard home="PSG" away="BAY" time="Sabtu, 20:00" status="upcoming" />
+                        <MatchCard home="FCB" away="RMA" time="Hari ini, 20:00" status="upcoming" onClick={() => handleMatchClick(1)} />
+                        <MatchCard home="MU" away="ARS" time="Besok, 19:30" status="upcoming" onClick={() => handleMatchClick(2)} />
+                        <MatchCard home="LIV" away="CHE" time="Besok, 21:00" status="upcoming" onClick={() => handleMatchClick(3)} />
+                        <MatchCard home="PSG" away="BAY" time="Sabtu, 20:00" status="upcoming" onClick={() => handleMatchClick(4)} />
                     </div>
                 </Card>
             )}
