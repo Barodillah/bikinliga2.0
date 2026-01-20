@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { Trophy, Users, Calendar, BarChart2, ArrowLeft, TrendingUp, Activity, Sparkles, Brain, Goal } from 'lucide-react'
+import { Trophy, Users, Calendar, BarChart2, ArrowLeft, TrendingUp, Activity, Sparkles, Brain, Goal, Newspaper } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import StandingsTable from '../../components/tournament/StandingsTable'
@@ -9,6 +9,7 @@ import TournamentStatistics from '../../components/tournament/TournamentStatisti
 import MatchCard from '../../components/tournament/MatchCard'
 import AdSlot from '../../components/ui/AdSlot'
 import Input from '../../components/ui/Input'
+import LeagueNews from '../../components/tournament/LeagueNews'
 
 // Reusing same mock data logic as TournamentDetail (simplified)
 const getTournamentData = (id) => {
@@ -60,6 +61,7 @@ export default function UserTournamentDetail() {
     const tabs = [
         { id: 'overview', label: 'Overview', icon: Trophy },
         { id: 'ai_analysis', label: 'AI Analysis', icon: Brain, isPremium: true },
+        { id: 'league_news', label: 'League News', icon: Newspaper },
         { id: 'standings', label: 'Klasemen', icon: BarChart2, hidden: !isLeague },
         { id: 'fixtures', label: 'Jadwal', icon: Calendar },
         { id: 'top_scores', label: 'Top Score', icon: TrendingUp },
@@ -160,77 +162,80 @@ export default function UserTournamentDetail() {
 
             {/* AI Analysis Tab (Premium) */}
             {activeTab === 'ai_analysis' && (
-                <div className="grid md:grid-cols-3 gap-6 h-[600px]">
-                    {/* Chat Area */}
-                    <div className="md:col-span-2 flex flex-col h-full bg-[#0a0a0a] rounded-xl border border-white/10 overflow-hidden relative">
-                        {/* Premium Badge Background */}
-                        <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-                            <Sparkles className="w-64 h-64 text-yellow-500" />
-                        </div>
+                <div className="grid md:grid-cols-3 gap-6">
+                    {/* Chat Area & Input */}
+                    <div className="md:col-span-2 flex flex-col gap-4">
+                        {/* Messages Card */}
+                        <div className="flex flex-col h-[500px] bg-[#0a0a0a] rounded-xl border border-white/10 overflow-hidden relative">
+                            {/* Premium Badge Background */}
+                            <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                                <Sparkles className="w-64 h-64 text-yellow-500" />
+                            </div>
 
-                        {/* Chat Header */}
-                        <div className="p-4 border-b border-white/10 bg-white/5 flex items-center justify-between relative z-10">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center justify-center">
-                                    <Brain className="w-5 h-5 text-black" />
-                                </div>
-                                <div>
-                                    <div className="font-bold flex items-center gap-2">
-                                        Tournament Analyst AI
-                                        <span className="text-[10px] bg-yellow-500 text-black px-1.5 py-0.5 rounded font-bold">PRO</span>
+                            {/* Chat Header */}
+                            <div className="p-4 border-b border-white/10 bg-white/5 flex items-center justify-between relative z-10">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center justify-center">
+                                        <Brain className="w-5 h-5 text-black" />
                                     </div>
-                                    <div className="text-xs text-gray-400">Powered by advanced match data</div>
+                                    <div>
+                                        <div className="font-bold flex items-center gap-2">
+                                            Tournament Analyst AI
+                                            <span className="text-[10px] bg-yellow-500 text-black px-1.5 py-0.5 rounded font-bold">PRO</span>
+                                        </div>
+                                        <div className="text-xs text-gray-400">Powered by advanced match data</div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Messages */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-container relative z-10">
-                            {chatMessages.map((msg) => (
-                                <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[80%] rounded-2xl p-4 ${msg.role === 'user'
-                                        ? 'bg-blue-600 text-white rounded-br-none'
-                                        : 'bg-white/10 text-gray-200 rounded-bl-none border border-white/5'
-                                        }`}>
-                                        {msg.content}
+                            {/* Messages */}
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-container relative z-10">
+                                {chatMessages.map((msg) => (
+                                    <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`max-w-[80%] rounded-2xl p-4 ${msg.role === 'user'
+                                            ? 'bg-blue-600 text-white rounded-br-none'
+                                            : 'bg-white/10 text-gray-200 rounded-bl-none border border-white/5'
+                                            }`}>
+                                            {msg.content}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                            {isTyping && (
-                                <div className="flex justify-start">
-                                    <div className="bg-white/10 text-gray-400 rounded-2xl p-4 rounded-bl-none border border-white/5 flex gap-1">
-                                        <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></span>
-                                        <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-100"></span>
-                                        <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-200"></span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Input Area */}
-                        <div className="p-4 border-t border-white/10 bg-white/5 relative z-10">
-                            <div className="flex gap-2 mb-3 overflow-x-auto pb-2 scrollbar-hide">
-                                {analysisPrompts.map((prompt, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => handlePromptClick(prompt)}
-                                        className="whitespace-nowrap px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-400 hover:bg-white/10 hover:text-white transition"
-                                    >
-                                        {prompt}
-                                    </button>
                                 ))}
+                                {isTyping && (
+                                    <div className="flex justify-start">
+                                        <div className="bg-white/10 text-gray-400 rounded-2xl p-4 rounded-bl-none border border-white/5 flex gap-1">
+                                            <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></span>
+                                            <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-100"></span>
+                                            <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-200"></span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                            <form onSubmit={handleSendMessage} className="flex gap-2">
-                                <Input
-                                    value={chatInput}
-                                    onChange={(e) => setChatInput(e.target.value)}
-                                    placeholder="Tanyakan analisis tentang kompetisi ini..."
-                                    className="flex-1"
-                                />
-                                <Button type="submit" className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black border-none hover:opacity-90">
-                                    <Sparkles className="w-5 h-5" />
-                                </Button>
-                            </form>
+                            {/* Input Area */}
+                            <div className="p-4 border-t border-white/10 bg-white/5 relative z-10">
+                                <div className="flex gap-2 mb-3 overflow-x-auto pb-2 scrollbar-hide">
+                                    {analysisPrompts.map((prompt, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => handlePromptClick(prompt)}
+                                            className="whitespace-nowrap px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-400 hover:bg-white/10 hover:text-white transition"
+                                        >
+                                            {prompt}
+                                        </button>
+                                    ))}
+                                </div>
+                                <form onSubmit={handleSendMessage} className="flex gap-2">
+                                    <Input
+                                        value={chatInput}
+                                        onChange={(e) => setChatInput(e.target.value)}
+                                        placeholder="Tanyakan analisis tentang kompetisi ini..."
+                                        containerClassName="flex-1"
+                                        className="w-full"
+                                    />
+                                    <Button type="submit" className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black border-none hover:opacity-90">
+                                        <Sparkles className="w-5 h-5" />
+                                    </Button>
+                                </form>
+                            </div>
                         </div>
                     </div>
 
@@ -323,6 +328,9 @@ export default function UserTournamentDetail() {
                     </div>
                 </div>
             )}
+
+            {/* League News Tab */}
+            {activeTab === 'league_news' && <LeagueNews />}
 
             {/* Other Tabs (Reused Components) */}
             {activeTab === 'standings' && (

@@ -37,77 +37,66 @@ export default function TopUp() {
     // Ad Watching State
     const [isAdModalOpen, setIsAdModalOpen] = useState(false)
     const [adTimer, setAdTimer] = useState(0)
+    const [maxDuration, setMaxDuration] = useState(15) // Default fallback
     const [adStatus, setAdStatus] = useState('idle') // idle, playing, completed
     const adRef = React.useRef(null)
+
+    // Modal & Payment State
+    const [showPremiumModal, setShowPremiumModal] = useState(false)
+    const [showPaymentModal, setShowPaymentModal] = useState(false)
+    const [selectedPackage, setSelectedPackage] = useState(null)
+    const [billingDetails, setBillingDetails] = useState({
+        fullName: 'John Doe',
+        email: 'john@user.com',
+        phone: '08123456789',
+        address: '',
+        city: '',
+        zipCode: ''
+    })
 
     // VAST Ad Logic (Google Sample) - GUARANTEED VIDEO APPEARANCE
     useEffect(() => {
         let videoElement = null
 
-        if (isAdModalOpen && adStatus === 'playing' && adRef.current) {
+        if (adRef.current) {
             // Clear content
             adRef.current.innerHTML = ''
 
-            // Show loading
-            const loadingText = document.createElement('p')
-            loadingText.className = 'text-gray-400 text-xs animate-pulse font-mono'
-            loadingText.innerText = 'Initializing Video Ad...'
-            adRef.current.appendChild(loadingText)
+            // Direct Google Preroll Video
+            const videoSrc = 'https://storage.googleapis.com/gvabox/media/samples/stock.mp4'
 
-            // Google VAST Sample URL (Robust for localhost)
-            // "Single Inline Linear" - Contains the MP4 file directly in the XML.
-            const vastUrl = 'https://pubads.g.doubleclick.net/gampad/ads?iu=/21775744923/external/single_ad_samples&sz=640x480&cust_params=sample_ct%3Dlinear&ciu_szs=300x250%2C728x90&gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&correlator='
+            // Native HTML5 Video Player
+            videoElement = document.createElement('video')
+            videoElement.src = videoSrc
+            videoElement.style.width = '100%'
+            videoElement.style.height = '100%'
+            videoElement.style.objectFit = 'contain' // Keep aspect ratio
+            videoElement.controls = false // Disable user seeking
+            videoElement.autoplay = true
+            videoElement.playsInline = true
+            videoElement.muted = false // Ensure sound is on if possible, but browsers might block unmuted autoplay
 
-            fetch(vastUrl)
-                .then(res => res.text())
-                .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
-                .then(data => {
-                    const mediaFiles = data.getElementsByTagName('MediaFile')
-                    let videoSrc = ''
-                    // Find MP4
-                    for (let i = 0; i < mediaFiles.length; i++) {
-                        if (mediaFiles[i].getAttribute('type') === 'video/mp4') {
-                            videoSrc = mediaFiles[i].textContent.trim()
-                            break
-                        }
+            // Prevent context menu
+            videoElement.oncontextmenu = (e) => e.preventDefault()
+
+            // Sync Timer with Video Duration
+            videoElement.ontimeupdate = () => {
+                const duration = videoElement.duration
+                if (!isNaN(duration) && duration > 0) {
+                    setMaxDuration(Math.ceil(duration))
+                    const remaining = Math.ceil(duration - videoElement.currentTime)
+                    if (!isNaN(remaining) && remaining >= 0) {
+                        setAdTimer(remaining)
                     }
+                }
+            }
 
-                    if (videoSrc && adRef.current) {
-                        adRef.current.innerHTML = ''
+            // Completion Handler
+            videoElement.onended = () => {
+                setAdStatus('completed')
+            }
 
-                        // Native HTML5 Video Player
-                        videoElement = document.createElement('video')
-                        videoElement.src = videoSrc
-                        videoElement.style.width = '100%'
-                        videoElement.style.height = '100%'
-                        videoElement.style.objectFit = 'contain' // Keep aspect ratio
-                        videoElement.controls = false // Disable user seeking
-                        videoElement.autoplay = true
-                        videoElement.playsInline = true
-
-                        // Prevent context menu
-                        videoElement.oncontextmenu = (e) => e.preventDefault()
-
-                        // Sync Timer with Video Duration
-                        videoElement.ontimeupdate = () => {
-                            const remaining = Math.ceil(videoElement.duration - videoElement.currentTime)
-                            if (!isNaN(remaining) && remaining >= 0) {
-                                setAdTimer(remaining)
-                            }
-                        }
-
-                        // Completion Handler
-                        videoElement.onended = () => {
-                            setAdStatus('completed')
-                        }
-
-                        adRef.current.appendChild(videoElement)
-                    }
-                })
-                .catch(err => {
-                    console.error("VAST Error", err)
-                    if (adRef.current) adRef.current.innerText = 'Failed to load video.'
-                })
+            adRef.current.appendChild(videoElement)
         }
 
         return () => {
@@ -168,8 +157,55 @@ export default function TopUp() {
         e.preventDefault()
         if (amountIdr < MIN_IDR_TOPUP) return
 
-        // TODO: Implement payment gateway integration
-        console.log('Manual top up:', { coins: amountCoins, idr: amountIdr })
+        setSelectedPackage({
+            name: 'Manual Top Up',
+            coins: amountCoins,
+            price: `Rp ${Number(amountIdr).toLocaleString()}`,
+            bonus: 0,
+            amountIdr: amountIdr
+        })
+        setShowPaymentModal(true)
+    }
+
+    const handlePackageClick = (pkg) => {
+        setSelectedPackage({
+            ...pkg,
+            name: `${pkg.coins} Coins Package`,
+            amountIdr: parseInt(pkg.price.replace(/\D/g, ''))
+        })
+        setShowPaymentModal(true)
+    }
+
+    const handlePaymentConfirm = (e) => {
+        e.preventDefault()
+
+        // Mock Payment Process
+        const newTx = {
+            id: `TRX-${Math.floor(Math.random() * 900000) + 100000}`,
+            type: 'topup',
+            category: 'Deposit',
+            amount: selectedPackage.coins + selectedPackage.bonus,
+            date: new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            status: 'success',
+            desc: selectedPackage.name,
+            method: 'Bank Transfer'
+        }
+
+        setBalance(prev => prev + (selectedPackage.coins + selectedPackage.bonus))
+        setTransactions(prev => [newTx, ...prev])
+        setShowPaymentModal(false)
+
+        // Reset manual form if needed
+        if (selectedPackage.name === 'Manual Top Up') {
+            setAmountIdr('')
+            setAmountCoins('')
+        }
+    }
+
+    const handlePremiumConfirm = () => {
+        // Mock Premium Upgrade
+        alert("Upgrade successful! (Mock)")
+        setShowPremiumModal(false)
     }
 
     const handleWatchAd = () => {
@@ -256,7 +292,11 @@ export default function TopUp() {
                                         <h4 className="font-bold text-yellow-500">Upgrade to Premium</h4>
                                         <p className="text-sm text-gray-400">Unlock exclusive features, remove ads, and get monthly coin bonuses.</p>
                                     </div>
-                                    <Button variant="primary" className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-400 text-black border-none whitespace-nowrap">
+                                    <Button
+                                        onClick={() => setShowPremiumModal(true)}
+                                        variant="primary"
+                                        className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-400 text-black border-none whitespace-nowrap"
+                                    >
                                         Upgrade Now
                                     </Button>
                                 </div>
@@ -276,6 +316,7 @@ export default function TopUp() {
                                     key={index}
                                     className={`relative transition-all hover:-translate-y-1 cursor-pointer group hover:shadow-lg hover:shadow-neonGreen/10 ${pkg.popular ? 'border-neonGreen/50 bg-neonGreen/5' : 'hover:border-white/30'
                                         }`}
+                                    onClick={() => handlePackageClick(pkg)}
                                 >
                                     {pkg.popular && (
                                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-neonGreen text-black text-xs font-bold rounded-full shadow-lg shadow-neonGreen/20">
@@ -572,16 +613,13 @@ export default function TopUp() {
                                 <div ref={adRef} className="w-full h-full flex items-center justify-center bg-black">
                                     {/* Video Player will be inserted here by useEffect */}
                                 </div>
-                                <p className="text-xs text-gray-500 mt-2 text-center">
-                                    *Demo Commercial (Google VAST)* <br /> To earn real revenue, replace VAST URL with Adsterra/Monetag after domain approval.
-                                </p>
 
                                 {/* Timer Overlay: Keep it to simulate/enforce watch time */}
                                 <div className="absolute bottom-4 left-4 right-4 z-10">
                                     <div className="h-1 bg-white/20 rounded-full overflow-hidden">
                                         <div
-                                            className="h-full bg-indigo-500 transition-all duration-1000 ease-linear"
-                                            style={{ width: `${((15 - adTimer) / 15) * 100}%` }}
+                                            className="h-full bg-indigo-500 transition-all duration-100 ease-linear"
+                                            style={{ width: `${maxDuration > 0 ? ((maxDuration - adTimer) / maxDuration) * 100 : 0}%` }}
                                         />
                                     </div>
                                     <div className="flex justify-between text-xs text-white mt-2 font-medium drop-shadow-md">
@@ -613,6 +651,169 @@ export default function TopUp() {
                         </>
                     )}
                 </div>
+            </Modal>
+
+            {/* Premium Upgrade Modal */}
+            <Modal
+                isOpen={showPremiumModal}
+                onClose={() => setShowPremiumModal(false)}
+                title="Upgrade to Premium"
+            >
+                <div className="p-4">
+                    <div className="text-center mb-6">
+                        <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-yellow-500/20">
+                            <Crown className="w-8 h-8 text-black" />
+                        </div>
+                        <h4 className="text-xl font-bold text-white">Unlock Full Potential</h4>
+                        <p className="text-sm text-gray-400 mt-2">Get exclusive access to premium features and rewards.</p>
+                    </div>
+
+                    <div className="bg-white/5 rounded-xl p-4 mb-6 border border-white/5">
+                        <h5 className="text-sm font-bold text-gray-300 mb-3 uppercase tracking-wider">Premium Benefits</h5>
+                        <ul className="space-y-3">
+                            {[
+                                { icon: '🚫', text: 'Remove All Ads' },
+                                { icon: '👑', text: 'Exclusive Premium Badge' },
+                                { icon: '💎', text: 'Monthly +50 Coins Bonus' },
+                                { icon: '⚡', text: 'Priority Support' }
+                            ].map((item, idx) => (
+                                <li key={idx} className="flex items-center gap-3 text-sm text-gray-200">
+                                    <span className="text-base">{item.icon}</span>
+                                    {item.text}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20 mb-6">
+                        <span className="text-sm text-yellow-200">Upgrade Cost</span>
+                        <span className="text-lg font-bold text-yellow-400">2,500 Coins <span className="text-xs font-normal text-gray-400">/ year</span></span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <Button variant="outline" onClick={() => setShowPremiumModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            className="bg-gradient-to-r from-yellow-500 to-yellow-600 border-none text-black font-bold hover:shadow-lg hover:shadow-yellow-500/20"
+                            onClick={handlePremiumConfirm}
+                        >
+                            Confirm Upgrade
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Top Up Payment Modal */}
+            <Modal
+                isOpen={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)}
+                title="Complete Payment"
+            >
+                <form onSubmit={handlePaymentConfirm} className="p-4 space-y-6">
+                    {/* Transaction Summary */}
+                    <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-gray-400 text-sm">Package</span>
+                            <span className="text-white font-bold">{selectedPackage?.name}</span>
+                        </div>
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-gray-400 text-sm">Amount to Pay</span>
+                            <span className="text-neonGreen font-bold font-mono text-lg">{selectedPackage?.price}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-2 border-t border-white/10">
+                            <span className="text-gray-400 text-sm">You Receive</span>
+                            <div className="text-right">
+                                <span className="text-white font-bold block">{selectedPackage?.coins} Coins</span>
+                                {selectedPackage?.bonus > 0 && (
+                                    <span className="text-xs text-neonGreen font-medium">+{selectedPackage.bonus} Bonus</span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Billing Details Form */}
+                    <div className="space-y-4">
+                        <h4 className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                            <div className="w-1 h-4 bg-neonPink rounded-full"></div>
+                            Billing Information
+                        </h4>
+
+                        <div className="grid grid-cols-1 gap-4">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Full Name</label>
+                                <Input
+                                    value={billingDetails.fullName}
+                                    onChange={e => setBillingDetails({ ...billingDetails, fullName: e.target.value })}
+                                    placeholder="Enter full name"
+                                    required
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
+                                    <Input
+                                        type="email"
+                                        value={billingDetails.email}
+                                        onChange={e => setBillingDetails({ ...billingDetails, email: e.target.value })}
+                                        placeholder="email@example.com"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1">Phone</label>
+                                    <Input
+                                        type="tel"
+                                        value={billingDetails.phone}
+                                        onChange={e => setBillingDetails({ ...billingDetails, phone: e.target.value })}
+                                        placeholder="08..."
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Billing Address</label>
+                                <Input
+                                    value={billingDetails.address}
+                                    onChange={e => setBillingDetails({ ...billingDetails, address: e.target.value })}
+                                    placeholder="Street address, apartment, etc."
+                                    required
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1">City</label>
+                                    <Input
+                                        value={billingDetails.city}
+                                        onChange={e => setBillingDetails({ ...billingDetails, city: e.target.value })}
+                                        placeholder="Jakarta"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1">Zip Code</label>
+                                    <Input
+                                        value={billingDetails.zipCode}
+                                        onChange={e => setBillingDetails({ ...billingDetails, zipCode: e.target.value })}
+                                        placeholder="12345"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-2">
+                        <Button type="submit" className="w-full bg-neonPink hover:bg-neonPink/90 border-none text-white shadow-lg shadow-neonPink/20">
+                            Process Payment
+                        </Button>
+                        <p className="text-center text-[10px] text-gray-500 mt-3">
+                            By continuing, you agree to our Terms of Service and Privacy Policy.
+                        </p>
+                    </div>
+                </form>
             </Modal>
         </div>
     )

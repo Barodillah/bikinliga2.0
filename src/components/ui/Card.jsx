@@ -1,8 +1,11 @@
 import React from 'react'
 
-export default function Card({ children, className = '', hover = true }) {
+export default function Card({ children, className = '', hover = true, ...props }) {
     return (
-        <div className={`glass-panel rounded-2xl ${hover ? 'hover:border-white/20 transition-all duration-300' : ''} ${className}`}>
+        <div
+            className={`glass-panel rounded-2xl ${hover ? 'hover:border-white/20 transition-all duration-300' : ''} ${className}`}
+            {...props}
+        >
             {children}
         </div>
     )
