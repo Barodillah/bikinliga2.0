@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Trophy, Menu, X } from 'lucide-react'
 
 export default function Navbar() {
     const [isScrolled, setIsScrolled] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+    const location = useLocation()
+    const isLandingPage = location.pathname === '/'
 
     useEffect(() => {
         const handleScroll = () => {
@@ -35,7 +37,7 @@ export default function Navbar() {
                     {/* Desktop Menu */}
                     <div className="hidden md:block">
                         <div className="ml-10 flex items-baseline space-x-8">
-                            {navLinks.map(link => (
+                            {isLandingPage && navLinks.map(link => (
                                 <a
                                     key={link.name}
                                     href={link.href}
@@ -73,7 +75,7 @@ export default function Navbar() {
             {mobileMenuOpen && (
                 <div className="md:hidden glass-panel border-t border-white/10">
                     <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                        {navLinks.map(link => (
+                        {isLandingPage && navLinks.map(link => (
                             <a
                                 key={link.name}
                                 href={link.href}

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { Crown, Zap, History, PlayCircle, Plus, AlertCircle, ArrowRightLeft } from 'lucide-react'
+import { Crown, Zap, History, PlayCircle, Plus, AlertCircle, ArrowRightLeft, Loader2, CheckCircle2 } from 'lucide-react'
 import { useAds } from '../../contexts/AdContext'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
+import Modal from '../../components/ui/Modal'
 
 const TOPUP_PACKAGES = [
     { coins: 100, price: 'Rp 15.000', bonus: 0, popular: false },
@@ -28,6 +29,94 @@ export default function TopUp() {
     const [amountCoins, setAmountCoins] = useState('')
     const [amountIdr, setAmountIdr] = useState('')
     const [error, setError] = useState('')
+
+    // State for interactive features
+    const [balance, setBalance] = useState(1250)
+    const [transactions, setTransactions] = useState(MOCK_TRANSACTIONS)
+
+    // Ad Watching State
+    const [isAdModalOpen, setIsAdModalOpen] = useState(false)
+    const [adTimer, setAdTimer] = useState(0)
+    const [adStatus, setAdStatus] = useState('idle') // idle, playing, completed
+    const adRef = React.useRef(null)
+
+    // VAST Ad Logic (Google Sample) - GUARANTEED VIDEO APPEARANCE
+    useEffect(() => {
+        let videoElement = null
+
+        if (isAdModalOpen && adStatus === 'playing' && adRef.current) {
+            // Clear content
+            adRef.current.innerHTML = ''
+
+            // Show loading
+            const loadingText = document.createElement('p')
+            loadingText.className = 'text-gray-400 text-xs animate-pulse font-mono'
+            loadingText.innerText = 'Initializing Video Ad...'
+            adRef.current.appendChild(loadingText)
+
+            // Google VAST Sample URL (Robust for localhost)
+            // "Single Inline Linear" - Contains the MP4 file directly in the XML.
+            const vastUrl = 'https://pubads.g.doubleclick.net/gampad/ads?iu=/21775744923/external/single_ad_samples&sz=640x480&cust_params=sample_ct%3Dlinear&ciu_szs=300x250%2C728x90&gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&correlator='
+
+            fetch(vastUrl)
+                .then(res => res.text())
+                .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
+                .then(data => {
+                    const mediaFiles = data.getElementsByTagName('MediaFile')
+                    let videoSrc = ''
+                    // Find MP4
+                    for (let i = 0; i < mediaFiles.length; i++) {
+                        if (mediaFiles[i].getAttribute('type') === 'video/mp4') {
+                            videoSrc = mediaFiles[i].textContent.trim()
+                            break
+                        }
+                    }
+
+                    if (videoSrc && adRef.current) {
+                        adRef.current.innerHTML = ''
+
+                        // Native HTML5 Video Player
+                        videoElement = document.createElement('video')
+                        videoElement.src = videoSrc
+                        videoElement.style.width = '100%'
+                        videoElement.style.height = '100%'
+                        videoElement.style.objectFit = 'contain' // Keep aspect ratio
+                        videoElement.controls = false // Disable user seeking
+                        videoElement.autoplay = true
+                        videoElement.playsInline = true
+
+                        // Prevent context menu
+                        videoElement.oncontextmenu = (e) => e.preventDefault()
+
+                        // Sync Timer with Video Duration
+                        videoElement.ontimeupdate = () => {
+                            const remaining = Math.ceil(videoElement.duration - videoElement.currentTime)
+                            if (!isNaN(remaining) && remaining >= 0) {
+                                setAdTimer(remaining)
+                            }
+                        }
+
+                        // Completion Handler
+                        videoElement.onended = () => {
+                            setAdStatus('completed')
+                        }
+
+                        adRef.current.appendChild(videoElement)
+                    }
+                })
+                .catch(err => {
+                    console.error("VAST Error", err)
+                    if (adRef.current) adRef.current.innerText = 'Failed to load video.'
+                })
+        }
+
+        return () => {
+            if (videoElement) {
+                videoElement.pause()
+                videoElement.src = ''
+            }
+        }
+    }, [isAdModalOpen, adStatus])
 
     const handleCoinChange = (e) => {
         const val = e.target.value
@@ -66,11 +155,11 @@ export default function TopUp() {
     const [activeFilter, setActiveFilter] = useState('All')
 
     const getFilteredTransactions = () => {
-        if (activeFilter === 'All') return MOCK_TRANSACTIONS
-        if (activeFilter === 'Deposit') return MOCK_TRANSACTIONS.filter(t => t.type === 'topup')
-        if (activeFilter === 'Spend') return MOCK_TRANSACTIONS.filter(t => t.type === 'spend')
-        if (activeFilter === 'Reward') return MOCK_TRANSACTIONS.filter(t => t.type === 'bonus' || t.type === 'ad_reward')
-        return MOCK_TRANSACTIONS
+        if (activeFilter === 'All') return transactions
+        if (activeFilter === 'Deposit') return transactions.filter(t => t.type === 'topup')
+        if (activeFilter === 'Spend') return transactions.filter(t => t.type === 'spend')
+        if (activeFilter === 'Reward') return transactions.filter(t => t.type === 'bonus' || t.type === 'ad_reward')
+        return transactions
     }
 
     const filteredTransactions = getFilteredTransactions()
@@ -84,8 +173,35 @@ export default function TopUp() {
     }
 
     const handleWatchAd = () => {
-        // TODO: Implement AdMob/AdSense reward video
-        console.log('Watching ad...')
+        // Reset Ad State
+        setAdStatus('playing')
+        setAdTimer(15) // 15 seconds ad
+        setIsAdModalOpen(true)
+    }
+
+    // Timer handled by VAST Video Player
+    useEffect(() => {
+        // Placeholder for cleanup if needed
+    }, [])
+
+    // Claim Reward
+    const handleClaimReward = () => {
+        const rewardAmount = 5
+        const newTx = {
+            id: `TRX-${Math.floor(Math.random() * 900000) + 100000}`,
+            type: 'ad_reward',
+            category: 'Ad Reward',
+            amount: rewardAmount,
+            date: new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            status: 'success',
+            desc: 'Watch Ad Reward',
+            method: 'Ad Vendor'
+        }
+
+        setBalance(prev => prev + rewardAmount)
+        setTransactions(prev => [newTx, ...prev])
+        setIsAdModalOpen(false)
+        setAdStatus('idle')
     }
 
     return (
@@ -123,7 +239,7 @@ export default function TopUp() {
                                     <div className="text-sm text-gray-400 mb-1">Current Balance</div>
                                     <div className="text-3xl font-display font-bold text-white flex items-center gap-2">
                                         <img src="/coin.png" alt="Coin" className="w-8 h-8" />
-                                        1,250
+                                        {balance.toLocaleString()}
                                     </div>
                                 </div>
                                 <div className="bg-black/20 rounded-xl p-4 border border-white/5">
@@ -392,8 +508,8 @@ export default function TopUp() {
                                             <span>{tx.method}</span>
                                         </div>
                                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium uppercase ${tx.status === 'success' ? 'bg-green-500/10 text-green-400' :
-                                                tx.status === 'pending' ? 'bg-yellow-500/10 text-yellow-400' :
-                                                    'bg-red-500/10 text-red-400'
+                                            tx.status === 'pending' ? 'bg-yellow-500/10 text-yellow-400' :
+                                                'bg-red-500/10 text-red-400'
                                             }`}>
                                             {tx.status}
                                         </span>
@@ -409,18 +525,95 @@ export default function TopUp() {
                             </div>
                         )}
 
-                        <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4">
-                            <div className="text-xs text-gray-500">
-                                Showing {filteredTransactions.length} transactions
+                        {filteredTransactions.length > 0 && (
+                            <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4">
+                                <div className="text-xs text-gray-500">
+                                    Showing {filteredTransactions.length} transactions
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button variant="outline" className="px-3 py-1.5 text-xs h-auto">Previous</Button>
+                                    <Button variant="outline" className="px-3 py-1.5 text-xs h-auto">Next</Button>
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                <Button variant="outline" className="px-3 py-1.5 text-xs h-auto">Previous</Button>
-                                <Button variant="outline" className="px-3 py-1.5 text-xs h-auto">Next</Button>
-                            </div>
-                        </div>
+                        )}
                     </div>
                 </Card>
             </div>
+
+            {/* Ad Watch Modal */}
+            <Modal
+                isOpen={isAdModalOpen}
+                onClose={() => {
+                    if (adStatus === 'completed') {
+                        setIsAdModalOpen(false)
+                        setAdStatus('idle')
+                    } else {
+                        // Optional: Confirm before closing if playing?
+                        if (window.confirm("Close ad? You won't get the reward.")) {
+                            setIsAdModalOpen(false)
+                            setAdStatus('idle')
+                        }
+                    }
+                }}
+                title="Watch Ad for Free Coins"
+            >
+                <div className="flex flex-col items-center justify-center p-4">
+                    {adStatus === 'playing' ? (
+                        <>
+                            <div id="adsterra-container" className="w-full aspect-video bg-black/50 rounded-xl overflow-hidden relative flex items-center justify-center">
+                                {/* 
+                                    INSTRUCTION:
+                                    Paste your Adsterra Script below. 
+                                    If it's a "Social Bar" or "Video Slider" script (usually one line src),
+                                    you might want to put it in useEffect to load it when modal opens.
+                                    
+                                    For "Web Banner" / "Native Banner" (iframe/script combos):
+                                */}
+                                <div ref={adRef} className="w-full h-full flex items-center justify-center bg-black">
+                                    {/* Video Player will be inserted here by useEffect */}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2 text-center">
+                                    *Demo Commercial (Google VAST)* <br /> To earn real revenue, replace VAST URL with Adsterra/Monetag after domain approval.
+                                </p>
+
+                                {/* Timer Overlay: Keep it to simulate/enforce watch time */}
+                                <div className="absolute bottom-4 left-4 right-4 z-10">
+                                    <div className="h-1 bg-white/20 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-indigo-500 transition-all duration-1000 ease-linear"
+                                            style={{ width: `${((15 - adTimer) / 15) * 100}%` }}
+                                        />
+                                    </div>
+                                    <div className="flex justify-between text-xs text-white mt-2 font-medium drop-shadow-md">
+                                        <span>Advertisement</span>
+                                        <span>{adTimer}s remaining</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="mt-6 text-center">
+                                <h4 className="text-white font-bold mb-1">Watching Advertisement...</h4>
+                                <p className="text-sm text-gray-400">Please wait to earn your reward.</p>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mb-6 animate-in zoom-in duration-300">
+                                <CheckCircle2 className="w-10 h-10 text-green-500" />
+                            </div>
+                            <h4 className="text-xl font-bold text-white mb-2">Reward Unlocked!</h4>
+                            <p className="text-gray-400 text-center mb-8">
+                                You have successfully earned <span className="text-neonGreen font-bold">+5 Coins</span>.
+                            </p>
+                            <Button
+                                onClick={handleClaimReward}
+                                className="w-full bg-green-600 hover:bg-green-500 border-none text-white shadow-lg shadow-green-900/20"
+                            >
+                                Claim 5 Coins
+                            </Button>
+                        </>
+                    )}
+                </div>
+            </Modal>
         </div>
     )
 }

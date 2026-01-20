@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Timer, User, Goal, Flag, Play, Square, Save, Clock, Trophy, ChevronRight, CheckCircle, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Timer, User, Goal, Flag, Play, Square, Save, Clock, Trophy, ChevronRight, CheckCircle, RotateCcw, Brain, Percent, History, BarChart2 } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 
@@ -42,6 +42,16 @@ export default function MatchManagement() {
     // Celebration State
     const [showGoalCelebration, setShowGoalCelebration] = useState(false)
     const [celebrationData, setCelebrationData] = useState(null)
+
+    // Tab State (Analysis vs Timeline)
+    const [activeTab, setActiveTab] = useState('analysis')
+
+    // Auto specific tab on kickoff
+    useEffect(() => {
+        if (match.status === '1st_half') {
+            setActiveTab('timeline')
+        }
+    }, [match.status])
 
     // Penalty State (for knockout)
     const [showPenalties, setShowPenalties] = useState(false)
@@ -337,9 +347,9 @@ export default function MatchManagement() {
                     <div className="flex flex-col items-center gap-2">
                         {/* Duration Selector */}
                         {match.status === 'scheduled' && (
-                            <div className="flex items-center gap-2 mb-2 bg-black/30 p-1.5 rounded-lg">
-                                <span className="text-xs text-gray-400 pl-2">Waktu Match:</span>
-                                <div className="flex gap-1">
+                            <div className="flex flex-col sm:flex-row items-center gap-2 mb-2 bg-black/30 p-2 rounded-lg w-full sm:w-auto">
+                                <span className="text-xs text-gray-400 whitespace-nowrap">Waktu Match:</span>
+                                <div className="flex flex-wrap justify-center gap-1">
                                     {[4, 5, 6, 7, 8, 9, 10, 12, 15, 45].map(d => (
                                         <button
                                             key={d}
@@ -505,32 +515,111 @@ export default function MatchManagement() {
                 </Card>
             )}
 
-            {/* Timeline */}
-            <Card>
-                <CardHeader>
-                    <h3 className="font-display font-bold flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-neonGreen" /> Match Timeline
-                    </h3>
-                </CardHeader>
-                <CardContent>
-                    {match.events.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">Belum ada kejadian</div>
-                    ) : (
-                        <div className="relative border-l border-white/10 ml-4 space-y-6 py-2">
-                            {match.events.map((event) => (
-                                <div key={event.id} className="relative pl-6">
-                                    <div className={`absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ${event.team === 'home' ? 'bg-blue-500' : 'bg-red-500'}`}></div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-mono font-bold text-neonGreen">{event.time}'</span>
-                                        <span className="font-bold flex items-center gap-1">
-                                            {event.type === 'goal' && <Goal className="w-4 h-4 text-neonGreen" />}
-                                            {event.type === 'card' && <div className="w-3 h-4 bg-yellow-500 rounded-sm"></div>}
-                                            {event.type.toUpperCase()}
-                                        </span>
-                                        <span className="text-gray-400">- {event.player} {event.detail === 'Penalty' && '(P)'} ({event.team === 'home' ? match.homeTeam.name : match.awayTeam.name})</span>
+            {/* Tabs & Content */}
+            <Card hover={false} className="overflow-hidden">
+                <div className="flex border-b border-white/10">
+                    <button
+                        onClick={() => setActiveTab('analysis')}
+                        className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition relative ${activeTab === 'analysis' ? 'text-neonGreen' : 'text-gray-400 hover:text-white'}`}
+                    >
+                        <Brain className="w-4 h-4" /> match Analysis
+                        {activeTab === 'analysis' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-neonGreen"></div>}
+                    </button>
+                    {match.status !== 'scheduled' && (
+                        <button
+                            onClick={() => setActiveTab('timeline')}
+                            className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition relative ${activeTab === 'timeline' ? 'text-neonGreen' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            <Clock className="w-4 h-4" /> Match Timeline
+                            {activeTab === 'timeline' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-neonGreen"></div>}
+                        </button>
+                    )}
+                </div>
+
+                <CardContent className="p-0">
+                    {/* ANALYSIS TAB */}
+                    {activeTab === 'analysis' && (
+                        <div className="divide-y divide-white/5">
+                            {/* Win Probability */}
+                            <div className="p-6">
+                                <h3 className="font-display font-bold mb-4 flex items-center gap-2">
+                                    <Percent className="w-5 h-5 text-neonPink" /> Win Probability (AI Prediction)
+                                </h3>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm font-bold mb-1">
+                                        <span className="text-blue-400">Home 45%</span>
+                                        <span className="text-gray-400">Draw 25%</span>
+                                        <span className="text-red-400">Away 30%</span>
+                                    </div>
+                                    <div className="h-3 bg-white/10 rounded-full overflow-hidden flex">
+                                        <div className="h-full bg-blue-500" style={{ width: '45%' }}></div>
+                                        <div className="h-full bg-gray-500" style={{ width: '25%' }}></div>
+                                        <div className="h-full bg-red-500" style={{ width: '30%' }}></div>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2 italic">
+                                        "Berdasarkan performa 5 pertandingan terakhir, Barcelona FC memiliki sedikit keunggulan taktis di lini tengah, namun serangan balik Real Madrid patut diwaspadai."
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Head to Head */}
+                            <div className="p-6">
+                                <h3 className="font-display font-bold mb-4 flex items-center gap-2">
+                                    <History className="w-5 h-5 text-yellow-400" /> Head to Head
+                                </h3>
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-blue-400">BAR</span>
+                                            <span className="text-sm text-gray-400 font-mono">2 - 1</span>
+                                            <span className="font-bold text-red-400">RMA</span>
+                                        </div>
+                                        <div className="text-xs text-gray-500">Last Season</div>
+                                    </div>
+                                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-red-400">RMA</span>
+                                            <span className="text-sm text-gray-400 font-mono">3 - 1</span>
+                                            <span className="font-bold text-blue-400">BAR</span>
+                                        </div>
+                                        <div className="text-xs text-gray-500">Cup Final</div>
+                                    </div>
+                                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-blue-400">BAR</span>
+                                            <span className="text-sm text-gray-400 font-mono">0 - 0</span>
+                                            <span className="font-bold text-red-400">RMA</span>
+                                        </div>
+                                        <div className="text-xs text-gray-500">Friendly</div>
                                     </div>
                                 </div>
-                            ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TIMELINE TAB */}
+                    {activeTab === 'timeline' && (
+                        <div className="p-6">
+                            {match.events.length === 0 ? (
+                                <div className="text-center py-8 text-gray-500">Belum ada kejadian</div>
+                            ) : (
+                                <div className="relative border-l border-white/10 ml-4 space-y-6 py-2">
+                                    {match.events.map((event) => (
+                                        <div key={event.id} className="relative pl-6">
+                                            <div className={`absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ${event.team === 'home' ? 'bg-blue-500' : 'bg-red-500'}`}></div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono font-bold text-neonGreen">{event.time}'</span>
+                                                <span className="font-bold flex items-center gap-1">
+                                                    {event.type === 'goal' && <Goal className="w-4 h-4 text-neonGreen" />}
+                                                    {event.type === 'card' && <div className="w-3 h-4 bg-yellow-500 rounded-sm"></div>}
+                                                    {event.type.toUpperCase()}
+                                                </span>
+                                                <span className="text-gray-400">- {event.player} {event.detail === 'Penalty' && '(P)'} ({event.team === 'home' ? match.homeTeam.name : match.awayTeam.name})</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </CardContent>

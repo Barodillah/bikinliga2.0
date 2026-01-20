@@ -1,6 +1,7 @@
 import React from 'react'
 import { BarChart, Activity, ShieldAlert, Award, TrendingUp, Percent } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../ui/Card'
+import AdSlot from '../ui/AdSlot'
 
 // Mock Data
 const tournamentStats = {
@@ -65,6 +66,7 @@ export default function TournamentStatistics() {
             </div>
 
             {/* Team Statistics Table */}
+            <AdSlot variant="banner" />
             <Card hover={false}>
                 <CardHeader>
                     <h3 className="font-display font-bold flex items-center gap-2">

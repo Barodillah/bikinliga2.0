@@ -1,0 +1,314 @@
+import React, { useState } from 'react'
+import { useParams, Link } from 'react-router-dom'
+import { Calendar, Trophy, Users, Lock, ChevronRight, Share2, MapPin, Grid, List, Shield } from 'lucide-react'
+import Card, { CardContent } from '../../components/ui/Card'
+import Button from '../../components/ui/Button'
+import AdSlot from '../../components/ui/AdSlot'
+
+// Mock Data
+const tournamentData = {
+    name: 'Warkop Cup Season 5',
+    organizer: 'Komunitas PES Depok',
+    logo: 'https://media.api-sports.io/football/leagues/39.png', // Premier League Logo for demo
+    cover: 'https://images.unsplash.com/photo-1522770179533-24471fcdba45?auto=format&fit=crop&q=80&w=1200', // Better stadium night shot
+    status: 'Ongoing',
+    participants: 16,
+    type: 'League',
+    location: 'Rental PS 88, Depok',
+    description: 'Turnamen komunitas paling seru se-Depok. Memperebutkan hadiah total 5 Juta Rupiah dan trofi bergilir.',
+}
+
+const standingsData = [
+    { rank: 1, team: 'Arsenal Rental', p: 10, w: 8, d: 1, l: 1, pts: 25, form: ['W', 'W', 'W', 'D', 'W'] },
+    { rank: 2, team: 'Manchester Warnet', p: 10, w: 7, d: 2, l: 1, pts: 23, form: ['W', 'W', 'L', 'W', 'D'] },
+    { rank: 3, team: 'Liverpool Ciledug', p: 10, w: 6, d: 3, l: 1, pts: 21, form: ['D', 'W', 'W', 'W', 'D'] },
+    { rank: 4, team: 'Chelsea Pamulang', p: 10, w: 5, d: 2, l: 3, pts: 17, form: ['L', 'W', 'L', 'W', 'W'] },
+    { rank: 5, team: 'Real Margonda', p: 10, w: 4, d: 3, l: 3, pts: 15, form: ['D', 'L', 'W', 'D', 'L'] },
+]
+
+const recentMatches = [
+    { id: 1, home: 'Arsenal Rental', away: 'Chelsea Pamulang', score: '3-1', time: 'FT' },
+    { id: 2, home: 'Liverpool Ciledug', away: 'Real Margonda', score: '2-2', time: 'FT' },
+    { id: 3, home: 'Manchester Warnet', away: 'Barca Kukusan', score: '1-0', time: 'FT' },
+]
+
+const topScorers = [
+    { rank: 1, player: 'Budi Sudarsono', team: 'Arsenal Rental', goals: 12, assists: 3 },
+    { rank: 2, player: 'Cristian Gonzales', team: 'Manchester Warnet', goals: 9, assists: 1 },
+    { rank: 3, player: 'Boaz Solossa', team: 'Liverpool Ciledug', goals: 8, assists: 5 },
+    { rank: 4, player: 'Bambang Pamungkas', team: 'Chelsea Pamulang', goals: 7, assists: 2 },
+    { rank: 5, player: 'Ilham Jaya Kesuma', team: 'Real Margonda', goals: 6, assists: 0 },
+]
+
+export default function TournamentPublicView() {
+    const { slug } = useParams()
+    const [activeTab, setActiveTab] = useState('standings')
+
+    return (
+        <div className="space-y-6 pb-20">
+            {/* Hero Header */}
+            <div className="relative rounded-2xl overflow-hidden border border-white/10 group">
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent z-10"></div>
+
+                {/* Cover Image */}
+                <div className="h-64 sm:h-80 w-full overflow-hidden">
+                    <img
+                        src={tournamentData.cover}
+                        alt="Cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
+                    />
+                </div>
+
+                {/* Content Overlay */}
+                <div className="absolute bottom-0 left-0 w-full p-4 sm:p-8 z-20 flex flex-col sm:flex-row items-start sm:items-end gap-6 justify-between">
+                    <div className="flex flex-row items-center gap-4 sm:gap-6 w-full sm:w-auto">
+                        <img
+                            src={tournamentData.logo}
+                            alt="Logo"
+                            className="w-16 h-16 sm:w-24 sm:h-24 bg-white/10 backdrop-blur-md rounded-2xl p-2 sm:p-3 border border-white/20 shadow-2xl flex-shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <span className="bg-neonGreen text-black text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                                    {tournamentData.status}
+                                </span>
+                                <span className="text-gray-300 text-[10px] sm:text-xs flex items-center gap-1 truncate max-w-[200px] sm:max-w-none">
+                                    <MapPin className="w-3 h-3" /> {tournamentData.location}
+                                </span>
+                            </div>
+                            <h1 className="text-2xl sm:text-4xl font-display font-bold text-white mb-1 shadow-black drop-shadow-lg leading-tight">
+                                {tournamentData.name}
+                            </h1>
+                            <p className="text-gray-300 text-xs sm:text-sm flex items-center gap-2">
+                                Organized by <span className="text-neonGreen font-medium">{tournamentData.organizer}</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 w-full sm:w-auto">
+                        <Button className="flex-1 sm:flex-none bg-white text-black hover:bg-gray-200 text-xs py-2 h-9 sm:text-sm sm:h-10">
+                            <Share2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" /> Share
+                        </Button>
+                        <Link to="/register" className="flex-1 sm:flex-none">
+                            <Button className="w-full bg-neonGreen text-black hover:bg-neonGreen/80 text-xs py-2 h-9 sm:text-sm sm:h-10">
+                                Join League
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+            </div>
+
+            {/* Ad Banner */}
+            <AdSlot variant="banner" adId="public-header-ad" />
+
+            {/* Navigation Tabs */}
+            <div className="flex overflow-x-auto pb-2 gap-2 scrollbar-hide">
+                {[
+                    { id: 'standings', label: 'Klasemen', icon: List },
+                    { id: 'matches', label: 'Jadwal & Hasil', icon: Calendar },
+                    { id: 'topscore', label: 'Top Score', icon: Users },
+                    { id: 'bracket', label: 'Bracket', icon: Grid },
+                    { id: 'stats', label: 'Statistik', icon: Trophy, locked: true },
+                ].map((tab) => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold whitespace-nowrap transition border ${activeTab === tab.id
+                            ? 'bg-white text-black border-white'
+                            : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:border-white/30'
+                            }`}
+                    >
+                        <tab.icon className="w-4 h-4" />
+                        {tab.label}
+                        {tab.locked && <Lock className="w-3 h-3 ml-1 text-yellow-500" />}
+                    </button>
+                ))}
+            </div>
+
+            {/* Content Area */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left Column: Main Content */}
+                <div className="lg:col-span-2 space-y-6">
+
+                    {/* STANDINGS TAB */}
+                    {activeTab === 'standings' && (
+                        <Card>
+                            <CardContent className="p-0">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-white/5 uppercase text-gray-400 font-bold text-xs">
+                                            <tr>
+                                                <th className="p-4 w-10 text-center">#</th>
+                                                <th className="p-4">Tim</th>
+                                                <th className="p-4 text-center">Main</th>
+                                                <th className="p-4 text-center">Poin</th>
+                                                <th className="p-4 text-center hidden sm:table-cell">Form</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/5">
+                                            {standingsData.map((row) => (
+                                                <tr key={row.rank} className="hover:bg-white/5 transition">
+                                                    <td className="p-4 text-center font-bold text-gray-500">{row.rank}</td>
+                                                    <td className="p-4 font-bold flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs">
+                                                            {row.team.charAt(0)}
+                                                        </div>
+                                                        {row.team}
+                                                    </td>
+                                                    <td className="p-4 text-center text-gray-400">{row.p}</td>
+                                                    <td className="p-4 text-center font-bold text-neonGreen text-base">{row.pts}</td>
+                                                    <td className="p-4 hidden sm:table-cell text-center">
+                                                        <div className="flex gap-1 justify-center">
+                                                            {row.form.map((f, i) => (
+                                                                <span
+                                                                    key={i}
+                                                                    className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold ${f === 'W' ? 'bg-green-500/20 text-green-500' :
+                                                                        f === 'D' ? 'bg-gray-500/20 text-gray-400' :
+                                                                            'bg-red-500/20 text-red-500'
+                                                                        }`}
+                                                                >
+                                                                    {f}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* MATCHES TAB */}
+                    {activeTab === 'matches' && (
+                        <div className="space-y-4">
+                            {recentMatches.map((match) => (
+                                <Link key={match.id} to={`/t/${slug}/match/${match.id}`}>
+                                    <Card className="hover:border-neonGreen/30 transition group cursor-pointer h-full">
+                                        <CardContent className="p-4 sm:p-6 flex items-center justify-between">
+                                            <div className="flex-1 text-right font-bold text-gray-300 sm:text-lg">{match.home}</div>
+                                            <div className="px-4 sm:px-8 flex flex-col items-center">
+                                                <span className="text-2xl sm:text-3xl font-display font-bold text-white group-hover:text-neonGreen transition">{match.score}</span>
+                                                <span className="text-xs text-gray-500 bg-white/10 px-2 py-0.5 rounded mt-1">{match.time}</span>
+                                            </div>
+                                            <div className="flex-1 text-left font-bold text-gray-300 sm:text-lg">{match.away}</div>
+                                        </CardContent>
+                                    </Card>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* TOP SCORE TAB */}
+                    {activeTab === 'topscore' && (
+                        <Card>
+                            <CardContent className="p-0">
+                                <div className="space-y-1">
+                                    {topScorers.map((player, index) => (
+                                        <div key={index} className="flex items-center justify-between p-4 hover:bg-white/5 transition border-b border-white/5 last:border-0">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-500 text-black' :
+                                                    index === 1 ? 'bg-gray-400 text-black' :
+                                                        index === 2 ? 'bg-orange-700 text-white' :
+                                                            'bg-white/10 text-gray-400'
+                                                    }`}>
+                                                    {player.rank}
+                                                </div>
+                                                <div>
+                                                    <div className="font-bold text-white">{player.player}</div>
+                                                    <div className="text-xs text-gray-400">{player.team}</div>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-xl font-bold text-neonGreen">{player.goals}</div>
+                                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Goals</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* BRACKET TAB (Placeholder) */}
+                    {activeTab === 'bracket' && (
+                        <div className="h-96 flex items-center justify-center border border-white/10 rounded-xl bg-white/5 border-dashed">
+                            <p className="text-gray-500">Bracket diagram will be rendered here.</p>
+                        </div>
+                    )}
+
+                    {/* LOCKED STATS TAB */}
+                    {activeTab === 'stats' && (
+                        <div className="relative overflow-hidden rounded-xl border border-white/10">
+                            {/* Blurred Content */}
+                            <div className="filter blur-md opacity-50 pointer-events-none select-none">
+                                <Card>
+                                    <div className="p-6 space-y-4">
+                                        <div className="h-8 bg-gray-800 rounded w-1/3"></div>
+                                        <div className="space-y-2">
+                                            {[1, 2, 3].map(i => (
+                                                <div key={i} className="h-12 bg-gray-800 rounded flex justify-between"></div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </Card>
+                            </div>
+
+                            {/* CTA Overlay */}
+                            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 p-6 text-center">
+                                <Shield className="w-12 h-12 text-neonGreen mb-4" />
+                                <h3 className="text-2xl font-bold text-white mb-2">Analisis & Statistik Lengkap</h3>
+                                <p className="text-gray-300 mb-6 max-w-sm">
+                                    Login untuk melihat statistik mendalam, top skor, assist, dan analisis performa tim.
+                                </p>
+                                <Link to="/login">
+                                    <Button className="bg-neonGreen text-black font-bold px-8">
+                                        Login Sekarang
+                                    </Button>
+                                </Link>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Right Column: Sidebar Widgets */}
+                <div class="space-y-6">
+                    {/* About Card */}
+                    <Card>
+                        <div className="p-6">
+                            <h3 className="font-bold mb-4 text-white">Tentang Turnamen</h3>
+                            <p className="text-sm text-gray-400 leading-relaxed mb-4">
+                                {tournamentData.description}
+                            </p>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <div className="text-gray-500 text-xs uppercase">Format</div>
+                                    <div className="text-white font-medium">{tournamentData.type}</div>
+                                </div>
+                                <div>
+                                    <div className="text-gray-500 text-xs uppercase">Peserta</div>
+                                    <div className="text-white font-medium">{tournamentData.participants} Tim</div>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+
+                    {/* CTA Login Widget */}
+                    <div className="p-6 rounded-xl bg-gradient-to-br from-neonGreen/80 to-green-600 text-black">
+                        <h3 className="font-bold text-xl mb-2">Punya Tim Hebat?</h3>
+                        <p className="text-sm mb-4 opacity-90">
+                            Daftarkan tim kamu sekarang dan ikuti turnamen seru lainnya di BikinLiga!
+                        </p>
+                        <Link to="/register">
+                            <button className="w-full py-3 bg-black text-white rounded-lg font-bold hover:bg-gray-900 transition flex items-center justify-center gap-2">
+                                Buat Akun Gratis <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}

@@ -19,13 +19,23 @@ import { Megaphone } from 'lucide-react'
  */
 
 // Ad Network Configuration
-// IMPORTANT: The ad script looks for this EXACT container ID
-const AD_SCRIPT_URL = 'https://pl28434666.effectivegatecpm.com/99ff15a9ee1fae5859f94e4c8f92adb5/invoke.js'
-const AD_CONTAINER_ID = 'container-99ff15a9ee1fae5859f94e4c8f92adb5'
+// Desktop Ad - IMPORTANT: The ad script looks for this EXACT container ID
+const DESKTOP_AD_SCRIPT_URL = 'https://pl28434666.effectivegatecpm.com/99ff15a9ee1fae5859f94e4c8f92adb5/invoke.js'
+const DESKTOP_AD_CONTAINER_ID = 'container-99ff15a9ee1fae5859f94e4c8f92adb5'
 
-// Track if script has been loaded globally
-let scriptLoaded = false
-let scriptLoadPromise = null
+// Mobile Ad Configuration (300x250 iframe)
+const MOBILE_AD_KEY = '77d06d0717ff8488648f7775c049c5de'
+const MOBILE_AD_SCRIPT_URL = `https://www.highperformanceformat.com/${MOBILE_AD_KEY}/invoke.js`
+
+// Track if desktop script has been loaded globally
+let desktopScriptLoaded = false
+let desktopScriptLoadPromise = null
+
+// Check if device is mobile (screen width <= 768px)
+const isMobileDevice = () => {
+    if (typeof window === 'undefined') return false
+    return window.innerWidth <= 768
+}
 
 const variantStyles = {
     banner: {
@@ -50,37 +60,37 @@ const variantStyles = {
     },
 }
 
-// Function to load ad script
-const loadAdScript = () => {
-    if (scriptLoadPromise) return scriptLoadPromise
+// Function to load desktop ad script
+const loadDesktopAdScript = () => {
+    if (desktopScriptLoadPromise) return desktopScriptLoadPromise
 
-    scriptLoadPromise = new Promise((resolve, reject) => {
+    desktopScriptLoadPromise = new Promise((resolve, reject) => {
         // Check if script already exists
-        const existingScript = document.querySelector(`script[src="${AD_SCRIPT_URL}"]`)
+        const existingScript = document.querySelector(`script[src="${DESKTOP_AD_SCRIPT_URL}"]`)
         if (existingScript) {
-            scriptLoaded = true
+            desktopScriptLoaded = true
             resolve()
             return
         }
 
         const script = document.createElement('script')
-        script.src = AD_SCRIPT_URL
+        script.src = DESKTOP_AD_SCRIPT_URL
         script.async = true
         script.setAttribute('data-cfasync', 'false')
 
         script.onload = () => {
-            scriptLoaded = true
+            desktopScriptLoaded = true
             resolve()
         }
 
         script.onerror = () => {
-            reject(new Error('Ad script failed to load'))
+            reject(new Error('Desktop ad script failed to load'))
         }
 
         document.body.appendChild(script)
     })
 
-    return scriptLoadPromise
+    return desktopScriptLoadPromise
 }
 
 export default function AdSlot({
@@ -90,19 +100,83 @@ export default function AdSlot({
     adId = 'default'
 }) {
     const { showAds } = useAds()
-    const [adLoaded, setAdLoaded] = useState(scriptLoaded)
+    const [adLoaded, setAdLoaded] = useState(false)
     const [adError, setAdError] = useState(false)
+    const [isMobile, setIsMobile] = useState(isMobileDevice())
+    const mobileAdContainerRef = useRef(null)
 
     const styles = variantStyles[variant] || variantStyles.banner
 
-    // Load ad script dynamically
+    // Handle resize to detect mobile/desktop switch
     useEffect(() => {
-        if (!showAds) return
+        const handleResize = () => {
+            setIsMobile(isMobileDevice())
+        }
 
-        loadAdScript()
+        window.addEventListener('resize', handleResize)
+        return () => window.removeEventListener('resize', handleResize)
+    }, [])
+
+    // Load desktop ad script
+    useEffect(() => {
+        if (!showAds || isMobile) return
+
+        setAdLoaded(false)
+        setAdError(false)
+
+        loadDesktopAdScript()
             .then(() => setAdLoaded(true))
             .catch(() => setAdError(true))
-    }, [showAds])
+    }, [showAds, isMobile])
+
+    // Load mobile ad script directly into container
+    useEffect(() => {
+        if (!showAds || !isMobile || !mobileAdContainerRef.current) return
+
+        setAdLoaded(false)
+        setAdError(false)
+
+        const container = mobileAdContainerRef.current
+
+        // Clear previous content
+        container.innerHTML = ''
+
+        // Create and append the atOptions script
+        const optionsScript = document.createElement('script')
+        optionsScript.type = 'text/javascript'
+        optionsScript.text = `
+            atOptions = {
+                'key' : '${MOBILE_AD_KEY}',
+                'format' : 'iframe',
+                'height' : 250,
+                'width' : 300,
+                'params' : {}
+            };
+        `
+        container.appendChild(optionsScript)
+
+        // Create and append the invoke script
+        const invokeScript = document.createElement('script')
+        invokeScript.type = 'text/javascript'
+        invokeScript.src = MOBILE_AD_SCRIPT_URL
+
+        invokeScript.onload = () => {
+            setAdLoaded(true)
+        }
+
+        invokeScript.onerror = () => {
+            setAdError(true)
+        }
+
+        container.appendChild(invokeScript)
+
+        // Cleanup function
+        return () => {
+            if (container) {
+                container.innerHTML = ''
+            }
+        }
+    }, [showAds, isMobile])
 
     // If ads are hidden and we don't want to keep space, return nothing
     if (!showAds && !keepSpace) {
@@ -139,14 +213,19 @@ export default function AdSlot({
                     transition-all duration-300
                 `}
             >
-                {/* Ad Container - MUST use exact ID that ad network expects */}
+                {/* Ad Container - Shows different ad based on device */}
                 <div className="relative z-10 w-full flex items-center justify-center">
-                    {/* 
-                        The ad network script looks for this EXACT container ID.
-                        Only one ad will show per page because they all share the same ID.
-                        If you need multiple ad slots, you need multiple ad placements from the network.
-                    */}
-                    <div id={AD_CONTAINER_ID}></div>
+                    {isMobile ? (
+                        /* Mobile Ad - 300x250 iframe ad - script loaded directly here */
+                        <div
+                            ref={mobileAdContainerRef}
+                            className="flex items-center justify-center"
+                            style={{ minHeight: '250px', minWidth: '300px' }}
+                        />
+                    ) : (
+                        /* Desktop Ad - Uses exact container ID that ad network expects */
+                        <div id={DESKTOP_AD_CONTAINER_ID}></div>
+                    )}
 
                     {/* Fallback placeholder when ad is loading or failed */}
                     {(!adLoaded || adError) && (

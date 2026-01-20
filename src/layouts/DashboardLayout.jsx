@@ -1,15 +1,18 @@
 import React, { useState } from 'react'
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
 import {
-    Trophy, LayoutDashboard, List, Plus, Users,
+    Trophy, LayoutDashboard, List, Plus, Users, Tv,
     Calendar, BarChart2, Settings, LogOut, Menu, X,
-    ChevronRight, Wallet, Shield, FileText
+    ChevronRight, Wallet, Shield, FileText, Globe, Bell
 } from 'lucide-react'
+import ChatWidget from '../components/ChatWidget'
 
 const sidebarLinks = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, exact: true },
     { name: 'Turnamen Saya', href: '/dashboard/tournaments', icon: List },
     { name: 'Buat Turnamen', href: '/dashboard/tournaments/new', icon: Plus },
+    { name: 'Kompetisi', href: '/dashboard/competitions', icon: Globe },
+    { name: 'Stream', href: '/dashboard/stream', icon: Tv },
     { name: 'Top Up', href: '/dashboard/topup', icon: Wallet },
     { name: 'eClub', href: '/dashboard/eclub', icon: Shield },
     { name: 'Ranking', href: '/dashboard/ranking', icon: BarChart2 },
@@ -17,7 +20,33 @@ const sidebarLinks = [
 
 export default function DashboardLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(false)
+    const [notificationsOpen, setNotificationsOpen] = useState(false)
     const location = useLocation()
+
+    // Mock notifications
+    const notifications = [
+        {
+            id: 1,
+            title: 'Turnamen Baru',
+            message: 'Turnamen "Mobile Legends Season 5" telah dibuka pendaftaran.',
+            time: '2 jam yang lalu',
+            unread: true
+        },
+        {
+            id: 2,
+            title: 'Pembayaran Diterima',
+            message: 'Top up sebesar 500 coin telah berhasil.',
+            time: '5 jam yang lalu',
+            unread: true
+        },
+        {
+            id: 3,
+            title: 'Jadwal Pertandingan',
+            message: 'Pertandingan tim Anda dijadwalkan besok pukul 19:00.',
+            time: '1 hari yang lalu',
+            unread: false
+        }
+    ]
 
     const isActive = (href, exact = false) => {
         if (exact) return location.pathname === href
@@ -203,6 +232,62 @@ export default function DashboardLayout() {
                             <span className="font-display font-bold text-yellow-400">1,250</span>
                         </Link>
 
+                        {/* Notification Bell */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                                className="text-gray-400 hover:text-white transition relative mr-2 p-1 rounded-full hover:bg-white/5"
+                            >
+                                <Bell className="w-6 h-6" />
+                                {notifications.some(n => n.unread) && (
+                                    <span className="absolute top-0 right-0 h-3 w-3 rounded-full bg-neonPink border-2 border-cardBg flex items-center justify-center"></span>
+                                )}
+                            </button>
+
+                            {/* Dropdown */}
+                            {notificationsOpen && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-40 bg-black/50 md:bg-transparent"
+                                        onClick={() => setNotificationsOpen(false)}
+                                    ></div>
+                                    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 pointer-events-none md:block md:static md:p-0">
+                                        <div className="w-[90vw] max-w-sm bg-cardBg border border-white/10 rounded-xl shadow-xl overflow-hidden pointer-events-auto md:absolute md:top-full md:left-auto md:right-0 md:w-80 md:mt-2">
+                                            <div className="p-3 border-b border-white/10 flex items-center justify-between bg-white/5">
+                                                <h3 className="font-medium text-white">Notifikasi</h3>
+                                                <span className="text-xs text-neonPink cursor-pointer hover:underline">
+                                                    Tandai dibaca
+                                                </span>
+                                            </div>
+                                            <div className="max-h-96 overflow-y-auto">
+                                                {notifications.map((notification) => (
+                                                    <div
+                                                        key={notification.id}
+                                                        className={`p-4 border-b border-white/5 hover:bg-white/5 transition cursor-pointer ${notification.unread ? 'bg-white/[0.02]' : ''}`}
+                                                    >
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <h4 className={`text-sm font-medium ${notification.unread ? 'text-white' : 'text-gray-400'}`}>
+                                                                {notification.title}
+                                                            </h4>
+                                                            <span className="text-[10px] text-gray-500">{notification.time}</span>
+                                                        </div>
+                                                        <p className="text-xs text-gray-400 line-clamp-2">
+                                                            {notification.message}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="p-2 text-center border-t border-white/10 bg-white/5">
+                                                <button className="text-xs text-neonGreen hover:text-white transition">
+                                                    Lihat Semua
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
                         <div className="text-right hidden sm:block">
                             <div className="text-sm font-medium">Admin User</div>
                             <div className="text-xs text-gray-500">admin@bikinliga.com</div>
@@ -217,6 +302,9 @@ export default function DashboardLayout() {
                 <main className="flex-1 p-4 lg:p-8 overflow-y-auto overflow-x-hidden">
                     <Outlet />
                 </main>
+
+                {/* AI Chat Widget */}
+                <ChatWidget />
             </div>
         </div>
     )

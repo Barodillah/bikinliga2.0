@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Trophy, Users, Calendar, ArrowLeft, ArrowRight, Check, Image, Upload, Link, Loader2 } from 'lucide-react'
+import { Trophy, Users, Calendar, ArrowLeft, ArrowRight, Check, Image, Upload, Link, Loader2, Sparkles, Pencil, X } from 'lucide-react'
 import Card, { CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
@@ -31,7 +31,9 @@ export default function CreateTournament() {
         playerCount: 8,
         pointSystem: '3-1-0',
         homeAway: true,
-        description: ''
+        description: '',
+        visibility: 'public',
+        paymentMode: 'manual'
     })
 
     // Logo states
@@ -41,6 +43,23 @@ export default function CreateTournament() {
     const [loadingLogos, setLoadingLogos] = useState(false)
     const [logoUrl, setLogoUrl] = useState('')
     const fileInputRef = useRef(null)
+
+    // AI Modal State
+    const [showAIModal, setShowAIModal] = useState(false)
+    const [isGeneratingAI, setIsGeneratingAI] = useState(false)
+    const [aiPrompt, setAiPrompt] = useState('')
+
+    const handleGenerateAI = async () => {
+        setIsGeneratingAI(true)
+        // Simulate AI generation
+        setTimeout(() => {
+            const generatedDesc = `Turnamen ${formData.name || 'ini'} mempertandingkan tim-tim terbaik dalam format ${formData.type} yang kompetitif. Tujuan utama adalah menjunjung tinggi sportivitas dan mencari juara sejati Season ini!`
+            setFormData(prev => ({ ...prev, description: generatedDesc }))
+            setIsGeneratingAI(false)
+            setShowAIModal(false)
+            setAiPrompt('')
+        }, 1500)
+    }
 
     // Helper to generate logo URL based on league ID from api-sports.io
     const getLogoUrl = (leagueId) => {
@@ -138,7 +157,7 @@ export default function CreateTournament() {
     }
 
     return (
-        <div className="max-w-2xl mx-auto">
+        <div className="w-full mx-auto">
             {/* Header */}
             <div className="mb-8">
                 <button
@@ -352,12 +371,30 @@ export default function CreateTournament() {
                                 </div>
                             </div>
 
-                            <Input
-                                label="Deskripsi (opsional)"
-                                placeholder="Deskripsi singkat turnamen..."
-                                value={formData.description}
-                                onChange={(e) => handleChange('description', e.target.value)}
-                            />
+                            <div className="relative">
+                                <Input
+                                    label={
+                                        <div className="flex items-center justify-between w-full">
+                                            <span>Deskripsi (opsional)</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowAIModal(true)}
+                                                className="text-xs flex items-center gap-1 text-neonGreen hover:text-white transition group"
+                                                title="Generate with AI"
+                                            >
+                                                <div className="relative">
+                                                    <Pencil className="w-3 h-3 relative z-10" />
+                                                    <Sparkles className="w-3 h-3 absolute -top-1 -right-1.5 text-neonPink group-hover:scale-110 transition animate-pulse" />
+                                                </div>
+                                                <span className="ml-1">Generate AI</span>
+                                            </button>
+                                        </div>
+                                    }
+                                    placeholder="Deskripsi singkat turnamen..."
+                                    value={formData.description}
+                                    onChange={(e) => handleChange('description', e.target.value)}
+                                />
+                            </div>
                         </div>
 
                         <div className="flex justify-end mt-8">
@@ -466,8 +503,12 @@ export default function CreateTournament() {
 
                             <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
                                 <div>
-                                    <div className="font-medium">Home & Away</div>
-                                    <div className="text-sm text-gray-500">Setiap tim main 2x (kandang & tandang)</div>
+                                    <div className="font-medium">Format Pertandingan</div>
+                                    <div className="text-sm text-gray-500">
+                                        {formData.homeAway
+                                            ? 'Home & Away (Bertemu 2x - Kandang & Tandang)'
+                                            : 'Single Match (Bertemu 1x - Satu Putaran)'}
+                                    </div>
                                 </div>
                                 <button
                                     type="button"
@@ -475,6 +516,40 @@ export default function CreateTournament() {
                                     className={`w-12 h-6 rounded-full transition ${formData.homeAway ? 'bg-neonGreen' : 'bg-white/20'}`}
                                 >
                                     <div className={`w-5 h-5 rounded-full bg-white shadow transition transform ${formData.homeAway ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                                </button>
+                            </div>
+
+                            {/* Visibility Toggle */}
+                            <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                                <div>
+                                    <div className="font-medium">Visibility</div>
+                                    <div className="text-sm text-gray-500">
+                                        {formData.visibility === 'public' ? 'Public (Terlihat oleh semua)' : 'Private (Hanya via link/undangan)'}
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleChange('visibility', formData.visibility === 'public' ? 'private' : 'public')}
+                                    className={`w-12 h-6 rounded-full transition ${formData.visibility === 'public' ? 'bg-neonGreen' : 'bg-white/20'}`}
+                                >
+                                    <div className={`w-5 h-5 rounded-full bg-white shadow transition transform ${formData.visibility === 'public' ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                                </button>
+                            </div>
+
+                            {/* Payment Mode Toggle */}
+                            <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                                <div>
+                                    <div className="font-medium">Payment System</div>
+                                    <div className="text-sm text-gray-500">
+                                        {formData.paymentMode === 'system' ? 'Paid on System (Otomatis)' : 'Manual (Transfer Admin)'}
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleChange('paymentMode', formData.paymentMode === 'system' ? 'manual' : 'system')}
+                                    className={`w-12 h-6 rounded-full transition ${formData.paymentMode === 'system' ? 'bg-neonGreen' : 'bg-white/20'}`}
+                                >
+                                    <div className={`w-5 h-5 rounded-full bg-white shadow transition transform ${formData.paymentMode === 'system' ? 'translate-x-6' : 'translate-x-0.5'}`} />
                                 </button>
                             </div>
                         </div>
@@ -548,7 +623,24 @@ export default function CreateTournament() {
                                     <div className="text-sm text-gray-500 mb-1">Format</div>
                                     <div className="font-medium">{formData.homeAway ? 'Home & Away' : 'Single Match'}</div>
                                 </div>
+                                <div className="p-4 bg-white/5 rounded-lg">
+                                    <div className="text-sm text-gray-500 mb-1">Visibilitas</div>
+                                    <div className="font-medium capitalize">{formData.visibility}</div>
+                                </div>
+                                <div className="p-4 bg-white/5 rounded-lg">
+                                    <div className="text-sm text-gray-500 mb-1">Pembayaran</div>
+                                    <div className="font-medium">
+                                        {formData.paymentMode === 'system' ? 'System (Auto)' : 'Manual'}
+                                    </div>
+                                </div>
                             </div>
+
+                            {formData.description && (
+                                <div className="p-4 bg-white/5 rounded-lg border border-white/5">
+                                    <div className="text-sm text-gray-500 mb-1">Deskripsi Turnamen</div>
+                                    <p className="text-gray-300 italic">"{formData.description}"</p>
+                                </div>
+                            )}
                         </div>
 
                         <div className="p-4 rounded-lg border border-neonGreen/30 bg-neonGreen/10 mb-8">
@@ -577,7 +669,54 @@ export default function CreateTournament() {
             <div className="mt-6">
                 <AdSlot variant="banner" adId="create-tournament" />
             </div>
-        </div>
+
+            {/* AI Generation Modal */}
+            {
+                showAIModal && (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                        <div className="bg-cardBg border border-neonGreen/30 rounded-2xl w-full max-w-md p-6 relative animate-in fade-in zoom-in duration-200">
+                            <button
+                                onClick={() => setShowAIModal(false)}
+                                className="absolute top-4 right-4 text-gray-400 hover:text-white"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 rounded-full bg-neonGreen/20 flex items-center justify-center">
+                                    <Sparkles className="w-5 h-5 text-neonGreen" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-white">Generate Deskripsi</h3>
+                                    <p className="text-xs text-gray-400">Gunakan AI untuk membuat deskripsi menarik</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm text-gray-300 mb-2">Prompt / Keywords (Opsional)</label>
+                                    <Input
+                                        placeholder="cth: kompetisi sengit, hadiah besar..."
+                                        value={aiPrompt}
+                                        onChange={(e) => setAiPrompt(e.target.value)}
+                                    />
+                                </div>
+
+                                <Button
+                                    type="button"
+                                    onClick={handleGenerateAI}
+                                    disabled={isGeneratingAI}
+                                    className="w-full"
+                                    icon={isGeneratingAI ? Loader2 : Sparkles}
+                                >
+                                    {isGeneratingAI ? 'Generating...' : 'Generate Now'}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     )
 }
 

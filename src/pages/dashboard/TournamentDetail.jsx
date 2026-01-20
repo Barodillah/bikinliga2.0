@@ -1,9 +1,11 @@
 
 import React, { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { Trophy, Users, Calendar, BarChart2, Settings, Share2, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity } from 'lucide-react'
+import { Trophy, Users, Calendar, BarChart2, Settings, Share2, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2 } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
+import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
+import Input, { Textarea } from '../../components/ui/Input'
 import StandingsTable from '../../components/tournament/StandingsTable'
 import TopScorerList from '../../components/tournament/TopScorerList'
 import TournamentStatistics from '../../components/tournament/TournamentStatistics'
@@ -24,7 +26,12 @@ const getTournamentData = (id) => {
             completed: 12,
             startDate: '2024-01-15',
             description: 'Turnamen eFootball antar pemain regular warkop',
-            shareLink: 'bikinliga.com/t/warkop-cup-5'
+            shareLink: 'bikinliga.com/t/warkop-cup-5',
+            pointSystem: '3-1-0',
+            homeAway: true,
+            visibility: 'public',
+            paymentMode: 'manual',
+            lastRegistrationDate: '2024-01-10'
         },
         '2': {
             id: 2,
@@ -337,6 +344,15 @@ export default function TournamentDetail() {
 
     const [activeTab, setActiveTab] = useState(isDraft ? 'players' : 'overview')
     const [copied, setCopied] = useState(false)
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+
+    // League News State
+    const [isNewsModalOpen, setIsNewsModalOpen] = useState(false)
+    const [newsList, setNewsList] = useState([
+        { id: 1, title: 'Selamat Datang di Turnamen!', content: 'Terima kasih telah mendaftar. Pantau terus tab ini untuk informasi terbaru seputar jadwal dan peraturan.', date: '2024-01-15' }
+    ])
+    const [newNews, setNewNews] = useState({ title: '', content: '' })
+
     const isKnockout = tournamentData.type === 'Knockout'
     const isGroupKO = tournamentData.type === 'Group+KO'
     const isLeague = tournamentData.type === 'Liga'
@@ -347,11 +363,13 @@ export default function TournamentDetail() {
         if (isDraft) {
             return [
                 { id: 'players', label: 'Pendaftar', icon: Users },
+                { id: 'news', label: 'League News', icon: Newspaper },
             ]
         }
 
         const baseTabs = [
             { id: 'overview', label: 'Overview', icon: Trophy },
+            { id: 'news', label: 'League News', icon: Newspaper },
         ]
 
         if (isLeague) {
@@ -386,6 +404,28 @@ export default function TournamentDetail() {
 
     const handleMatchClick = (matchId = 1) => {
         navigate(`/dashboard/tournaments/${id}/match/${matchId}`)
+    }
+
+    const handleSaveNews = (e) => {
+        e.preventDefault()
+        if (!newNews.title || !newNews.content) return
+
+        const newsItem = {
+            id: Date.now(),
+            title: newNews.title,
+            content: newNews.content,
+            date: new Date().toISOString().split('T')[0]
+        }
+
+        setNewsList([newsItem, ...newsList])
+        setNewNews({ title: '', content: '' })
+        setIsNewsModalOpen(false)
+    }
+
+    const handleDeleteNews = (newsId) => {
+        if (window.confirm('Hapus berita ini?')) {
+            setNewsList(newsList.filter(n => n.id !== newsId))
+        }
     }
 
     return (
@@ -427,10 +467,17 @@ export default function TournamentDetail() {
                             {copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
                             <span className="hidden sm:inline">{copied ? 'Tersalin!' : 'Share'}</span>
                         </Button>
-                        <Button variant="ghost" size="sm">
-                            <Settings className="w-4 h-4" />
-                            <span className="hidden sm:inline">Pengaturan</span>
-                        </Button>
+                        {isDraft ? (
+                            <Button variant="ghost" size="sm" onClick={() => navigate(`/dashboard/tournaments/${id}/settings`)}>
+                                <Settings className="w-4 h-4" />
+                                <span className="hidden sm:inline">Pengaturan</span>
+                            </Button>
+                        ) : (
+                            <Button variant="ghost" size="sm" onClick={() => setIsDetailModalOpen(true)}>
+                                <Info className="w-4 h-4" />
+                                <span className="hidden sm:inline">Detail</span>
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -524,6 +571,47 @@ export default function TournamentDetail() {
             </div>
 
             {/* Tab Content */}
+
+            {/* League News */}
+            {activeTab === 'news' && (
+                <div className="space-y-4 animate-fadeIn">
+                    <div className="flex justify-between items-center">
+                        <h3 className="font-display font-bold text-lg">Berita & Pengumuman</h3>
+                        <Button size="sm" onClick={() => setIsNewsModalOpen(true)}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Tambah Berita
+                        </Button>
+                    </div>
+
+                    {newsList.length === 0 ? (
+                        <div className="text-center py-12 text-gray-500 bg-white/5 rounded-xl border border-white/10">
+                            <Newspaper className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                            <p>Belum ada berita yang dipublish.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {newsList.map((news) => (
+                                <div key={news.id} className="bg-white/5 border border-white/10 rounded-xl p-6 hover:bg-white/10 transition group relative">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="font-bold text-lg text-white">{news.title}</h3>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xs text-gray-500 bg-black/20 px-2 py-1 rounded">{news.date}</span>
+                                            <button
+                                                onClick={() => handleDeleteNews(news.id)}
+                                                className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"
+                                                title="Hapus berita"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p className="text-gray-300 text-sm whitespace-pre-wrap">{news.content}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Overview - different based on type */}
             {activeTab === 'overview' && (
@@ -710,6 +798,104 @@ export default function TournamentDetail() {
                     </CardContent>
                 </Card>
             )}
+
+            {/* Detail Modal */}
+            <Modal
+                isOpen={isDetailModalOpen}
+                onClose={() => setIsDetailModalOpen(false)}
+                title="Detail Pengaturan Turnamen"
+            >
+                <div className="space-y-4">
+                    <div className="p-4 bg-white/5 rounded-lg flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-lg bg-white/10 flex items-center justify-center">
+                            <Trophy className="w-6 h-6 text-neonGreen" />
+                        </div>
+                        <div>
+                            <div className="text-sm text-gray-500 mb-1">Nama Turnamen</div>
+                            <div className="font-bold text-lg">{tournamentData.name}</div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-white/5 rounded-lg">
+                            <div className="text-sm text-gray-500 mb-1">Jenis</div>
+                            <div className="font-medium">{tournamentData.type}</div>
+                        </div>
+                        <div className="p-4 bg-white/5 rounded-lg">
+                            <div className="text-sm text-gray-500 mb-1">Total Peserta</div>
+                            <div className="font-medium">{tournamentData.players} Tim</div>
+                        </div>
+                        <div className="p-4 bg-white/5 rounded-lg">
+                            <div className="text-sm text-gray-500 mb-1">Sistem Poin</div>
+                            <div className="font-medium">{tournamentData.pointSystem || '3-1-0'}</div>
+                        </div>
+                        <div className="p-4 bg-white/5 rounded-lg">
+                            <div className="text-sm text-gray-500 mb-1">Format</div>
+                            <div className="font-medium">{tournamentData.homeAway ? 'Home & Away' : 'Single Match'}</div>
+                        </div>
+                        <div className="p-4 bg-white/5 rounded-lg">
+                            <div className="text-sm text-gray-500 mb-1">Visibilitas</div>
+                            <div className="font-medium capitalize">{tournamentData.visibility || 'public'}</div>
+                        </div>
+                        <div className="p-4 bg-white/5 rounded-lg">
+                            <div className="text-sm text-gray-500 mb-1">Pembayaran</div>
+                            <div className="font-medium">
+                                {tournamentData.paymentMode === 'system' ? 'System (Auto)' : 'Manual'}
+                            </div>
+                        </div>
+                        <div className="p-4 bg-white/5 rounded-lg col-span-2">
+                            <div className="text-sm text-gray-500 mb-1">Batas Pendaftaran</div>
+                            <div className="font-medium">
+                                {tournamentData.lastRegistrationDate || new Date(tournamentData.startDate).toLocaleDateString()}
+                            </div>
+                        </div>
+                    </div>
+
+                    {tournamentData.description && (
+                        <div className="p-4 bg-white/5 rounded-lg border border-white/5">
+                            <div className="text-sm text-gray-500 mb-1">Deskripsi Turnamen</div>
+                            <p className="text-gray-300 italic">"{tournamentData.description}"</p>
+                        </div>
+                    )}
+
+                    <div className="flex justify-end pt-2">
+                        <Button onClick={() => setIsDetailModalOpen(false)}>Tutup</Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Add News Modal */}
+            <Modal
+                isOpen={isNewsModalOpen}
+                onClose={() => setIsNewsModalOpen(false)}
+                title="Tambah Berita Baru"
+            >
+                <form onSubmit={handleSaveNews} className="space-y-4">
+                    <Input
+                        label="Judul Berita"
+                        placeholder="Contoh: Perubahan Jadwal Matchday 1"
+                        value={newNews.title}
+                        onChange={(e) => setNewNews({ ...newNews, title: e.target.value })}
+                        required
+                    />
+                    <Textarea
+                        label="Isi Berita"
+                        placeholder="Tulis detail informasi di sini..."
+                        value={newNews.content}
+                        onChange={(e) => setNewNews({ ...newNews, content: e.target.value })}
+                        rows={6}
+                        required
+                    />
+                    <div className="flex justify-end gap-3 pt-2">
+                        <Button type="button" variant="ghost" onClick={() => setIsNewsModalOpen(false)}>
+                            Batal
+                        </Button>
+                        <Button type="submit">
+                            Publish Berita
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     )
 }

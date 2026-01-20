@@ -229,7 +229,7 @@ export default function AddPlayer() {
     ]
 
     return (
-        <div className="space-y-6 max-w-2xl mx-auto">
+        <div className="space-y-6 w-full mx-auto">
             {/* Header with Tournament Details */}
             <div>
                 <button

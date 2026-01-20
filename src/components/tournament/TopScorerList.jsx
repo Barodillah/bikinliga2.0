@@ -2,6 +2,7 @@ import React from 'react'
 import { Trophy, Medal, TrendingUp } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../ui/Card'
 import Button from '../ui/Button'
+import AdSlot from '../ui/AdSlot'
 
 // Sample data for top scorers
 const topScorersData = [
@@ -60,6 +61,7 @@ export default function TopScorerList({ compact = false }) {
                                 </div>
                             </CardContent>
                         </Card>
+                        <AdSlot variant="banner" className="mt-6" />
                     </div>
                 </div>
             )}
