@@ -2,7 +2,10 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, ArrowRight, Loader2, Check, X } from 'lucide-react'
 
+import { useToast } from '../../contexts/ToastContext'
+
 export default function RegisterPage() {
+    const { error } = useToast()
     const navigate = useNavigate()
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -21,7 +24,7 @@ export default function RegisterPage() {
     const handleSubmit = async (e) => {
         e.preventDefault()
         if (formData.password !== formData.confirmPassword) {
-            alert('Password tidak cocok!')
+            error('Password tidak cocok!')
             return
         }
         setIsLoading(true)
@@ -233,10 +236,10 @@ export default function RegisterPage() {
                                     placeholder="••••••••"
                                     required
                                     className={`w-full bg-white/5 border rounded-xl px-4 py-3.5 pr-12 text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-300 ${formData.confirmPassword && formData.password !== formData.confirmPassword
-                                            ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-                                            : formData.confirmPassword && formData.password === formData.confirmPassword
-                                                ? 'border-neonGreen focus:border-neonGreen focus:ring-neonGreen/20'
-                                                : 'border-white/10 focus:border-neonGreen focus:ring-neonGreen/20'
+                                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                                        : formData.confirmPassword && formData.password === formData.confirmPassword
+                                            ? 'border-neonGreen focus:border-neonGreen focus:ring-neonGreen/20'
+                                            : 'border-white/10 focus:border-neonGreen focus:ring-neonGreen/20'
                                         }`}
                                 />
                                 <button

@@ -20,7 +20,10 @@ const pointSystems = [
     { value: '3-0', label: '3-0 (No Draw)' },
 ]
 
+import { useToast } from '../../contexts/ToastContext'
+
 export default function CreateTournament() {
+    const { success, error } = useToast()
     const navigate = useNavigate()
     const [step, setStep] = useState(1)
     const [formData, setFormData] = useState({
@@ -127,7 +130,7 @@ export default function CreateTournament() {
         const file = e.target.files?.[0]
         if (file) {
             if (!file.type.startsWith('image/')) {
-                alert('Hanya file gambar yang diperbolehkan!')
+                error('Hanya file gambar yang diperbolehkan!')
                 return
             }
             const reader = new FileReader()
@@ -152,7 +155,7 @@ export default function CreateTournament() {
         e.preventDefault()
         // In real app, would call API here
         console.log('Creating tournament:', formData)
-        alert('Turnamen berhasil dibuat!')
+        success('Turnamen berhasil dibuat!')
         navigate('/dashboard/tournaments')
     }
 
@@ -562,7 +565,7 @@ export default function CreateTournament() {
                                 type="button"
                                 onClick={() => {
                                     if (formData.type === 'league' && formData.playerCount < 3) {
-                                        alert('Minimal 3 tim untuk Liga!')
+                                        error('Minimal 3 tim untuk Liga!')
                                         return
                                     }
                                     setStep(3)

@@ -4,6 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Trophy, Users, Calendar, BarChart2, Settings, Share2, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2, Gift, DollarSign, Percent, Save } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Modal from '../../components/ui/Modal'
+import ConfirmationModal from '../../components/ui/ConfirmationModal'
 import Button from '../../components/ui/Button'
 import Input, { Textarea } from '../../components/ui/Input'
 import StandingsTable from '../../components/tournament/StandingsTable'
@@ -353,6 +354,12 @@ export default function TournamentDetail() {
     ])
     const [newNews, setNewNews] = useState({ title: '', content: '' })
 
+    // Delete Confirmation State
+    const [deleteModal, setDeleteModal] = useState({
+        isOpen: false,
+        newsId: null
+    })
+
     // Prize Settings State
     const [prizeSettings, setPrizeSettings] = useState({
         enabled: false,
@@ -497,8 +504,13 @@ export default function TournamentDetail() {
     }
 
     const handleDeleteNews = (newsId) => {
-        if (window.confirm('Hapus berita ini?')) {
-            setNewsList(newsList.filter(n => n.id !== newsId))
+        setDeleteModal({ isOpen: true, newsId })
+    }
+
+    const confirmDeleteNews = () => {
+        if (deleteModal.newsId) {
+            setNewsList(newsList.filter(n => n.id !== deleteModal.newsId))
+            setDeleteModal({ isOpen: false, newsId: null })
         }
     }
 
@@ -803,261 +815,285 @@ export default function TournamentDetail() {
                 </Card>
             )}
 
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={deleteModal.isOpen}
+                onClose={() => setDeleteModal({ isOpen: false, newsId: null })}
+                onConfirm={confirmDeleteNews}
+                title="Hapus Berita"
+                message="Apakah Anda yakin ingin menghapus berita ini? Tindakan ini tidak dapat dibatalkan."
+                confirmText="Hapus"
+                variant="danger"
+            />
+
+
 
             {/* Top Scores */}
-            {activeTab === 'top_scores' && (
-                <TopScorerList />
-            )}
+            {
+                activeTab === 'top_scores' && (
+                    <TopScorerList />
+                )
+            }
 
             {/* Statistics */}
-            {activeTab === 'statistics' && (
-                <TournamentStatistics />
-            )}
+            {
+                activeTab === 'statistics' && (
+                    <TournamentStatistics />
+                )
+            }
 
             {/* Prize Settings */}
-            {activeTab === 'prize' && (
-                <div className="space-y-6 animate-fadeIn">
-                    {/* Enable/Disable Toggle */}
-                    <Card>
-                        <CardContent className="flex items-center justify-between">
-                            <div>
-                                <h3 className="font-display font-bold text-lg flex items-center gap-2">
-                                    <Gift className="w-5 h-5 text-neonPurple" />
-                                    Pengaturan Hadiah
-                                </h3>
-                                <p className="text-sm text-gray-400">Aktifkan jika turnamen ini memiliki hadiah uang tunai</p>
-                            </div>
-                            <div className="flex items-center bg-black/40 p-1 rounded-lg border border-white/10">
-                                <button
-                                    onClick={() => setPrizeSettings(prev => ({ ...prev, enabled: false }))}
-                                    className={`px-4 py-2 rounded-md text-sm font-medium transition ${!prizeSettings.enabled ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'}`}
-                                >
-                                    Tidak Ada
-                                </button>
-                                <button
-                                    onClick={() => setPrizeSettings(prev => ({ ...prev, enabled: true }))}
-                                    className={`px-4 py-2 rounded-md text-sm font-medium transition ${prizeSettings.enabled ? 'bg-neonPurple text-black' : 'text-gray-500 hover:text-white'}`}
-                                >
-                                    Ada Hadiah
-                                </button>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {prizeSettings.enabled && (
-                        <div className="grid lg:grid-cols-2 gap-6">
-                            {/* Source Settings */}
-                            <Card>
-                                <CardHeader>
-                                    <h3 className="font-display font-bold flex items-center gap-2">
-                                        <DollarSign className="w-5 h-5 text-green-400" />
-                                        Sumber Dana
+            {
+                activeTab === 'prize' && (
+                    <div className="space-y-6 animate-fadeIn">
+                        {/* Enable/Disable Toggle */}
+                        <Card>
+                            <CardContent className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="font-display font-bold text-lg flex items-center gap-2">
+                                        <Gift className="w-5 h-5 text-neonPurple" />
+                                        Pengaturan Hadiah
                                     </h3>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <p className="text-sm text-gray-400">Aktifkan jika turnamen ini memiliki hadiah uang tunai</p>
+                                </div>
+                                <div className="flex items-center bg-black/40 p-1 rounded-lg border border-white/10">
+                                    <button
+                                        onClick={() => setPrizeSettings(prev => ({ ...prev, enabled: false }))}
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition ${!prizeSettings.enabled ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'}`}
+                                    >
+                                        Tidak Ada
+                                    </button>
+                                    <button
+                                        onClick={() => setPrizeSettings(prev => ({ ...prev, enabled: true }))}
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition ${prizeSettings.enabled ? 'bg-neonPurple text-black' : 'text-gray-500 hover:text-white'}`}
+                                    >
+                                        Ada Hadiah
+                                    </button>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {prizeSettings.enabled && (
+                            <div className="grid lg:grid-cols-2 gap-6">
+                                {/* Source Settings */}
+                                <Card>
+                                    <CardHeader>
+                                        <h3 className="font-display font-bold flex items-center gap-2">
+                                            <DollarSign className="w-5 h-5 text-green-400" />
+                                            Sumber Dana
+                                        </h3>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-xs text-gray-400 uppercase font-bold">Biaya Pendaftaran</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
+                                                    <input
+                                                        type="number"
+                                                        value={prizeSettings.sources.registrationFee}
+                                                        onChange={(e) => handleSourceChange('registrationFee', e.target.value)}
+                                                        className="w-full bg-black/20 border border-white/10 rounded-lg py-2 pl-10 pr-3 focus:outline-none focus:border-neonPurple transition"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs text-gray-400 uppercase font-bold">Jumlah Peserta</label>
+                                                <div className="relative">
+                                                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                                    <input
+                                                        type="number"
+                                                        value={prizeSettings.sources.playerCount}
+                                                        onChange={(e) => handleSourceChange('playerCount', e.target.value)}
+                                                        className="w-full bg-black/20 border border-white/10 rounded-lg py-2 pl-10 pr-3 focus:outline-none focus:border-neonPurple transition"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div className="space-y-2">
-                                            <label className="text-xs text-gray-400 uppercase font-bold">Biaya Pendaftaran</label>
+                                            <label className="text-xs text-gray-400 uppercase font-bold">Sponsor</label>
                                             <div className="relative">
                                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
                                                 <input
                                                     type="number"
-                                                    value={prizeSettings.sources.registrationFee}
-                                                    onChange={(e) => handleSourceChange('registrationFee', e.target.value)}
+                                                    value={prizeSettings.sources.sponsor}
+                                                    onChange={(e) => handleSourceChange('sponsor', e.target.value)}
                                                     className="w-full bg-black/20 border border-white/10 rounded-lg py-2 pl-10 pr-3 focus:outline-none focus:border-neonPurple transition"
                                                 />
                                             </div>
                                         </div>
+
                                         <div className="space-y-2">
-                                            <label className="text-xs text-gray-400 uppercase font-bold">Jumlah Peserta</label>
+                                            <label className="text-xs text-gray-400 uppercase font-bold text-red-400">Admin Fee / Potongan</label>
                                             <div className="relative">
-                                                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-red-400">- Rp</span>
                                                 <input
                                                     type="number"
-                                                    value={prizeSettings.sources.playerCount}
-                                                    onChange={(e) => handleSourceChange('playerCount', e.target.value)}
-                                                    className="w-full bg-black/20 border border-white/10 rounded-lg py-2 pl-10 pr-3 focus:outline-none focus:border-neonPurple transition"
+                                                    value={prizeSettings.sources.adminFee}
+                                                    onChange={(e) => handleSourceChange('adminFee', e.target.value)}
+                                                    className="w-full bg-black/20 border border-red-500/30 rounded-lg py-2 pl-12 pr-3 focus:outline-none focus:border-red-500 transition text-red-400"
                                                 />
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div className="space-y-2">
-                                        <label className="text-xs text-gray-400 uppercase font-bold">Sponsor</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
-                                            <input
-                                                type="number"
-                                                value={prizeSettings.sources.sponsor}
-                                                onChange={(e) => handleSourceChange('sponsor', e.target.value)}
-                                                className="w-full bg-black/20 border border-white/10 rounded-lg py-2 pl-10 pr-3 focus:outline-none focus:border-neonPurple transition"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-xs text-gray-400 uppercase font-bold text-red-400">Admin Fee / Potongan</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-red-400">- Rp</span>
-                                            <input
-                                                type="number"
-                                                value={prizeSettings.sources.adminFee}
-                                                onChange={(e) => handleSourceChange('adminFee', e.target.value)}
-                                                className="w-full bg-black/20 border border-red-500/30 rounded-lg py-2 pl-12 pr-3 focus:outline-none focus:border-red-500 transition text-red-400"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-4 border-t border-white/10">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-gray-400">Total Terkumpul</span>
-                                            <span className="text-xl font-bold font-mono">
-                                                Rp {((prizeSettings.sources.registrationFee * prizeSettings.sources.playerCount) + prizeSettings.sources.sponsor).toLocaleString('id-ID')}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-center text-lg">
-                                            <span className="text-white font-bold">Total Hadiah Bersih</span>
-                                            <span className="text-2xl font-bold font-mono text-neonGreen">
-                                                Rp {calculatePrizePool().toLocaleString('id-ID')}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <Button onClick={handleGeneratePrizes} className="w-full bg-neonPurple hover:bg-neonPurple/80 text-black">
-                                        <Settings className="w-4 h-4 mr-2" />
-                                        Generate Pembagian Hadiah
-                                    </Button>
-                                </CardContent>
-                            </Card>
-
-                            {/* Recipients Settings */}
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between">
-                                    <h3 className="font-display font-bold flex items-center gap-2">
-                                        <Users className="w-5 h-5 text-blue-400" />
-                                        Pembagian Hadiah
-                                    </h3>
-                                    <Button size="sm" variant="ghost" onClick={addRecipient}>
-                                        <Plus className="w-4 h-4" />
-                                    </Button>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="space-y-3">
-                                        {prizeSettings.recipients.map((recipient) => (
-                                            <div key={recipient.id} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-white/5 p-3 rounded-lg group">
-                                                <div className="flex-1 w-full sm:w-auto">
-                                                    <input
-                                                        type="text"
-                                                        value={recipient.label}
-                                                        onChange={(e) => handleRecipientChange(recipient.id, 'label', e.target.value)}
-                                                        className="w-full bg-transparent border-none focus:ring-0 p-0 font-medium text-sm sm:text-base"
-                                                        placeholder="Nama Pemenang"
-                                                    />
-                                                </div>
-                                                <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                                                    <div className="relative w-20 flex-shrink-0">
-                                                        <input
-                                                            type="number"
-                                                            value={recipient.percentage}
-                                                            onChange={(e) => handleRecipientChange(recipient.id, 'percentage', e.target.value)}
-                                                            className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-right pr-6"
-                                                        />
-                                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
-                                                    </div>
-                                                    <div className="relative min-w-[120px]">
-                                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">Rp</span>
-                                                        <input
-                                                            type="number"
-                                                            value={Math.round(recipient.amount)}
-                                                            onChange={(e) => handleRecipientChange(recipient.id, 'amount', e.target.value)}
-                                                            className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 pl-6 text-right font-mono text-neonGreen text-sm sm:text-base focus:outline-none focus:border-neonGreen transition"
-                                                        />
-                                                    </div>
-                                                    <button
-                                                        onClick={() => removeRecipient(recipient.id)}
-                                                        className="text-gray-600 hover:text-red-400 transition"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
+                                        <div className="pt-4 border-t border-white/10">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-gray-400">Total Terkumpul</span>
+                                                <span className="text-xl font-bold font-mono">
+                                                    Rp {((prizeSettings.sources.registrationFee * prizeSettings.sources.playerCount) + prizeSettings.sources.sponsor).toLocaleString('id-ID')}
+                                                </span>
                                             </div>
-                                        ))}
-                                    </div>
+                                            <div className="flex justify-between items-center text-lg">
+                                                <span className="text-white font-bold">Total Hadiah Bersih</span>
+                                                <span className="text-2xl font-bold font-mono text-neonGreen">
+                                                    Rp {calculatePrizePool().toLocaleString('id-ID')}
+                                                </span>
+                                            </div>
+                                        </div>
 
-                                    <div className="pt-4 border-t border-white/10 flex justify-between items-center">
-                                        <span className="text-sm text-gray-400">Total Persentase</span>
-                                        <span className={`ffont-bold ${prizeSettings.recipients.reduce((acc, curr) => acc + curr.percentage, 0) === 100
-                                            ? 'text-green-400'
-                                            : 'text-yellow-400'
-                                            }`}>
-                                            {prizeSettings.recipients.reduce((acc, curr) => acc + curr.percentage, 0)}%
-                                        </span>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    )}
-                </div>
-            )}
+                                        <Button onClick={handleGeneratePrizes} className="w-full bg-neonPurple hover:bg-neonPurple/80 text-black">
+                                            <Settings className="w-4 h-4 mr-2" />
+                                            Generate Pembagian Hadiah
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Recipients Settings */}
+                                <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between">
+                                        <h3 className="font-display font-bold flex items-center gap-2">
+                                            <Users className="w-5 h-5 text-blue-400" />
+                                            Pembagian Hadiah
+                                        </h3>
+                                        <Button size="sm" variant="ghost" onClick={addRecipient}>
+                                            <Plus className="w-4 h-4" />
+                                        </Button>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-3">
+                                            {prizeSettings.recipients.map((recipient) => (
+                                                <div key={recipient.id} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-white/5 p-3 rounded-lg group">
+                                                    <div className="flex-1 w-full sm:w-auto">
+                                                        <input
+                                                            type="text"
+                                                            value={recipient.label}
+                                                            onChange={(e) => handleRecipientChange(recipient.id, 'label', e.target.value)}
+                                                            className="w-full bg-transparent border-none focus:ring-0 p-0 font-medium text-sm sm:text-base"
+                                                            placeholder="Nama Pemenang"
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                                                        <div className="relative w-20 flex-shrink-0">
+                                                            <input
+                                                                type="number"
+                                                                value={recipient.percentage}
+                                                                onChange={(e) => handleRecipientChange(recipient.id, 'percentage', e.target.value)}
+                                                                className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-right pr-6"
+                                                            />
+                                                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                                                        </div>
+                                                        <div className="relative min-w-[120px]">
+                                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">Rp</span>
+                                                            <input
+                                                                type="number"
+                                                                value={Math.round(recipient.amount)}
+                                                                onChange={(e) => handleRecipientChange(recipient.id, 'amount', e.target.value)}
+                                                                className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 pl-6 text-right font-mono text-neonGreen text-sm sm:text-base focus:outline-none focus:border-neonGreen transition"
+                                                            />
+                                                        </div>
+                                                        <button
+                                                            onClick={() => removeRecipient(recipient.id)}
+                                                            className="text-gray-600 hover:text-red-400 transition"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="pt-4 border-t border-white/10 flex justify-between items-center">
+                                            <span className="text-sm text-gray-400">Total Persentase</span>
+                                            <span className={`ffont-bold ${prizeSettings.recipients.reduce((acc, curr) => acc + curr.percentage, 0) === 100
+                                                ? 'text-green-400'
+                                                : 'text-yellow-400'
+                                                }`}>
+                                                {prizeSettings.recipients.reduce((acc, curr) => acc + curr.percentage, 0)}%
+                                            </span>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        )}
+                    </div>
+                )
+            }
 
             {/* Fixtures */}
-            {activeTab === 'fixtures' && (
-                <Card className="p-4">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-display font-bold">
-                            {isKnockout ? 'Quarter Finals' : isGroupKO ? 'Knockout Round' : 'Matchweek 5'}
-                        </h3>
-                        <span className="text-sm text-gray-400">4 pertandingan</span>
-                    </div>
-                    <div className="space-y-3">
-                        <MatchCard home="FCB" away="RMA" time="Hari ini, 20:00" status="upcoming" onClick={() => handleMatchClick(1)} />
-                        <MatchCard home="MU" away="ARS" time="Besok, 19:30" status="upcoming" onClick={() => handleMatchClick(2)} />
-                        <MatchCard home="LIV" away="CHE" time="Besok, 21:00" status="upcoming" onClick={() => handleMatchClick(3)} />
-                        <MatchCard home="PSG" away="BAY" time="Sabtu, 20:00" status="upcoming" onClick={() => handleMatchClick(4)} />
-                    </div>
-                </Card>
-            )}
+            {
+                activeTab === 'fixtures' && (
+                    <Card className="p-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-display font-bold">
+                                {isKnockout ? 'Quarter Finals' : isGroupKO ? 'Knockout Round' : 'Matchweek 5'}
+                            </h3>
+                            <span className="text-sm text-gray-400">4 pertandingan</span>
+                        </div>
+                        <div className="space-y-3">
+                            <MatchCard home="FCB" away="RMA" time="Hari ini, 20:00" status="upcoming" onClick={() => handleMatchClick(1)} />
+                            <MatchCard home="MU" away="ARS" time="Besok, 19:30" status="upcoming" onClick={() => handleMatchClick(2)} />
+                            <MatchCard home="LIV" away="CHE" time="Besok, 21:00" status="upcoming" onClick={() => handleMatchClick(3)} />
+                            <MatchCard home="PSG" away="BAY" time="Sabtu, 20:00" status="upcoming" onClick={() => handleMatchClick(4)} />
+                        </div>
+                    </Card>
+                )
+            }
 
             {/* Players - Different view for draft vs active */}
-            {activeTab === 'players' && isDraft && (
-                <DraftPlayerList
-                    players={draftPlayersData}
-                    tournamentId={id}
-                    navigate={navigate}
-                />
-            )}
+            {
+                activeTab === 'players' && isDraft && (
+                    <DraftPlayerList
+                        players={draftPlayersData}
+                        tournamentId={id}
+                        navigate={navigate}
+                    />
+                )
+            }
 
-            {activeTab === 'players' && !isDraft && (
-                <Card hover={false}>
-                    <CardHeader className="flex items-center justify-between">
-                        <h3 className="font-display font-bold">Daftar Pemain</h3>
-                        <Button size="sm" onClick={() => navigate(`/dashboard/tournaments/${id}/players/add`)}>
-                            <UserPlus className="w-4 h-4 mr-2" />
-                            Tambah Pemain
-                        </Button>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <div className="divide-y divide-white/5">
-                            {['Barcelona FC', 'Real Madrid', 'Manchester United', 'Arsenal', 'Liverpool', 'Chelsea', 'PSG', 'Bayern Munich'].map((team, i) => (
-                                <div key={team} className="flex items-center justify-between p-4 hover:bg-white/5 transition">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neonGreen/30 to-neonPink/30 flex items-center justify-center font-bold">
-                                            {i + 1}
+            {
+                activeTab === 'players' && !isDraft && (
+                    <Card hover={false}>
+                        <CardHeader className="flex items-center justify-between">
+                            <h3 className="font-display font-bold">Daftar Pemain</h3>
+                            <Button size="sm" onClick={() => navigate(`/dashboard/tournaments/${id}/players/add`)}>
+                                <UserPlus className="w-4 h-4 mr-2" />
+                                Tambah Pemain
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="divide-y divide-white/5">
+                                {['Barcelona FC', 'Real Madrid', 'Manchester United', 'Arsenal', 'Liverpool', 'Chelsea', 'PSG', 'Bayern Munich'].map((team, i) => (
+                                    <div key={team} className="flex items-center justify-between p-4 hover:bg-white/5 transition">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neonGreen/30 to-neonPink/30 flex items-center justify-center font-bold">
+                                                {i + 1}
+                                            </div>
+                                            <div>
+                                                <div className="font-medium">{team}</div>
+                                                <div className="text-xs text-gray-500">Player_{i + 1}</div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <div className="font-medium">{team}</div>
-                                            <div className="text-xs text-gray-500">Player_{i + 1}</div>
-                                        </div>
+                                        <Button variant="ghost" size="sm">
+                                            <Edit className="w-4 h-4" />
+                                        </Button>
                                     </div>
-                                    <Button variant="ghost" size="sm">
-                                        <Edit className="w-4 h-4" />
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )
+            }
 
             {/* Detail Modal */}
             <Modal
@@ -1156,6 +1192,6 @@ export default function TournamentDetail() {
                     </div>
                 </form>
             </Modal>
-        </div>
+        </div >
     )
 }

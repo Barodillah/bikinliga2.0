@@ -22,7 +22,10 @@ const MOCK_ADMIN_COMMUNITIES = [
     }
 ]
 
+import { useToast } from '../../contexts/ToastContext'
+
 export default function Settings() {
+    const { success } = useToast()
     const [searchParams, setSearchParams] = useSearchParams()
     const [activeTab, setActiveTabState] = useState(searchParams.get('tab') || 'profile')
     const [isLoading, setIsLoading] = useState(false)
@@ -83,7 +86,7 @@ export default function Settings() {
         setTimeout(() => {
             setIsLoading(false)
             setShowCreateClub(false)
-            alert('Komunitas berhasil dibuat! Saldo koin telah dikurangi.')
+            success('Komunitas berhasil dibuat! Saldo koin telah dikurangi.')
         }, 1500)
     }
 

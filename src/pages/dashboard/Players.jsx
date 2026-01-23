@@ -18,7 +18,10 @@ const playersData = [
     { id: 8, name: 'Bayern Munich', playerName: 'Hadi', contact: '081234567897', wins: 1, draws: 2, losses: 5 },
 ]
 
+import { useToast } from '../../contexts/ToastContext'
+
 export default function Players() {
+    const { success } = useToast()
     const { id } = useParams()
     const navigate = useNavigate()
     const [searchQuery, setSearchQuery] = useState('')
@@ -32,7 +35,7 @@ export default function Players() {
 
     const handleAddPlayer = () => {
         console.log('Adding player:', newPlayer)
-        alert(`Pemain ditambahkan: ${newPlayer.name}`)
+        success(`Pemain ditambahkan: ${newPlayer.name}`)
         setShowAddModal(false)
         setNewPlayer({ name: '', playerName: '', contact: '' })
     }

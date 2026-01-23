@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import { AdProvider } from './contexts/AdContext'
+import { ToastProvider } from './contexts/ToastContext'
 import LandingPage from './pages/landing/LandingPage'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
@@ -43,63 +44,65 @@ import AdminHistory from './pages/admin/AdminHistory'
 function App() {
     return (
         <AdProvider>
-            <Routes>
-                {/* Landing Page */}
-                <Route path="/" element={<LandingPage />} />
+            <ToastProvider>
+                <Routes>
+                    {/* Landing Page */}
+                    <Route path="/" element={<LandingPage />} />
 
-                {/* Auth Pages */}
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
+                    {/* Auth Pages */}
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
 
-                {/* Public Join Route */}
-                <Route path="/join/:id" element={<JoinCompetition />} />
+                    {/* Public Join Route */}
+                    <Route path="/join/:id" element={<JoinCompetition />} />
 
-                {/* Public Tournament View (Guest) */}
-                <Route path="/t" element={<PublicLayout />}>
-                    <Route path=":slug" element={<TournamentPublicView />} />
-                    <Route path=":slug/match/:matchId" element={<MatchPublicView />} />
-                </Route>
+                    {/* Public Tournament View (Guest) */}
+                    <Route path="/t" element={<PublicLayout />}>
+                        <Route path=":slug" element={<TournamentPublicView />} />
+                        <Route path=":slug/match/:matchId" element={<MatchPublicView />} />
+                    </Route>
 
 
-                {/* Admin Routes */}
-                <Route path="/admin" element={<AdminLayout />}>
-                    <Route index element={<AdminDashboard />} />
-                    <Route path="users" element={<AdminUsers />} />
-                    <Route path="complaint" element={<AdminComplaint />} />
-                    <Route path="transaction" element={<AdminTransaction />} />
-                    <Route path="ai-analysis" element={<AdminAIAnalysis />} />
-                    <Route path="history" element={<AdminHistory />} />
-                </Route>
+                    {/* Admin Routes */}
+                    <Route path="/admin" element={<AdminLayout />}>
+                        <Route index element={<AdminDashboard />} />
+                        <Route path="users" element={<AdminUsers />} />
+                        <Route path="complaint" element={<AdminComplaint />} />
+                        <Route path="transaction" element={<AdminTransaction />} />
+                        <Route path="ai-analysis" element={<AdminAIAnalysis />} />
+                        <Route path="history" element={<AdminHistory />} />
+                    </Route>
 
-                {/* Dashboard Routes */}
-                <Route path="/dashboard" element={<DashboardLayout />}>
-                    <Route index element={<Dashboard />} />
-                    <Route path="tournaments" element={<TournamentList />} />
-                    <Route path="tournaments/new" element={<CreateTournament />} />
-                    <Route path="competitions" element={<Competitions />} />
-                    <Route path="competitions/:id/join" element={<JoinCompetition />} />
-                    <Route path="stream" element={<Stream />} />
-                    <Route path="stream/:id" element={<StreamDetail />} />
-                    <Route path="tournaments/:id" element={<TournamentDetail />} />
-                    <Route path="tournaments/:id/view" element={<UserTournamentDetail />} />
-                    <Route path="tournaments/:id/view/news/:newsId" element={<UserNewsDetail />} />
-                    <Route path="tournaments/:id/view/match/:matchId" element={<UserMatchDetail />} />
-                    <Route path="tournaments/:id/settings" element={<TournamentSettings />} />
-                    <Route path="tournaments/:id/standings" element={<Standings />} />
-                    <Route path="tournaments/:id/fixtures" element={<Fixtures />} />
-                    <Route path="tournaments/:id/players" element={<Players />} />
-                    <Route path="tournaments/:id/players/add" element={<AddPlayer />} />
-                    <Route path="tournaments/:id/match/:matchId" element={<MatchManagement />} />
-                    <Route path="topup" element={<TopUp />} />
-                    <Route path="eclub" element={<EClub />} />
-                    <Route path="eclub/community/:id" element={<CommunityDetail />} />
-                    <Route path="settings" element={<Settings />} />
-                    <Route path="ranking" element={<Ranking />} />
-                    <Route path="profile/:username" element={<Profile />} />
-                    <Route path="my-profile" element={<MyProfile />} />
+                    {/* Dashboard Routes */}
+                    <Route path="/dashboard" element={<DashboardLayout />}>
+                        <Route index element={<Dashboard />} />
+                        <Route path="tournaments" element={<TournamentList />} />
+                        <Route path="tournaments/new" element={<CreateTournament />} />
+                        <Route path="competitions" element={<Competitions />} />
+                        <Route path="competitions/:id/join" element={<JoinCompetition />} />
+                        <Route path="stream" element={<Stream />} />
+                        <Route path="stream/:id" element={<StreamDetail />} />
+                        <Route path="tournaments/:id" element={<TournamentDetail />} />
+                        <Route path="tournaments/:id/view" element={<UserTournamentDetail />} />
+                        <Route path="tournaments/:id/view/news/:newsId" element={<UserNewsDetail />} />
+                        <Route path="tournaments/:id/view/match/:matchId" element={<UserMatchDetail />} />
+                        <Route path="tournaments/:id/settings" element={<TournamentSettings />} />
+                        <Route path="tournaments/:id/standings" element={<Standings />} />
+                        <Route path="tournaments/:id/fixtures" element={<Fixtures />} />
+                        <Route path="tournaments/:id/players" element={<Players />} />
+                        <Route path="tournaments/:id/players/add" element={<AddPlayer />} />
+                        <Route path="tournaments/:id/match/:matchId" element={<MatchManagement />} />
+                        <Route path="topup" element={<TopUp />} />
+                        <Route path="eclub" element={<EClub />} />
+                        <Route path="eclub/community/:id" element={<CommunityDetail />} />
+                        <Route path="settings" element={<Settings />} />
+                        <Route path="ranking" element={<Ranking />} />
+                        <Route path="profile/:username" element={<Profile />} />
+                        <Route path="my-profile" element={<MyProfile />} />
 
-                </Route>
-            </Routes>
+                    </Route>
+                </Routes>
+            </ToastProvider>
         </AdProvider>
     )
 }

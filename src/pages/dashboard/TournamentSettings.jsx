@@ -40,7 +40,10 @@ const getTournamentData = (id) => {
     }
 }
 
+import { useToast } from '../../contexts/ToastContext'
+
 export default function TournamentSettings() {
+    const { error } = useToast()
     const { id } = useParams()
     const navigate = useNavigate()
     const [loading, setLoading] = useState(false)
@@ -130,7 +133,7 @@ export default function TournamentSettings() {
         const file = e.target.files?.[0]
         if (file) {
             if (!file.type.startsWith('image/')) {
-                alert('Hanya file gambar yang diperbolehkan!')
+                error('Hanya file gambar yang diperbolehkan!')
                 return
             }
             const reader = new FileReader()

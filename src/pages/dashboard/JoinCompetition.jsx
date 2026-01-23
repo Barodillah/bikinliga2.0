@@ -7,6 +7,7 @@ import Input from '../../components/ui/Input'
 import SearchableSelect from '../../components/ui/SearchableSelect'
 import AdSlot from '../../components/ui/AdSlot'
 import Navbar from '../../components/landing/Navbar'
+import { useToast } from '../../contexts/ToastContext'
 
 // Mock Data for Public Competitions (Duplicated from Competitions.jsx for independence)
 const getCompetitionData = (id) => {
@@ -101,6 +102,7 @@ const leagueOptions = [
 ]
 
 export default function JoinCompetition() {
+    const { success } = useToast()
     const { id } = useParams()
     const navigate = useNavigate()
     const location = useLocation()
@@ -226,7 +228,7 @@ export default function JoinCompetition() {
             // Simulate API call
             await new Promise(resolve => setTimeout(resolve, 1500))
 
-            alert(`Berhasil mendaftar ke "${competitionData.name}"!\nSemoga beruntung!`)
+            success(`Berhasil mendaftar ke "${competitionData.name}"!\nSemoga beruntung!`)
             if (isPublic) {
                 navigate('/')
             } else {

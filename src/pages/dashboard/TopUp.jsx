@@ -5,6 +5,8 @@ import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Modal from '../../components/ui/Modal'
+import ConfirmationModal from '../../components/ui/ConfirmationModal'
+import { useToast } from '../../contexts/ToastContext'
 
 const TOPUP_PACKAGES = [
     { coins: 100, price: 'Rp 15.000', bonus: 0, popular: false },
@@ -39,7 +41,12 @@ export default function TopUp() {
     const [adTimer, setAdTimer] = useState(0)
     const [maxDuration, setMaxDuration] = useState(15) // Default fallback
     const [adStatus, setAdStatus] = useState('idle') // idle, playing, completed
+
     const adRef = React.useRef(null)
+    const { success } = useToast()
+
+    // Ad Warning Modal
+    const [adWarningModal, setAdWarningModal] = useState(false)
 
     // Modal & Payment State
     const [showPremiumModal, setShowPremiumModal] = useState(false)
@@ -204,7 +211,7 @@ export default function TopUp() {
 
     const handlePremiumConfirm = () => {
         // Mock Premium Upgrade
-        alert("Upgrade successful! (Mock)")
+        success("Upgrade successful! (Mock)")
         setShowPremiumModal(false)
     }
 
@@ -585,15 +592,11 @@ export default function TopUp() {
             <Modal
                 isOpen={isAdModalOpen}
                 onClose={() => {
-                    if (adStatus === 'completed') {
+                    if (adStatus === 'playing') {
+                        setAdWarningModal(true)
+                    } else {
                         setIsAdModalOpen(false)
                         setAdStatus('idle')
-                    } else {
-                        // Optional: Confirm before closing if playing?
-                        if (window.confirm("Close ad? You won't get the reward.")) {
-                            setIsAdModalOpen(false)
-                            setAdStatus('idle')
-                        }
                     }
                 }}
                 title="Watch Ad for Free Coins"
@@ -652,6 +655,22 @@ export default function TopUp() {
                     )}
                 </div>
             </Modal>
+
+            {/* Ad Close Warning Modal */}
+            <ConfirmationModal
+                isOpen={adWarningModal}
+                onClose={() => setAdWarningModal(false)}
+                onConfirm={() => {
+                    setAdWarningModal(false)
+                    setIsAdModalOpen(false)
+                    setAdStatus('idle')
+                }}
+                title="Batalkan Iklan?"
+                message="Jika Anda menutup iklan sekarang, Anda tidak akan mendapatkan hadiah koin. Lanjutkan menutup?"
+                confirmText="Ya, Tutup"
+                cancelText="Kembali Menonton"
+                variant="danger"
+            />
 
             {/* Premium Upgrade Modal */}
             <Modal
@@ -815,6 +834,6 @@ export default function TopUp() {
                     </div>
                 </form>
             </Modal>
-        </div>
+        </div >
     )
 }

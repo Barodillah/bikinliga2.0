@@ -2,13 +2,16 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Trophy, Instagram, Twitter, Facebook, Youtube } from 'lucide-react'
 
+import { useToast } from '../../contexts/ToastContext'
+
 export default function Footer() {
+    const { success } = useToast()
     const [email, setEmail] = useState('')
 
     const handleSubscribe = (e) => {
         e.preventDefault()
         // Handle newsletter subscription
-        alert(`Terima kasih telah subscribe: ${email}`)
+        success(`Terima kasih telah subscribe: ${email}`)
         setEmail('')
     }
 

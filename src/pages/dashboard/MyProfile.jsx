@@ -11,8 +11,10 @@ const AVAILABLE_BADGES = [
 ]
 
 import { Star, Heart } from 'lucide-react'
+import { useToast } from '../../contexts/ToastContext'
 
 export default function MyProfile() {
+    const { error, success } = useToast()
     const [isLoading, setIsLoading] = useState(false)
 
     // Privacy Settings State
@@ -38,7 +40,7 @@ export default function MyProfile() {
             setSelectedBadges(selectedBadges.filter(b => b !== id))
         } else {
             if (selectedBadges.length >= 3) {
-                alert('You can only display up to 3 badges on your profile.')
+                error('You can only display up to 3 badges on your profile.')
                 return
             }
             setSelectedBadges([...selectedBadges, id])
@@ -49,7 +51,7 @@ export default function MyProfile() {
         setIsLoading(true)
         setTimeout(() => {
             setIsLoading(false)
-            alert('Settings saved successfully!')
+            success('Settings saved successfully!')
         }, 1000)
     }
 
@@ -164,8 +166,8 @@ export default function MyProfile() {
                                         key={badge.id}
                                         onClick={() => handleBadgeToggle(badge.id)}
                                         className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center gap-3 transition relative group ${isSelected
-                                                ? 'bg-neonGreen/5 border-neonGreen shadow-[0_0_15px_-5px_theme(colors.neonGreen)]'
-                                                : 'bg-white/5 border-white/10 hover:border-white/30'
+                                            ? 'bg-neonGreen/5 border-neonGreen shadow-[0_0_15px_-5px_theme(colors.neonGreen)]'
+                                            : 'bg-white/5 border-white/10 hover:border-white/30'
                                             }`}
                                     >
                                         {isSelected && (

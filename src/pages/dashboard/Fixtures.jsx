@@ -32,7 +32,10 @@ const matchweeks = [
     }
 ]
 
+import { useToast } from '../../contexts/ToastContext'
+
 export default function Fixtures() {
+    const { success } = useToast()
     const { id } = useParams()
     const navigate = useNavigate()
     const [showScoreModal, setShowScoreModal] = useState(false)
@@ -49,7 +52,7 @@ export default function Fixtures() {
 
     const handleSaveScore = () => {
         console.log('Saving score:', { match: selectedMatch, homeScore, awayScore })
-        alert(`Skor tersimpan: ${selectedMatch.home} ${homeScore} - ${awayScore} ${selectedMatch.away}`)
+        success(`Skor tersimpan: ${selectedMatch.home} ${homeScore} - ${awayScore} ${selectedMatch.away}`)
         setShowScoreModal(false)
     }
 

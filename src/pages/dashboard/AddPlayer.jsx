@@ -100,7 +100,10 @@ const leagueOptions = [
     { value: 'American League', label: 'American League' },
 ]
 
+import { useToast } from '../../contexts/ToastContext'
+
 export default function AddPlayer() {
+    const { success } = useToast()
     const { id } = useParams()
     const navigate = useNavigate()
     const tournamentData = getTournamentData(id)
@@ -210,7 +213,7 @@ export default function AddPlayer() {
             console.log('Submitting player data:', formData)
 
             // Show success and redirect
-            alert(`Pemain "${formData.playerName}" dengan tim "${formData.team}" berhasil ditambahkan!`)
+            success(`Pemain "${formData.playerName}" dengan tim "${formData.team}" berhasil ditambahkan!`)
             navigate(`/dashboard/tournaments/${id}/players`)
         } catch (err) {
             setError('Gagal menambahkan pemain. Silakan coba lagi.')
