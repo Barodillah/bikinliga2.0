@@ -6,6 +6,8 @@ import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import AdSlot from '../../components/ui/AdSlot'
 
+import UserBadge from '../../components/ui/UserBadge'
+
 // Sample data for Public Competitions
 const publicCompetitions = [
     {
@@ -20,7 +22,7 @@ const publicCompetitions = [
         registrationDeadline: '2024-04-28',
         description: 'Liga terbuka untuk umum, semua skill level welcome!',
         isPublic: true,
-        creator: { name: 'Official IndoLeague', isTrusted: true },
+        creator: { name: 'Official IndoLeague', tier: 'pro_liga' },
         userStatus: 'registered' // Example: User has registered
     },
     {
@@ -35,7 +37,7 @@ const publicCompetitions = [
         registrationDeadline: '2024-06-10',
         description: 'Turnamen santai akhir pekan.',
         isPublic: true,
-        creator: { name: 'Komunitas Santai', isTrusted: false }
+        creator: { name: 'Komunitas Santai', tier: 'free' }
     },
     {
         id: 103,
@@ -49,9 +51,10 @@ const publicCompetitions = [
         registrationDeadline: '2024-05-08',
         description: 'Scrim mingguan untuk tim semi-pro.',
         isPublic: true,
-        creator: { name: 'ProScouts ID', isTrusted: true },
+        creator: { name: 'ProScouts ID', tier: 'captain' },
         userStatus: 'pending' // Example: User request pending
     },
+    // ... other mock data can update similarly or retain defaults ...
     {
         id: 104,
         name: 'Badminton Fun Match',
@@ -64,7 +67,7 @@ const publicCompetitions = [
         registrationDeadline: '2024-05-18',
         description: 'Cari lawan sparing badminton.',
         isPublic: true,
-        creator: { name: 'Gor Asoy', isTrusted: false }
+        creator: { name: 'Gor Asoy', tier: 'free' }
     },
     {
         id: 105,
@@ -78,7 +81,7 @@ const publicCompetitions = [
         registrationDeadline: '2024-04-18',
         description: 'Turnamen mingguan FIFA 24.',
         isPublic: true,
-        creator: { name: 'FIFA ID', isTrusted: true },
+        creator: { name: 'FIFA ID', tier: 'pro_liga' },
         userStatus: 'playing' // Example: User is playing
     },
     {
@@ -93,7 +96,7 @@ const publicCompetitions = [
         registrationDeadline: '2024-01-05',
         description: 'Turnamen komunitas MLBB.',
         isPublic: true,
-        creator: { name: 'MLBB Community', isTrusted: false },
+        creator: { name: 'MLBB Community', tier: 'captain' },
         userStatus: 'finished' // Example: User participated and finished
     }
 ]
@@ -105,12 +108,13 @@ export default function Competitions() {
     const [filterType, setFilterType] = useState('all') // 'all' | 'participating'
 
     // Logic to find the "Featured" competition
-    // Priority: Trusted Creator -> Status Register -> Closest Deadline / Fewest Slots
+    // Priority: Pro Liga Tier -> Status Register -> Closest Deadline / Fewest Slots
     const featuredCompetition = publicCompetitions.find(c =>
-        c.creator?.isTrusted && c.status === 'register' && c.currentPlayers < c.players
+        c.creator?.tier === 'pro_liga' && c.status === 'register' && c.currentPlayers < c.players
     ) || publicCompetitions.find(c => c.status === 'register')
 
     const filteredCompetitions = publicCompetitions.filter(c => {
+        // ... (existing filter logic) ...
         const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase())
 
         // Filter logic based on filterType
@@ -133,6 +137,7 @@ export default function Competitions() {
     })
 
     const getStatusColor = (status) => {
+        // ... (existing getStatusColor logic) ...
         switch (status) {
             case 'register': return 'bg-neonGreen/20 text-neonGreen'
             case 'draft': return 'bg-yellow-500/20 text-yellow-400'
@@ -143,6 +148,7 @@ export default function Competitions() {
     }
 
     const getStatusLabel = (status) => {
+        // ... (existing getStatusLabel logic) ...
         switch (status) {
             case 'register': return 'Registrasi Buka'
             case 'draft': return 'Coming Soon'
@@ -153,6 +159,7 @@ export default function Competitions() {
     }
 
     const getUserStatusLabel = (status) => {
+        // ... (existing getUserStatusLabel logic) ...
         switch (status) {
             case 'registered': return 'Terdaftar'
             case 'pending': return 'Menunggu Konfirmasi'
@@ -166,9 +173,23 @@ export default function Competitions() {
         return Math.min(100, (current / max) * 100)
     }
 
+    const renderVerifiedLabel = (tier) => {
+        if (!tier || tier === 'free') return null
+
+        const isPro = tier === 'pro_liga'
+        const labelText = isPro ? 'Verified Pro' : 'Verified Community'
+        const colorClass = isPro ? 'text-yellow-400' : 'text-blue-400'
+
+        return (
+            <span className={`text-[10px] ${colorClass} flex items-center gap-1`}>
+                <ShieldCheck className="w-3 h-3" /> {labelText}
+            </span>
+        )
+    }
+
     return (
         <div className="space-y-6">
-            {/* Header */}
+            {/* ... Header ... */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl md:text-3xl font-display font-bold">Kompetisi Publik</h1>
@@ -179,6 +200,7 @@ export default function Competitions() {
             {/* Featured Competition */}
             {featuredCompetition && !searchQuery && (
                 <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-900/50 to-purple-900/50 border border-white/10 p-6 sm:p-8">
+                    {/* ... (existing featured content) ... */}
                     <div className="absolute top-0 right-0 p-4 opacity-10">
                         <Trophy className="w-64 h-64 rotate-12" />
                     </div>
@@ -189,10 +211,13 @@ export default function Competitions() {
                                 <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
                                     <Sparkles className="w-3 h-3" /> FEATURED
                                 </span>
-                                {featuredCompetition.creator?.isTrusted && (
-                                    <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
-                                        <ShieldCheck className="w-3 h-3" /> OFFICIAL
-                                    </span>
+                                {featuredCompetition.creator?.tier && featuredCompetition.creator.tier !== 'free' && (
+                                    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/10">
+                                        <UserBadge tier={featuredCompetition.creator.tier} size="sm" />
+                                        <span className="text-xs font-bold text-white uppercase tracking-wider">
+                                            Recommended
+                                        </span>
+                                    </div>
                                 )}
                             </div>
 
@@ -202,6 +227,7 @@ export default function Competitions() {
                             </div>
 
                             <div className="flex flex-wrap gap-4 text-sm text-gray-300">
+                                {/* ... (existing badges) ... */}
                                 <div className="flex items-center gap-2 bg-black/20 px-3 py-2 rounded-lg">
                                     <Clock className="w-4 h-4 text-neonGreen" />
                                     <span>Deadline: {featuredCompetition.registrationDeadline}</span>
@@ -213,6 +239,7 @@ export default function Competitions() {
                             </div>
                         </div>
 
+                        {/* ... Right Side Card ... */}
                         <div className="w-full md:w-auto bg-black/20 backdrop-blur-sm p-6 rounded-xl border border-white/10 min-w-[300px]">
                             <div className="space-y-4">
                                 <div className="flex justify-between text-sm mb-1">
@@ -233,8 +260,12 @@ export default function Competitions() {
                                 >
                                     Daftar Sekarang
                                 </Button>
-                                <div className="text-center">
-                                    <span className="text-xs text-gray-500">Diselenggarakan oleh {featuredCompetition.creator?.name}</span>
+                                <div className="flex items-center justify-center gap-2 pt-2 border-t border-white/5">
+                                    <span className="text-xs text-gray-500">By</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-medium text-gray-300">{featuredCompetition.creator?.name}</span>
+                                        <UserBadge tier={featuredCompetition.creator?.tier} size="sm" />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -242,7 +273,7 @@ export default function Competitions() {
                 </div>
             )}
 
-            {/* Filters */}
+            {/* ... Filters ... */}
             <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1 relative">
                     <Search className="w-5 h-5 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 z-10" />
@@ -254,7 +285,7 @@ export default function Competitions() {
                     />
                 </div>
                 <div className="flex gap-2">
-                    {/* Filter Type Toggle */}
+                    {/* ... Filter Buttons ... */}
                     <div className="flex border border-white/10 rounded-lg overflow-hidden bg-black/20 p-1 gap-1">
                         <button
                             onClick={() => setFilterType('all')}
@@ -307,11 +338,8 @@ export default function Competitions() {
                                         <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(comp.status)}`}>
                                             {getStatusLabel(comp.status)}
                                         </span>
-                                        {comp.creator?.isTrusted && (
-                                            <span className="text-[10px] text-blue-400 flex items-center gap-1">
-                                                <ShieldCheck className="w-3 h-3" /> Trusted
-                                            </span>
-                                        )}
+                                        {/* Verified Label Logic */}
+                                        {renderVerifiedLabel(comp.creator?.tier)}
                                         {comp.userStatus && (
                                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">
                                                 {getUserStatusLabel(comp.userStatus)}
@@ -320,6 +348,10 @@ export default function Competitions() {
                                     </div>
                                 </div>
                                 <h3 className="font-display font-bold text-lg mb-2 group-hover:text-blue-400 transition">{comp.name}</h3>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-xs text-gray-500">by {comp.creator?.name}</span>
+                                    <UserBadge tier={comp.creator?.tier} size="sm" className="scale-75 origin-left" />
+                                </div>
                                 <p className="text-sm text-gray-500 mb-4 line-clamp-2 flex-grow">{comp.description}</p>
 
                                 <div className="space-y-3 mb-6">
@@ -376,9 +408,7 @@ export default function Competitions() {
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <div className="font-medium">{comp.name}</div>
-                                            {comp.creator?.isTrusted && (
-                                                <ShieldCheck className="w-3 h-3 text-blue-400" />
-                                            )}
+                                            <UserBadge tier={comp.creator?.tier} size="sm" />
                                         </div>
                                         <div className="text-xs text-gray-500">{comp.type} • {comp.description}</div>
                                     </div>
@@ -392,6 +422,8 @@ export default function Competitions() {
                                         <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(comp.status)}`}>
                                             {getStatusLabel(comp.status)}
                                         </span>
+                                        {/* Verified Label Logic for List View */}
+                                        {renderVerifiedLabel(comp.creator?.tier)}
                                         {comp.userStatus && (
                                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">
                                                 {getUserStatusLabel(comp.userStatus)}

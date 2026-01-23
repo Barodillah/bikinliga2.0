@@ -29,6 +29,14 @@ import TournamentPublicView from './pages/public/TournamentPublicView'
 import MatchPublicView from './pages/public/MatchPublicView'
 import UserTournamentDetail from './pages/dashboard/UserTournamentDetail'
 import UserMatchDetail from './pages/dashboard/UserMatchDetail'
+import UserNewsDetail from './pages/dashboard/UserNewsDetail'
+import AdminLayout from './layouts/AdminLayout'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminUsers from './pages/admin/AdminUsers'
+import AdminComplaint from './pages/admin/AdminComplaint'
+import AdminTransaction from './pages/admin/AdminTransaction'
+import AdminAIAnalysis from './pages/admin/AdminAIAnalysis'
+import AdminHistory from './pages/admin/AdminHistory'
 
 
 function App() {
@@ -51,6 +59,17 @@ function App() {
                     <Route path=":slug/match/:matchId" element={<MatchPublicView />} />
                 </Route>
 
+
+                {/* Admin Routes */}
+                <Route path="/admin" element={<AdminLayout />}>
+                    <Route index element={<AdminDashboard />} />
+                    <Route path="users" element={<AdminUsers />} />
+                    <Route path="complaint" element={<AdminComplaint />} />
+                    <Route path="transaction" element={<AdminTransaction />} />
+                    <Route path="ai-analysis" element={<AdminAIAnalysis />} />
+                    <Route path="history" element={<AdminHistory />} />
+                </Route>
+
                 {/* Dashboard Routes */}
                 <Route path="/dashboard" element={<DashboardLayout />}>
                     <Route index element={<Dashboard />} />
@@ -62,6 +81,7 @@ function App() {
                     <Route path="stream/:id" element={<StreamDetail />} />
                     <Route path="tournaments/:id" element={<TournamentDetail />} />
                     <Route path="tournaments/:id/view" element={<UserTournamentDetail />} />
+                    <Route path="tournaments/:id/view/news/:newsId" element={<UserNewsDetail />} />
                     <Route path="tournaments/:id/view/match/:matchId" element={<UserMatchDetail />} />
                     <Route path="tournaments/:id/settings" element={<TournamentSettings />} />
                     <Route path="tournaments/:id/standings" element={<Standings />} />

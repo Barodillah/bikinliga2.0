@@ -58,15 +58,15 @@ export default function DashboardLayout() {
             {/* Sidebar - Desktop */}
             <aside className="hidden lg:flex lg:flex-col w-64 h-screen border-r border-white/10 bg-cardBg flex-shrink-0 sticky top-0">
                 {/* Logo */}
-                <div className="h-16 flex items-center gap-2 px-6 border-b border-white/10">
+                <div className="h-16 flex items-center gap-2 px-6 border-b border-white/10 flex-shrink-0">
                     <img src="/logo.png" alt="BikinLiga" className="h-7" />
                     <span className="font-display font-bold text-xl">
                         Bikin<span className="text-neonPink">Liga</span>
                     </span>
                 </div>
 
-                {/* Navigation */}
-                <nav className="flex-1 p-4 space-y-2">
+                {/* Navigation (Scrollable) */}
+                <nav className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2">
                     {sidebarLinks.map((link) => (
                         <NavLink
                             key={link.href}
@@ -87,46 +87,56 @@ export default function DashboardLayout() {
                     ))}
                 </nav>
 
-                {/* Subscription Card */}
-                <div className="p-4 border-t border-white/10">
-                    <div className="bg-gradient-to-br from-white/5 to-white/10 rounded-xl p-4 border border-white/10">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                                <img src="/coin.png" alt="Coin" className="w-5 h-5" />
-                                <span className="font-display font-bold text-lg text-yellow-400">1,250</span>
+                {/* Fixed Footer Content (Subscription + Actions) */}
+                <div className="flex-shrink-0">
+                    {/* Subscription Card */}
+                    <div className="p-4 border-t border-white/10">
+                        <div className="bg-gradient-to-br from-white/5 to-white/10 rounded-xl p-4 border border-white/10">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <img src="/coin.png" alt="Coin" className="w-5 h-5" />
+                                    <span className="font-display font-bold text-lg text-yellow-400">1,250</span>
+                                </div>
+                                <span className="text-xs px-2 py-1 rounded-full bg-neonGreen/20 text-neonGreen font-medium">
+                                    Free
+                                </span>
                             </div>
-                            <span className="text-xs px-2 py-1 rounded-full bg-neonGreen/20 text-neonGreen font-medium">
-                                Free
-                            </span>
+                            <Link
+                                to="/dashboard/upgrade"
+                                className="block w-full text-center py-2 rounded-lg bg-gradient-to-r from-neonGreen to-neonPink text-black text-sm font-bold hover:opacity-90 transition"
+                            >
+                                Upgrade
+                            </Link>
                         </div>
+                    </div>
+
+                    {/* Bottom Actions */}
+                    <div className="p-4 border-t border-white/10 space-y-2">
                         <Link
-                            to="/dashboard/upgrade"
-                            className="block w-full text-center py-2 rounded-lg bg-gradient-to-r from-neonGreen to-neonPink text-black text-sm font-bold hover:opacity-90 transition"
+                            to="/admin"
+                            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white transition"
                         >
-                            Upgrade
+                            <Shield className="w-5 h-5" />
+                            Admin Panel
+                        </Link>
+                        <Link
+                            to="/dashboard/settings"
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${location.pathname === '/dashboard/settings'
+                                ? 'bg-neonGreen/10 text-neonGreen border-l-2 border-neonGreen'
+                                : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                                }`}
+                        >
+                            <Settings className="w-5 h-5" />
+                            Pengaturan
+                        </Link>
+                        <Link
+                            to="/"
+                            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-red-400 transition"
+                        >
+                            <LogOut className="w-5 h-5" />
+                            Keluar
                         </Link>
                     </div>
-                </div>
-
-                {/* Bottom Actions */}
-                <div className="p-4 border-t border-white/10 space-y-2">
-                    <Link
-                        to="/dashboard/settings"
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${location.pathname === '/dashboard/settings'
-                            ? 'bg-neonGreen/10 text-neonGreen border-l-2 border-neonGreen'
-                            : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                            }`}
-                    >
-                        <Settings className="w-5 h-5" />
-                        Pengaturan
-                    </Link>
-                    <Link
-                        to="/"
-                        className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-red-400 transition"
-                    >
-                        <LogOut className="w-5 h-5" />
-                        Keluar
-                    </Link>
                 </div>
             </aside>
 
@@ -140,7 +150,8 @@ export default function DashboardLayout() {
 
             {/* Sidebar - Mobile */}
             <aside className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-cardBg border-r border-white/10 transform transition-transform duration-300 flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="h-16 flex items-center justify-between px-6 border-b border-white/10">
+                {/* Mobile Header */}
+                <div className="h-16 flex items-center justify-between px-6 border-b border-white/10 flex-shrink-0">
                     <div className="flex items-center gap-2">
                         <img src="/logo.png" alt="BikinLiga" className="h-7" />
                         <span className="font-display font-bold text-xl">
@@ -151,7 +162,9 @@ export default function DashboardLayout() {
                         <X className="w-5 h-5" />
                     </button>
                 </div>
-                <nav className="flex-1 p-4 space-y-2">
+
+                {/* Mobile Navigation (Scrollable) */}
+                <nav className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2">
                     {sidebarLinks.map((link) => (
                         <NavLink
                             key={link.href}
@@ -172,27 +185,38 @@ export default function DashboardLayout() {
                         </NavLink>
                     ))}
                 </nav>
-                {/* Bottom Actions - Mobile */}
-                <div className="p-4 border-t border-white/10 space-y-2">
-                    <Link
-                        to="/dashboard/settings"
-                        onClick={() => setSidebarOpen(false)}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${location.pathname === '/dashboard/settings'
-                            ? 'bg-neonGreen/10 text-neonGreen border-l-2 border-neonGreen'
-                            : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                            }`}
-                    >
-                        <Settings className="w-5 h-5" />
-                        Pengaturan
-                    </Link>
-                    <Link
-                        to="/"
-                        onClick={() => setSidebarOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-red-400 transition"
-                    >
-                        <LogOut className="w-5 h-5" />
-                        Keluar
-                    </Link>
+
+                {/* Mobile Fixed Footer Actions */}
+                <div className="flex-shrink-0">
+                    <div className="p-4 border-t border-white/10 space-y-2">
+                        <Link
+                            to="/admin"
+                            onClick={() => setSidebarOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white transition"
+                        >
+                            <Shield className="w-5 h-5" />
+                            Admin Panel
+                        </Link>
+                        <Link
+                            to="/dashboard/settings"
+                            onClick={() => setSidebarOpen(false)}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${location.pathname === '/dashboard/settings'
+                                ? 'bg-neonGreen/10 text-neonGreen border-l-2 border-neonGreen'
+                                : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                                }`}
+                        >
+                            <Settings className="w-5 h-5" />
+                            Pengaturan
+                        </Link>
+                        <Link
+                            to="/"
+                            onClick={() => setSidebarOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-red-400 transition"
+                        >
+                            <LogOut className="w-5 h-5" />
+                            Keluar
+                        </Link>
+                    </div>
                 </div>
             </aside>
 

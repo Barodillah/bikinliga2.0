@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import Card, { CardHeader, CardContent } from '../ui/Card'
 import { Calendar, Tag, ChevronRight, Newspaper } from 'lucide-react'
 
@@ -10,7 +11,7 @@ const mockNews = [
         excerpt: "Segera daftarkan tim mu untuk mengikuti kompetisi paling bergengsi tahun ini.",
         date: "2024-04-15",
         category: "Announcement",
-        image: "https://images.unsplash.com/flagged/photo-1550413231-202a9d53a331?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+        image: "https://images.unsplash.com/flagged/photo-1550413231-202a9d53a331?q=80&w=2070&auto=format&fit=crop"
     },
     {
         id: 2,
@@ -34,11 +35,11 @@ const mockNews = [
         excerpt: "Simak rahasia latihan dan motivasi di balik performa gemilang striker andalan.",
         date: "2024-05-14",
         category: "Interview",
-        image: "https://plus.unsplash.com/premium_photo-1664908314252-4b847d39a9ed?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+        image: "https://plus.unsplash.com/premium_photo-1664908314252-4b847d39a9ed?q=80&w=2070&auto=format&fit=crop"
     }
 ]
 
-export default function LeagueNews() {
+export default function LeagueNews({ tournamentId }) {
     return (
         <div className="space-y-6">
             <Card className="bg-gradient-to-r from-blue-900/10 to-purple-900/10 border-blue-500/10">
@@ -59,44 +60,50 @@ export default function LeagueNews() {
 
             <div className="grid md:grid-cols-2 gap-4">
                 {mockNews.map((news) => (
-                    <Card key={news.id} className="group cursor-pointer hover:border-blue-500/30 transition-all duration-300">
-                        <div className="relative aspect-video w-full overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
-                            <img
-                                src={news.image}
-                                alt={news.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            />
-                            <div className="absolute bottom-3 left-3 right-3 z-20">
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${news.category === 'Announcement' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                                    news.category === 'Schedule' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
-                                        'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                                    }`}>
-                                    {news.category}
-                                </span>
+                    <Link
+                        key={news.id}
+                        to={`/dashboard/tournaments/${tournamentId}/view/news/${news.id}`}
+                        className="block group"
+                    >
+                        <Card className="h-full cursor-pointer hover:border-blue-500/30 transition-all duration-300">
+                            <div className="relative aspect-video w-full overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
+                                <img
+                                    src={news.image}
+                                    alt={news.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                />
+                                <div className="absolute bottom-3 left-3 right-3 z-20">
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${news.category === 'Announcement' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                                        news.category === 'Schedule' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
+                                            'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                        }`}>
+                                        {news.category}
+                                    </span>
+                                </div>
                             </div>
-                        </div>
-                        <CardContent className="p-4 space-y-3">
-                            <div className="space-y-2">
-                                <h3 className="font-bold text-lg leading-tight text-white group-hover:text-blue-400 transition-colors">
-                                    {news.title}
-                                </h3>
-                                <p className="text-sm text-gray-400 line-clamp-2">
-                                    {news.excerpt}
-                                </p>
-                            </div>
+                            <CardContent className="p-4 space-y-3">
+                                <div className="space-y-2">
+                                    <h3 className="font-bold text-lg leading-tight text-white group-hover:text-blue-400 transition-colors">
+                                        {news.title}
+                                    </h3>
+                                    <p className="text-sm text-gray-400 line-clamp-2">
+                                        {news.excerpt}
+                                    </p>
+                                </div>
 
-                            <div className="pt-3 border-t border-white/5 flex items-center justify-between">
-                                <div className="flex items-center gap-2 text-xs text-gray-500">
-                                    <Calendar className="w-3 h-3" />
-                                    {news.date}
+                                <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                        <Calendar className="w-3 h-3" />
+                                        {news.date}
+                                    </div>
+                                    <div className="flex items-center gap-1 text-xs font-medium text-blue-400 group-hover:translate-x-1 transition-transform">
+                                        Baca Selengkapnya <ChevronRight className="w-3 h-3" />
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-1 text-xs font-medium text-blue-400 group-hover:translate-x-1 transition-transform">
-                                    Baca Selengkapnya <ChevronRight className="w-3 h-3" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    </Link>
                 ))}
             </div>
         </div>

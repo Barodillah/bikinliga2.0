@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Shimmer Animation */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  /* Requires relative parent and overflow-hidden */
+}
+
 /* Custom Base Styles */
 body {
   background-color: #050505;

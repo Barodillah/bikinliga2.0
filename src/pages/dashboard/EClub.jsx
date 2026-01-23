@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Heart, MessageSquare, Share2, Users, Search, Lock, Globe, MoreHorizontal, Image as ImageIcon, Send } from 'lucide-react'
 import AdSlot from '../../components/ui/AdSlot'
+import UserBadge from '../../components/ui/UserBadge'
 
 const MOCK_POSTS = [
     {
@@ -9,7 +10,8 @@ const MOCK_POSTS = [
         user: {
             name: 'Budi Santoso',
             username: '@budigaming',
-            avatar: 'https://ui-avatars.com/api/?name=Budi+Santoso&background=random'
+            avatar: 'https://ui-avatars.com/api/?name=Budi+Santoso&background=random',
+            tier: 'pro_liga'
         },
         content: 'Baru saja memenangkan turnamen FIFA lokal! GGWP untuk semua peserta. 🔥🏆 #FIFA #Esports',
         image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1000',
@@ -22,7 +24,8 @@ const MOCK_POSTS = [
         user: {
             name: 'Siti Aminah',
             username: '@siti_pro',
-            avatar: 'https://ui-avatars.com/api/?name=Siti+Aminah&background=random'
+            avatar: 'https://ui-avatars.com/api/?name=Siti+Aminah&background=random',
+            tier: 'captain'
         },
         content: 'Mencari tim untuk turnamen Mobile Legends minggu depan. Role: Mage/Support. DM ya! 👇',
         likes: 89,
@@ -34,7 +37,8 @@ const MOCK_POSTS = [
         user: {
             name: 'Komunitas PES Indo',
             username: '@pesindo_official',
-            avatar: 'https://ui-avatars.com/api/?name=PES+Indo&background=random'
+            avatar: 'https://ui-avatars.com/api/?name=PES+Indo&background=random',
+            tier: 'free'
         },
         content: 'Jangan lupa registrasi untuk Liga Mingguan kita ditutup besok jam 12 malam! Segera daftarkan tim kalian.',
         likes: 256,
@@ -79,7 +83,7 @@ const MOCK_COMMUNITIES = [
 ]
 
 export default function EClub() {
-    const [activeTab, setActiveTab] = useState('feed') // For mobile view switching if needed, mainly for UI state
+    const [activeTab, setActiveTab] = useState('feed')
 
     return (
         <div className="max-w-7xl mx-auto">
@@ -135,7 +139,10 @@ export default function EClub() {
                                             <div className="flex items-center gap-3">
                                                 <img src={post.user.avatar} alt={post.user.name} className="w-10 h-10 rounded-full" />
                                                 <div>
-                                                    <h3 className="font-bold text-white">{post.user.name}</h3>
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="font-bold text-white">{post.user.name}</h3>
+                                                        <UserBadge tier={post.user.tier} />
+                                                    </div>
                                                     <p className="text-sm text-gray-400">{post.user.username} • {post.time}</p>
                                                 </div>
                                             </div>

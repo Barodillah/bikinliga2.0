@@ -11,8 +11,8 @@ const standingsData = [
     { pos: 8, team: 'Bayern Munich', played: 8, won: 1, drawn: 2, lost: 5, gf: 7, ga: 16, gd: -9, pts: 5 },
 ]
 
-export default function StandingsTable({ compact = false }) {
-    const data = compact ? standingsData.slice(0, 5) : standingsData
+export default function StandingsTable({ compact = false, limit = 5 }) {
+    const data = compact ? standingsData.slice(0, limit) : standingsData
 
     const getPositionStyle = (pos) => {
         if (pos === 1) return 'bg-neonGreen text-black'

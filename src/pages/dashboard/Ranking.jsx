@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
-import { Trophy, Medal, Star, TrendingUp, Shield, Gamepad2, Swords, Calendar } from 'lucide-react'
+import { Trophy, Medal, Star, TrendingUp, Shield, Gamepad2, Swords } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import AdSlot from '../../components/ui/AdSlot'
 import Modal from '../../components/ui/Modal'
+import UserBadge from '../../components/ui/UserBadge'
 
 const MOCK_RANKINGS = [
     {
@@ -15,7 +16,8 @@ const MOCK_RANKINGS = [
         winRate: '75%',
         avatar: 'https://ui-avatars.com/api/?name=Budi+Santoso&background=random&size=150',
         role: 'Jungler',
-        recentMatches: ['Win', 'Win', 'Lose', 'Win', 'Win']
+        recentMatches: ['Win', 'Win', 'Lose', 'Win', 'Win'],
+        tier: 'pro_liga'
     },
     {
         id: 2,
@@ -27,7 +29,8 @@ const MOCK_RANKINGS = [
         winRate: '70%',
         avatar: 'https://ui-avatars.com/api/?name=Sarah+Wijaya&background=random&size=150',
         role: 'Roamer',
-        recentMatches: ['Win', 'Lose', 'Win', 'Win', 'Lose']
+        recentMatches: ['Win', 'Lose', 'Win', 'Win', 'Lose'],
+        tier: 'captain'
     },
     {
         id: 3,
@@ -39,7 +42,8 @@ const MOCK_RANKINGS = [
         winRate: '68%',
         avatar: 'https://ui-avatars.com/api/?name=Reza+Arap&background=random&size=150',
         role: 'Gold Laner',
-        recentMatches: ['Lose', 'Win', 'Win', 'Lose', 'Win']
+        recentMatches: ['Lose', 'Win', 'Win', 'Lose', 'Win'],
+        tier: 'free'
     },
     {
         id: 4,
@@ -49,7 +53,8 @@ const MOCK_RANKINGS = [
         points: 1950,
         totalTournaments: 10,
         winRate: '65%',
-        avatar: 'https://ui-avatars.com/api/?name=Windah+Basudara&background=random'
+        avatar: 'https://ui-avatars.com/api/?name=Windah+Basudara&background=random',
+        tier: 'captain'
     },
     {
         id: 5,
@@ -59,7 +64,8 @@ const MOCK_RANKINGS = [
         points: 1800,
         totalTournaments: 12,
         winRate: '60%',
-        avatar: 'https://ui-avatars.com/api/?name=Lemon&background=random'
+        avatar: 'https://ui-avatars.com/api/?name=Lemon&background=random',
+        tier: 'pro_liga'
     },
     {
         id: 6,
@@ -69,7 +75,8 @@ const MOCK_RANKINGS = [
         points: 1750,
         totalTournaments: 11,
         winRate: '62%',
-        avatar: 'https://ui-avatars.com/api/?name=Oura&background=random'
+        avatar: 'https://ui-avatars.com/api/?name=Oura&background=random',
+        tier: 'captain'
     },
     {
         id: 7,
@@ -79,7 +86,8 @@ const MOCK_RANKINGS = [
         points: 1600,
         totalTournaments: 9,
         winRate: '58%',
-        avatar: 'https://ui-avatars.com/api/?name=Donkey&background=random'
+        avatar: 'https://ui-avatars.com/api/?name=Donkey&background=random',
+        tier: 'free'
     },
     {
         id: 8,
@@ -89,7 +97,8 @@ const MOCK_RANKINGS = [
         points: 1550,
         totalTournaments: 10,
         winRate: '55%',
-        avatar: 'https://ui-avatars.com/api/?name=Marsha&background=random'
+        avatar: 'https://ui-avatars.com/api/?name=Marsha&background=random',
+        tier: 'free'
     }
 ]
 
@@ -100,7 +109,6 @@ export default function Ranking() {
     const [selectedPlayer, setSelectedPlayer] = useState(null)
 
     const handleProfileClick = (username) => {
-        // Remove @ if present for the URL, though preserving it is also fine but cleanliness helps
         const cleanUsername = username.replace('@', '')
         navigate(`/dashboard/profile/${cleanUsername}`)
     }
@@ -151,7 +159,7 @@ export default function Ranking() {
                     onClick={() => setSelectedPlayer(topThree[1])}
                     className={`order-1 relative rounded-xl md:rounded-2xl p-0.5 md:p-1 border backdrop-blur-sm cursor-pointer transition-transform active:scale-95 hover:bg-white/5 ${getRankStyle(1).bg} ${getRankStyle(1).border}`}
                 >
-                    <div className="absolute -top-3 md:-top-4 left-1/2 -translate-x-1/2">
+                    <div className="absolute -top-3 md:-top-4 left-1/2 -translate-x-1/2 flex flex-col items-center">
                         <Medal className="w-5 h-5 md:w-8 md:h-8 text-gray-300" />
                     </div>
                     <div className="p-2 sm:p-4 md:p-6 text-center pt-5 md:pt-8">
@@ -165,7 +173,12 @@ export default function Ranking() {
                                 #2
                             </div>
                         </div>
-                        <h3 className="text-xs sm:text-sm md:text-xl font-bold text-white mb-0.5 md:mb-1 truncate">{topThree[1].name}</h3>
+                        <div className="flex items-center justify-center gap-1 mb-0.5 md:mb-1">
+                            <h3 className="text-xs sm:text-sm md:text-xl font-bold text-white truncate">{topThree[1].name}</h3>
+                            <div className="scale-75 origin-left">
+                                <UserBadge tier={topThree[1].tier} />
+                            </div>
+                        </div>
                         <p className="text-[10px] md:text-sm text-gray-400 mb-1 md:mb-3 truncate">{topThree[1].team}</p>
                         <div className="flex items-center justify-center gap-1 md:gap-2">
                             <Star className="w-3 h-3 md:w-4 md:h-4 text-yellow-500 fill-yellow-500" />
@@ -194,7 +207,10 @@ export default function Ranking() {
                                 #1
                             </div>
                         </div>
-                        <h3 className="text-sm sm:text-base md:text-2xl font-bold text-white mb-0.5 md:mb-1 truncate">{topThree[0].name}</h3>
+                        <div className="flex items-center justify-center gap-1 mb-0.5 md:mb-1">
+                            <h3 className="text-sm sm:text-base md:text-2xl font-bold text-white truncate">{topThree[0].name}</h3>
+                            <UserBadge tier={topThree[0].tier} />
+                        </div>
                         <p className="text-[10px] md:text-sm text-gray-400 mb-2 md:mb-4 truncate">{topThree[0].team}</p>
                         <div className="flex items-center justify-center gap-1 md:gap-2 mb-1 md:mb-2">
                             <Star className="w-3 h-3 md:w-5 md:h-5 text-yellow-500 fill-yellow-500" />
@@ -213,7 +229,7 @@ export default function Ranking() {
                     onClick={() => setSelectedPlayer(topThree[2])}
                     className={`order-3 relative rounded-xl md:rounded-2xl p-0.5 md:p-1 border backdrop-blur-sm cursor-pointer transition-transform active:scale-95 hover:bg-white/5 ${getRankStyle(2).bg} ${getRankStyle(2).border}`}
                 >
-                    <div className="absolute -top-3 md:-top-4 left-1/2 -translate-x-1/2">
+                    <div className="absolute -top-3 md:-top-4 left-1/2 -translate-x-1/2 flex flex-col items-center">
                         <Medal className="w-5 h-5 md:w-8 md:h-8 text-orange-400" />
                     </div>
                     <div className="p-2 sm:p-4 md:p-6 text-center pt-5 md:pt-8">
@@ -227,7 +243,12 @@ export default function Ranking() {
                                 #3
                             </div>
                         </div>
-                        <h3 className="text-xs sm:text-sm md:text-xl font-bold text-white mb-0.5 md:mb-1 truncate">{topThree[2].name}</h3>
+                        <div className="flex items-center justify-center gap-1 mb-0.5 md:mb-1">
+                            <h3 className="text-xs sm:text-sm md:text-xl font-bold text-white truncate">{topThree[2].name}</h3>
+                            <div className="scale-75 origin-left">
+                                <UserBadge tier={topThree[2].tier} />
+                            </div>
+                        </div>
                         <p className="text-[10px] md:text-sm text-gray-400 mb-1 md:mb-3 truncate">{topThree[2].team}</p>
                         <div className="flex items-center justify-center gap-1 md:gap-2">
                             <Star className="w-3 h-3 md:w-4 md:h-4 text-yellow-500 fill-yellow-500" />
@@ -270,7 +291,10 @@ export default function Ranking() {
                                                 className="w-10 h-10 rounded-lg object-cover"
                                             />
                                             <div>
-                                                <div className="font-bold text-white">{player.name}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="font-bold text-white">{player.name}</div>
+                                                    <UserBadge tier={player.tier} />
+                                                </div>
                                                 <div className="text-sm text-gray-500 flex items-center gap-1">
                                                     <Shield className="w-3 h-3" />
                                                     {player.team}
@@ -318,7 +342,10 @@ export default function Ranking() {
 
                             {/* Player Info */}
                             <div className="flex-1 min-w-0">
-                                <div className="font-bold text-white text-sm truncate">{player.name}</div>
+                                <div className="flex items-center gap-1">
+                                    <div className="font-bold text-white text-sm truncate">{player.name}</div>
+                                    <UserBadge tier={player.tier} size="sm" className="scale-75 origin-left" />
+                                </div>
                                 <div className="text-xs text-gray-500 flex items-center gap-1">
                                     <Shield className="w-3 h-3" />
                                     <span className="truncate">{player.team}</span>
@@ -362,7 +389,10 @@ export default function Ranking() {
                                 className="w-20 h-20 rounded-full border-4 border-white/10"
                             />
                             <div>
-                                <h4 className="text-xl font-bold text-white">{selectedPlayer.name}</h4>
+                                <div className="flex items-center gap-2">
+                                    <h4 className="text-xl font-bold text-white">{selectedPlayer.name}</h4>
+                                    <UserBadge tier={selectedPlayer.tier} size="md" />
+                                </div>
                                 <div className="text-neonGreen font-medium">{selectedPlayer.username}</div>
                                 <div className="flex items-center gap-2 text-gray-400 text-sm mt-1">
                                     <Shield className="w-4 h-4" />
