@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { User, Lock, Users, Plus, Shield, Check } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 
 // Mock Data for Communities
 const MOCK_ADMIN_COMMUNITIES = [
@@ -22,8 +23,21 @@ const MOCK_ADMIN_COMMUNITIES = [
 ]
 
 export default function Settings() {
-    const [activeTab, setActiveTab] = useState('profile')
+    const [searchParams, setSearchParams] = useSearchParams()
+    const [activeTab, setActiveTabState] = useState(searchParams.get('tab') || 'profile')
     const [isLoading, setIsLoading] = useState(false)
+
+    useEffect(() => {
+        const tab = searchParams.get('tab')
+        if (tab) {
+            setActiveTabState(tab)
+        }
+    }, [searchParams])
+
+    const setActiveTab = (tab) => {
+        setActiveTabState(tab)
+        setSearchParams({ tab })
+    }
 
     // Form States
     const [profileForm, setProfileForm] = useState({

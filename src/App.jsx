@@ -20,6 +20,7 @@ import CommunityDetail from './pages/dashboard/CommunityDetail'
 import Ranking from './pages/dashboard/Ranking'
 import Settings from './pages/dashboard/Settings'
 import Profile from './pages/dashboard/Profile'
+import MyProfile from './pages/dashboard/MyProfile'
 import Competitions from './pages/dashboard/Competitions'
 import Stream from './pages/dashboard/Stream'
 import StreamDetail from './pages/dashboard/StreamDetail'
@@ -95,6 +96,7 @@ function App() {
                     <Route path="settings" element={<Settings />} />
                     <Route path="ranking" element={<Ranking />} />
                     <Route path="profile/:username" element={<Profile />} />
+                    <Route path="my-profile" element={<MyProfile />} />
 
                 </Route>
             </Routes>

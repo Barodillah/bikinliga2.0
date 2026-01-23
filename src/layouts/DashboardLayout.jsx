@@ -3,7 +3,8 @@ import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
 import {
     Trophy, LayoutDashboard, List, Plus, Users, Tv,
     Calendar, BarChart2, Settings, LogOut, Menu, X,
-    ChevronRight, Wallet, Shield, FileText, Globe, Bell
+    ChevronRight, Wallet, Shield, FileText, Globe, Bell,
+    User, Key
 } from 'lucide-react'
 import ChatWidget from '../components/ChatWidget'
 
@@ -21,6 +22,7 @@ const sidebarLinks = [
 export default function DashboardLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [notificationsOpen, setNotificationsOpen] = useState(false)
+    const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
     const location = useLocation()
 
     // Mock notifications
@@ -312,12 +314,70 @@ export default function DashboardLayout() {
                             )}
                         </div>
 
-                        <div className="text-right hidden sm:block">
-                            <div className="text-sm font-medium">Admin User</div>
-                            <div className="text-xs text-gray-500">admin@bikinliga.com</div>
-                        </div>
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neonGreen to-neonPink flex items-center justify-center text-black font-bold">
-                            A
+                        <div className="relative">
+                            <button
+                                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                                className="flex items-center gap-3 hover:bg-white/5 p-1 rounded-lg transition"
+                            >
+                                <div className="text-right hidden sm:block">
+                                    <div className="text-sm font-medium">Admin User</div>
+                                    <div className="text-xs text-gray-500">admin@bikinliga.com</div>
+                                </div>
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neonGreen to-neonPink flex items-center justify-center text-black font-bold">
+                                    A
+                                </div>
+                            </button>
+
+                            {/* Profile Dropdown */}
+                            {profileDropdownOpen && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-40 bg-black/50 md:bg-transparent"
+                                        onClick={() => setProfileDropdownOpen(false)}
+                                    ></div>
+                                    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 pointer-events-none md:block md:static md:p-0">
+                                        <div className="w-[90vw] max-w-sm bg-cardBg border border-white/10 rounded-xl shadow-xl overflow-hidden pointer-events-auto md:absolute md:top-full md:right-0 md:w-56 md:mt-2">
+                                            {/* Mobile User Info Header */}
+                                            <div className="p-4 border-b border-white/10 flex items-center gap-3 md:hidden bg-white/5">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neonGreen to-neonPink flex items-center justify-center text-black font-bold">
+                                                    A
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm font-medium text-white">Admin User</div>
+                                                    <div className="text-xs text-gray-400">admin@bikinliga.com</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="p-2 space-y-1">
+                                                <Link
+                                                    to="/dashboard/my-profile"
+                                                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5 transition"
+                                                    onClick={() => setProfileDropdownOpen(false)}
+                                                >
+                                                    <User className="w-4 h-4" />
+                                                    My Profile
+                                                </Link>
+                                                <Link
+                                                    to="/dashboard/settings?tab=password"
+                                                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5 transition"
+                                                    onClick={() => setProfileDropdownOpen(false)}
+                                                >
+                                                    <Key className="w-4 h-4" />
+                                                    Change Password
+                                                </Link>
+                                                <div className="h-px bg-white/10 my-1"></div>
+                                                <button
+                                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-white/5 transition"
+                                                    onClick={() => setProfileDropdownOpen(false)}
+                                                >
+                                                    <LogOut className="w-4 h-4" />
+                                                    Log Out
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </header>

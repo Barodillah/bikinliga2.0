@@ -58,6 +58,23 @@ const MOCK_USERS = [
             youtube: 'yb'
         }
     },
+    {
+        id: 99,
+        name: 'Admin User',
+        username: '@admin',
+        team: 'Admin Team',
+        points: 9999,
+        totalTournaments: 0,
+        winRate: '100%',
+        avatar: 'https://ui-avatars.com/api/?name=Admin+User&background=random&size=150',
+        role: 'Administrator',
+        recentMatches: [],
+        joinDate: 'January 2024',
+        bio: 'The one who runs the show.',
+        socials: {
+            twitter: 'bikinliga_admin'
+        }
+    }
     // Generic fallback for others
 ]
 
