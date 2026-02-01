@@ -1,65 +1,125 @@
-import React, { useState, useRef } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import React, { useState, useRef, useEffect } from 'react'
+import { useParams, Link, useNavigate, useLocation, useOutletContext } from 'react-router-dom'
 import { ArrowLeft, Clock, Goal, Brain, Percent, History, MessageCircle, Send, ChevronRight } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import AdSlot from '../../components/ui/AdSlot'
 import Button from '../../components/ui/Button'
 
-// Mock Data (Shared structure with MatchManagement but simplified/static for demo)
-const matchData = {
-    id: 1,
-    homeTeam: { name: 'Barcelona FC', id: 'h1', players: ['Ter Stegen', 'Araujo', 'Pedri', 'Lewandowski', 'Gavi', 'De Jong'] },
-    awayTeam: { name: 'Real Madrid', id: 'a1', players: ['Courtois', 'Alaba', 'Modric', 'Vinicius', 'Bellingham', 'Rodrygo'] },
-    homeScore: 2,
-    awayScore: 1,
-    status: '2nd_half', // scheduled, live, finished
-    startTime: '2024-03-20T20:00:00',
-    matchTime: 68, // minutes
-    events: [
-        { id: 1, type: 'goal', team: 'home', player: 'Lewandowski', time: '12', detail: 'Open Play' },
-        { id: 2, type: 'card', team: 'away', player: 'Vinicius Jr', time: '34', detail: 'Yellow' },
-        { id: 3, type: 'goal', team: 'away', player: 'Bellingham', time: '41', detail: 'Open Play' },
-        { id: 4, type: 'goal', team: 'home', player: 'Pedri', time: '55', detail: 'Open Play' },
-    ]
+import { authFetch } from '../../utils/api'
+
+// Helper to format date
+const formatDate = (dateString) => {
+    if (!dateString) return '-'
+    return new Date(dateString).toLocaleDateString('id-ID', {
+        day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    })
 }
 
-const mockChatMessages = [
-    { id: 1, user: 'Budi01', team: 'Barca', msg: 'Visca Barca!! 🔥', time: '10:05' },
-    { id: 2, user: 'RianHala', team: 'Madrid', msg: 'Masih bisa balikk, tenang aja.', time: '10:06' },
-    { id: 3, user: 'AdminGanteng', team: 'Neutral', msg: 'Pertandingan sengit malam ini!', time: '10:07' },
-    { id: 4, user: 'Siti_Aisyah', team: 'Barca', msg: 'Lewy gacor parah sih', time: '10:08' },
-    { id: 5, user: 'JokoKendil', team: 'Madrid', msg: 'Wasit berat sebelah wkwk', time: '10:10' },
-]
+// ... imports
+import { useAuth } from '../../contexts/AuthContext'
 
-const LiveChat = ({ className, isWidget = false }) => {
-    const [messages, setMessages] = useState(mockChatMessages)
+const LiveChat = ({ className, isWidget = false, status, matchId }) => {
+    const [messages, setMessages] = useState([])
     const [input, setInput] = useState('')
     const bottomRef = useRef(null)
+    const [isSending, setIsSending] = useState(false)
+    const { user: currentUser } = useAuth()
 
-    const sendMessage = (e) => {
-        e.preventDefault()
-        if (!input.trim()) return
-        const newMsg = {
-            id: Date.now(),
-            user: 'You',
-            team: 'Neutral',
-            msg: input,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    const fetchMessages = async () => {
+        try {
+            const res = await authFetch(`/api/matches/${matchId}/chat`)
+            const data = await res.json()
+            if (data.success) {
+                // Map backend format to UI format
+                // Backend: { id, message, user_id, username, name, created_at, team }
+                const formatted = data.data.map(m => ({
+                    id: m.id,
+                    user: m.username || m.name || 'User',
+                    team: m.team || 'Spectator',
+                    msg: m.message,
+                    time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    isMe: currentUser && m.user_id === currentUser.id
+                }))
+                setMessages(formatted)
+            }
+        } catch (err) {
+            console.error("Failed to load chat", err)
         }
-        setMessages([...messages, newMsg])
-        setInput('')
     }
 
-    const Content = () => (
+    // Initial load and polling
+    useEffect(() => {
+        if (!matchId) return
+        fetchMessages()
+        const interval = setInterval(fetchMessages, 5000) // Poll every 5s
+        return () => clearInterval(interval)
+    }, [matchId, currentUser])
+
+    // Auto scroll
+    useEffect(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }, [messages])
+
+    const sendMessage = async (e) => {
+        e.preventDefault()
+        if (!input.trim() || isSending) return
+        if (!currentUser) {
+            alert('Silakan login untuk berkomentar')
+            return
+        }
+
+        const msgText = input
+        setInput('')
+        setIsSending(true)
+
+        // Optimistic update
+        const tempId = Date.now()
+        const optimizeMsg = {
+            id: tempId,
+            user: currentUser.username || currentUser.name,
+            team: 'Spectator',
+            msg: msgText,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isMe: true
+        }
+        setMessages(prev => [...prev, optimizeMsg])
+
+        try {
+            const res = await authFetch(`/api/matches/${matchId}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msgText })
+            })
+            const data = await res.json()
+            if (!data.success) {
+                // Revert if failed (simple way: refetch)
+                fetchMessages()
+                alert('Gagal mengirim pesan')
+            } else {
+                // Replace temp ID or just let polling fix it eventually, but fetching now is safer to get server time/ID
+                fetchMessages()
+            }
+        } catch (err) {
+            console.error(err)
+            alert('Error sending message')
+        } finally {
+            setIsSending(false)
+        }
+    }
+
+    const chatContent = (
         <>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
+                {messages.length === 0 && (
+                    <div className="text-center text-gray-500 text-sm py-4">Belum ada komentar. Jadilah yang pertama!</div>
+                )}
                 {messages.map(m => (
-                    <div key={m.id} className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-gray-300">{m.user}</span>
+                    <div key={m.id} className={`flex flex-col gap-1 ${m.isMe ? 'items-end' : 'items-start'}`}>
+                        <div className={`flex items-center gap-2 ${m.isMe ? 'flex-row-reverse' : ''}`}>
+                            <span className={`font-bold text-sm ${m.isMe ? 'text-neonGreen' : 'text-gray-300'}`}>{m.user}</span>
                             <span className="text-[10px] text-gray-500">{m.time}</span>
                         </div>
-                        <div className={`p-3 rounded-lg text-sm leading-relaxed max-w-[85%] ${m.user === 'You' ? 'bg-neonGreen/20 text-neonGreen self-end rounded-tr-none' : 'bg-white/5 text-gray-300 self-start rounded-tl-none'
+                        <div className={`p-3 rounded-lg text-sm leading-relaxed max-w-[85%] ${m.isMe ? 'bg-neonGreen/20 text-neonGreen rounded-tr-none' : 'bg-white/5 text-gray-300 rounded-tl-none'
                             }`}>
                             {m.msg}
                         </div>
@@ -72,10 +132,15 @@ const LiveChat = ({ className, isWidget = false }) => {
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Tulis pesan..."
-                    className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-neonGreen/50 transition"
+                    placeholder={currentUser ? "Tulis komentar..." : "Login untuk berkomentar"}
+                    disabled={!currentUser}
+                    className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-neonGreen/50 transition disabled:opacity-50"
                 />
-                <Button className="bg-neonGreen text-black p-2 rounded-lg" type="submit">
+                <Button
+                    className="bg-neonGreen text-black p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    type="submit"
+                    disabled={!currentUser || isSending}
+                >
                     <Send className="w-4 h-4" />
                 </Button>
             </form>
@@ -88,17 +153,19 @@ const LiveChat = ({ className, isWidget = false }) => {
                 <CardHeader className="border-b border-white/10 pb-3">
                     <h3 className="font-bold flex items-center gap-2">
                         <MessageCircle className="w-5 h-5 text-neonGreen" /> Live Chat
-                        <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full animate-pulse">LIVE</span>
+                        {status === 'live' && (
+                            <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full animate-pulse">LIVE</span>
+                        )}
                     </h3>
                 </CardHeader>
-                <Content />
+                {chatContent}
             </Card>
         )
     }
 
     return (
         <div className={`flex flex-col h-full ${className}`}>
-            <Content />
+            {chatContent}
         </div>
     )
 }
@@ -106,24 +173,76 @@ const LiveChat = ({ className, isWidget = false }) => {
 export default function UserMatchDetail() {
     const { id, matchId } = useParams()
     const navigate = useNavigate()
+    const { setActiveSidebarOverride } = useOutletContext()
     const [activeTab, setActiveTab] = useState('timeline')
+
+    const [match, setMatch] = useState(null)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(null)
+
+    useEffect(() => {
+        if (match) {
+            if (match.status === 'live' || match.status === '1st_half' || match.status === '2nd_half' || match.status === 'halftime') {
+                setActiveSidebarOverride('/dashboard/stream')
+            } else {
+                setActiveSidebarOverride('/dashboard/competitions')
+            }
+        }
+        return () => {
+            setActiveSidebarOverride(null)
+        }
+    }, [match, setActiveSidebarOverride])
+
+    useEffect(() => {
+        const fetchMatch = async () => {
+            try {
+                const response = await authFetch(`/api/matches/${matchId}`)
+                const data = await response.json()
+                if (data.success) {
+                    setMatch(data.data)
+                    // Set default tab based on status
+                    if (data.data.status === 'scheduled') {
+                        setActiveTab('analysis')
+                    } else {
+                        setActiveTab('timeline')
+                    }
+                } else {
+                    setError(data.message)
+                }
+            } catch (err) {
+                console.error("Error fetching match:", err)
+                setError('Gagal memuat data pertandingan')
+            } finally {
+                setLoading(false)
+            }
+        }
+        if (matchId) fetchMatch()
+    }, [matchId])
 
     // Simple formatted time helper
     const getStatusDisplay = () => {
-        if (matchData.status === 'scheduled') return new Date(matchData.startTime).toLocaleDateString()
-        if (matchData.status === 'finished') return 'FULL TIME'
-        if (matchData.status === 'halftime') return 'HALF TIME'
-        return `LIVE • ${matchData.matchTime}'`
+        if (!match) return ''
+        if (match.status === 'scheduled') return formatDate(match.startTime)
+        if (match.status === 'completed' || match.status === 'finished') return 'FULL TIME'
+        if (match.status === 'halftime' || match.details?.period === 'halftime') return 'HALF TIME'
+        return `LIVE • ${match.details?.period?.replace('_', ' ') || 'In Game'}`
     }
+
+    if (loading) return <div className="min-h-screen flex items-center justify-center text-white">Loading...</div>
+    if (error) return <div className="min-h-screen flex items-center justify-center text-white">{error}</div>
+    if (!match) return <div className="min-h-screen flex items-center justify-center text-white">Pertandingan tidak ditemukan</div>
+
+    const location = useLocation()
+    const isCompetition = location.pathname.includes('/competitions')
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-20">
             {/* Header / Nav */}
             <button
-                onClick={() => navigate(`/dashboard/tournaments/${id}/view`)}
+                onClick={() => navigate(-1)}
                 className="flex items-center gap-2 text-gray-400 hover:text-white transition"
             >
-                <ArrowLeft className="w-4 h-4" /> Kembali ke Turnamen
+                <ArrowLeft className="w-4 h-4" /> {location.state?.from === 'stream' ? 'Kembali ke Stream' : (isCompetition ? 'Kembali ke Kompetisi' : 'Kembali ke Turnamen')}
             </button>
 
             {/* Scoreboard Main */}
@@ -131,8 +250,8 @@ export default function UserMatchDetail() {
                 <div className="bg-[#0a0a0a] p-6 sm:p-10 text-center relative">
                     {/* Status Badge */}
                     <div className="absolute top-4 left-1/2 -translate-x-1/2 transition-all duration-500">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${['1st_half', '2nd_half'].includes(matchData.status) ? 'bg-red-500 text-white animate-pulse' :
-                            matchData.status === 'finished' ? 'bg-neonGreen/20 text-neonGreen' :
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${match.status === 'live' ? 'bg-red-500 text-white animate-pulse' :
+                            (match.status === 'completed' || match.status === 'finished') ? 'bg-neonGreen/20 text-neonGreen' :
                                 'bg-white/10 text-gray-400'
                             }`}>
                             {getStatusDisplay()}
@@ -142,45 +261,60 @@ export default function UserMatchDetail() {
                     <div className="flex items-center justify-between mt-8">
                         {/* Home Team */}
                         <div className="flex flex-col items-center flex-1">
-                            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-blue-500/20 ring-4 ring-blue-500/10 flex items-center justify-center mb-4">
-                                <span className="text-2xl sm:text-3xl font-bold text-blue-400">{matchData.homeTeam.name.charAt(0)}</span>
+                            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-2xl bg-blue-500/20 ring-4 ring-blue-500/10 flex items-center justify-center mb-4 overflow-hidden">
+                                {match.homeTeam.logo ? (
+                                    <img src={match.homeTeam.logo} alt="" className="w-full h-full object-contain" />
+                                ) : (
+                                    <span className="text-2xl sm:text-3xl font-bold text-blue-400">{match.homeTeam.name?.charAt(0)}</span>
+                                )}
                             </div>
-                            <h2 className="text-lg sm:text-2xl font-display font-bold">{matchData.homeTeam.name}</h2>
+                            <h2 className="text-lg sm:text-2xl font-display font-bold">{match.homeTeam.teamName || match.homeTeam.name}</h2>
+                            <p className="text-xs text-gray-500 mt-1">{match.homeTeam.name}</p>
                         </div>
 
                         {/* Score */}
                         <div className="px-4 sm:px-12">
                             <div className="text-4xl sm:text-7xl font-display font-bold tracking-tighter flex items-center gap-4">
-                                <span className={matchData.homeScore > matchData.awayScore ? 'text-neonGreen' : 'text-white'}>
-                                    {matchData.homeScore}
+                                <span className={match.homeScore > match.awayScore ? 'text-neonGreen' : 'text-white'}>
+                                    {match.homeScore}
                                 </span>
                                 <span className="text-white/20">:</span>
-                                <span className={matchData.awayScore > matchData.homeScore ? 'text-neonGreen' : 'text-white'}>
-                                    {matchData.awayScore}
+                                <span className={match.awayScore > match.homeScore ? 'text-neonGreen' : 'text-white'}>
+                                    {match.awayScore}
                                 </span>
                             </div>
+                            {match.homePenaltyScore !== null && match.awayPenaltyScore !== null && (
+                                <div className="text-sm text-gray-400 mt-2 font-mono">
+                                    Penalty: ({match.homePenaltyScore} - {match.awayPenaltyScore})
+                                </div>
+                            )}
                         </div>
 
                         {/* Away Team */}
                         <div className="flex flex-col items-center flex-1">
-                            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-red-500/20 ring-4 ring-red-500/10 flex items-center justify-center mb-4">
-                                <span className="text-2xl sm:text-3xl font-bold text-red-400">{matchData.awayTeam.name.charAt(0)}</span>
+                            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-2xl bg-red-500/20 ring-4 ring-red-500/10 flex items-center justify-center mb-4 overflow-hidden">
+                                {match.awayTeam.logo ? (
+                                    <img src={match.awayTeam.logo} alt="" className="w-full h-full object-contain" />
+                                ) : (
+                                    <span className="text-2xl sm:text-3xl font-bold text-red-400">{match.awayTeam.name?.charAt(0)}</span>
+                                )}
                             </div>
-                            <h2 className="text-lg sm:text-2xl font-display font-bold">{matchData.awayTeam.name}</h2>
+                            <h2 className="text-lg sm:text-2xl font-display font-bold">{match.awayTeam.teamName || match.awayTeam.name}</h2>
+                            <p className="text-xs text-gray-500 mt-1">{match.awayTeam.name}</p>
                         </div>
                     </div>
 
                     {/* Scorers Summary (Below Scoreboard) */}
                     <div className="mt-8 pt-6 border-t border-white/5 grid grid-cols-2 gap-8">
                         <div className="text-right space-y-1">
-                            {matchData.events.filter(e => e.type === 'goal' && e.team === 'home').map(e => (
+                            {match.events.filter(e => e.type === 'goal' && e.team === 'home').map(e => (
                                 <div key={e.id} className="text-sm text-gray-400 flex items-center justify-end gap-2">
                                     {e.player} <span className="text-neonGreen font-bold">{e.time}'</span> <Goal className="w-3 h-3 text-neonGreen" />
                                 </div>
                             ))}
                         </div>
                         <div className="text-left space-y-1">
-                            {matchData.events.filter(e => e.type === 'goal' && e.team === 'away').map(e => (
+                            {match.events.filter(e => e.type === 'goal' && e.team === 'away').map(e => (
                                 <div key={e.id} className="text-sm text-gray-400 flex items-center justify-start gap-2">
                                     <Goal className="w-3 h-3 text-neonGreen" /> <span className="text-neonGreen font-bold">{e.time}'</span> {e.player}
                                 </div>
@@ -199,13 +333,15 @@ export default function UserMatchDetail() {
                     {/* Tabs & Content */}
                     <Card hover={false} className="overflow-hidden">
                         <div className="flex border-b border-white/10 overflow-x-auto">
-                            <button
-                                onClick={() => setActiveTab('timeline')}
-                                className={`flex-1 min-w-[100px] py-4 text-sm font-bold flex items-center justify-center gap-2 transition relative ${activeTab === 'timeline' ? 'text-neonGreen' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                <Clock className="w-4 h-4" /> Timeline
-                                {activeTab === 'timeline' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-neonGreen"></div>}
-                            </button>
+                            {match.status !== 'scheduled' && (
+                                <button
+                                    onClick={() => setActiveTab('timeline')}
+                                    className={`flex-1 min-w-[100px] py-4 text-sm font-bold flex items-center justify-center gap-2 transition relative ${activeTab === 'timeline' ? 'text-neonGreen' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    <Clock className="w-4 h-4" /> Timeline
+                                    {activeTab === 'timeline' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-neonGreen"></div>}
+                                </button>
+                            )}
                             <button
                                 onClick={() => setActiveTab('analysis')}
                                 className={`flex-1 min-w-[100px] py-4 text-sm font-bold flex items-center justify-center gap-2 transition relative ${activeTab === 'analysis' ? 'text-neonGreen' : 'text-gray-400 hover:text-white'}`}
@@ -227,21 +363,21 @@ export default function UserMatchDetail() {
                             {/* TIMELINE TAB */}
                             {activeTab === 'timeline' && (
                                 <div className="p-6">
-                                    {matchData.events.length === 0 ? (
+                                    {match.events.length === 0 ? (
                                         <div className="text-center py-8 text-gray-500">Belum ada kejadian</div>
                                     ) : (
                                         <div className="relative border-l border-white/10 ml-4 space-y-6 py-2">
-                                            {matchData.events.map((event) => (
+                                            {match.events.map((event) => (
                                                 <div key={event.id} className="relative pl-6">
                                                     <div className={`absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ${event.team === 'home' ? 'bg-blue-500' : 'bg-red-500'}`}></div>
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-mono font-bold text-neonGreen">{event.time}'</span>
                                                         <span className="font-bold flex items-center gap-1">
                                                             {event.type === 'goal' && <Goal className="w-4 h-4 text-neonGreen" />}
-                                                            {event.type === 'card' && <div className="w-3 h-4 bg-yellow-500 rounded-sm"></div>}
+                                                            {event.type === 'card' && <div className={`w-3 h-4 rounded-sm ${event.detail.includes('Red') ? 'bg-red-500' : 'bg-yellow-500'}`}></div>}
                                                             {event.type.toUpperCase()}
                                                         </span>
-                                                        <span className="text-gray-400">- {event.player} {event.detail === 'Penalty' && '(P)'} ({event.team === 'home' ? matchData.homeTeam.name : matchData.awayTeam.name})</span>
+                                                        <span className="text-gray-400">- {event.player} {event.detail === 'Penalty' && '(P)'} ({event.team === 'home' ? match.homeTeam.teamName || match.homeTeam.name : match.awayTeam.teamName || match.awayTeam.name})</span>
                                                     </div>
                                                 </div>
                                             ))}
@@ -256,47 +392,69 @@ export default function UserMatchDetail() {
                                     {/* Win Probability */}
                                     <div className="p-6">
                                         <h3 className="font-display font-bold mb-4 flex items-center gap-2">
-                                            <Percent className="w-5 h-5 text-neonPink" /> Win Probability (AI Prediction)
+                                            <Percent className="w-5 h-5 text-neonPink" /> Win Probability ({match.analysis?.historyType === 'all_time' ? 'All Time User History' : 'Tournament History'})
                                         </h3>
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between text-sm font-bold mb-1">
-                                                <span className="text-blue-400">Home 45%</span>
-                                                <span className="text-gray-400">Draw 25%</span>
-                                                <span className="text-red-400">Away 30%</span>
+                                        {match.analysis ? (
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between text-sm font-bold mb-1">
+                                                    <span className="text-blue-400">Home {match.analysis.winProbability.home}%</span>
+                                                    <span className="text-gray-400">Draw {match.analysis.winProbability.draw}%</span>
+                                                    <span className="text-red-400">Away {match.analysis.winProbability.away}%</span>
+                                                </div>
+                                                <div className="h-3 bg-white/10 rounded-full overflow-hidden flex">
+                                                    <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${match.analysis.winProbability.home}%` }}></div>
+                                                    <div className="h-full bg-gray-500 transition-all duration-1000" style={{ width: `${match.analysis.winProbability.draw}%` }}></div>
+                                                    <div className="h-full bg-red-500 transition-all duration-1000" style={{ width: `${match.analysis.winProbability.away}%` }}></div>
+                                                </div>
+                                                <p className="text-xs text-gray-500 mt-2 italic">
+                                                    {match.analysis.historyType === 'all_time'
+                                                        ? "Prediksi AI: Gabungan statistik riwayat pertemuan User (All Time) dan tren 3 pertandingan terakhir."
+                                                        : "Prediksi AI: Berdasarkan performa head-to-head di turnamen ini (weighted)."}
+                                                </p>
                                             </div>
-                                            <div className="h-3 bg-white/10 rounded-full overflow-hidden flex">
-                                                <div className="h-full bg-blue-500" style={{ width: '45%' }}></div>
-                                                <div className="h-full bg-gray-500" style={{ width: '25%' }}></div>
-                                                <div className="h-full bg-red-500" style={{ width: '30%' }}></div>
-                                            </div>
-                                            <p className="text-xs text-gray-500 mt-2 italic">
-                                                "Berdasarkan sistem AI kami, Barcelona FC memiliki momentum serangan yang lebih baik dalam 15 menit terakhir."
-                                            </p>
-                                        </div>
+                                        ) : (
+                                            <div className="text-gray-500 text-sm italic animate-pulse">Memuat data analisis...</div>
+                                        )}
                                     </div>
 
                                     {/* Head to Head */}
                                     <div className="p-6">
                                         <h3 className="font-display font-bold mb-4 flex items-center gap-2">
-                                            <History className="w-5 h-5 text-yellow-400" /> Head to Head
+                                            <History className="w-5 h-5 text-yellow-400" /> Head to Head (Last 3 Meetings)
                                         </h3>
                                         <div className="space-y-3">
-                                            <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-blue-400">BAR</span>
-                                                    <span className="text-sm text-gray-400 font-mono">2 - 1</span>
-                                                    <span className="font-bold text-red-400">RMA</span>
+                                            {match.analysis?.headToHead?.length > 0 ? (
+                                                match.analysis.headToHead.map((h2h) => (
+                                                    <div key={h2h.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="flex items-center gap-2 min-w-[80px]">
+                                                                <span className={`font-bold text-sm truncate max-w-[100px] ${h2h.isHome ? 'text-blue-400' : 'text-red-400'}`} title={h2h.homeTeam}>
+                                                                    {h2h.homeTeam}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="px-2 py-1 bg-black/40 rounded text-sm font-mono text-gray-300">
+                                                                {h2h.homeScore} - {h2h.awayScore}
+                                                            </div>
+
+                                                            <div className="flex items-center gap-2 min-w-[80px] justify-end">
+                                                                <span className={`font-bold text-sm truncate max-w-[100px] ${!h2h.isHome ? 'text-blue-400' : 'text-red-400'}`} title={h2h.awayTeam}>
+                                                                    {h2h.awayTeam}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right ml-4">
+                                                            <div className="text-xs text-neonGreen/80 truncate max-w-[120px]" title={h2h.tournament}>{h2h.tournament}</div>
+                                                            <div className="text-[10px] text-gray-500">{new Date(h2h.date).toLocaleDateString()}</div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="text-center py-6 border border-dashed border-white/10 rounded-lg">
+                                                    <History className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                                                    <p className="text-gray-500 text-sm">Belum ada riwayat pertemuan sebelumnya.</p>
                                                 </div>
-                                                <div className="text-xs text-gray-500">Last Season</div>
-                                            </div>
-                                            <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-red-400">RMA</span>
-                                                    <span className="text-sm text-gray-400 font-mono">3 - 1</span>
-                                                    <span className="font-bold text-blue-400">BAR</span>
-                                                </div>
-                                                <div className="text-xs text-gray-500">Cup Final</div>
-                                            </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -305,16 +463,16 @@ export default function UserMatchDetail() {
                             {/* CHAT TAB - Mobile Only Content */}
                             {activeTab === 'chat' && (
                                 <div className="h-[500px]">
-                                    <LiveChat className="h-full border-none" isWidget={false} />
+                                    <LiveChat className="h-full border-none" isWidget={false} status={match?.status} matchId={matchId} />
                                 </div>
                             )}
                         </CardContent>
                     </Card>
-                </div>
+                </div > {/* End Left Column */}
 
                 {/* Right Column: Chat (Desktop Only) */}
                 <div className="hidden lg:block space-y-6">
-                    <LiveChat isWidget={true} />
+                    <LiveChat isWidget={true} status={match?.status} matchId={matchId} />
                 </div>
             </div>
         </div>

@@ -9,17 +9,17 @@ Tabel utama untuk menyimpan data akun pengguna.
 - `id` (UUID, PK): Unique identifier.
 - `username` (VARCHAR, Unique): Username unik.
 - `email` (VARCHAR, Unique): Email user.
-- `password_hash` (VARCHAR): Password terenkripsi (jika tidak pakai auth provider eksternal).
-- `full_name` (VARCHAR): Nama lengkap.
+- `password` (VARCHAR): Password terenkripsi (hash bcrypt).
+- `name` (VARCHAR): Nama lengkap.
+- `phone` (VARCHAR): Nomor telepon.
 - `avatar_url` (VARCHAR): URL foto profil.
-- `role` (ENUM: 'admin', 'user'): Peran user dalam sistem.
+- `role` (ENUM: 'superadmin', 'admin', 'user'): Peran user dalam sistem.
 - `created_at` (TIMESTAMP): Waktu pendaftaran.
 - `updated_at` (TIMESTAMP): Waktu update profil terakhir.
 
 ### `user_profiles`
 Menyimpan data tambahan/detail user.
 - `user_id` (UUID, PK, FK -> users.id): Relasi ke tabel user.
-- `phone` (VARCHAR): Nomor telepon.
 - `bio` (TEXT): Deskripsi singkat profil.
 - `city` (VARCHAR): Kota domisili.
 - `birth_date` (DATE): Tanggal lahir (untuk fitur spiritual/zodiac).
@@ -43,14 +43,13 @@ Mencatat riwayat keluar-masuk koin (Audit Trail).
 - `category` (VARCHAR): Label (e.g., 'Deposit', 'Create Tournament', 'Ad Reward').
 - `description` (TEXT): Detail transaksi.
 - `status` (ENUM: 'pending', 'success', 'failed'): Status pembayaran.
-- `payment_method` (VARCHAR): Metode pembayaran (e.g., 'BCA', 'Gopay', 'System').
 - `reference_id` (VARCHAR): ID referensi eksternal (midtrans ID, atau ID turnamen terkait).
 - `created_at` (TIMESTAMP): Waktu transaksi.
 
 ### `subscription_plans`
 Daftar paket langganan yang tersedia (Free, Pro, Visionary).
 - `id` (INT, PK): ID Plan.
-- `name` (VARCHAR): Nama paket (e.g., 'Premium').
+- `name` (ENUM: 'free', 'captain', 'pro_league'): Nama paket.
 - `price` (DECIMAL): Harga dalam Rupiah.
 - `duration_days` (INT): Durasi aktif dalam hari (30, 365, dll).
 - `features` (JSONB): List fitur yang didapat.
@@ -99,8 +98,8 @@ Tim atau individu yang bergabung ke turnamen.
 Jadwal dan hasil pertandingan.
 - `id` (UUID, PK): ID Pertandingan.
 - `tournament_id` (UUID, FK -> tournaments.id).
-- `home_participant_id` (UUID, FK -> participants.id): Tim Kandang.
-- `away_participant_id` (UUID, FK -> participants.id): Tim Tandang.
+- `home_participant_id` (UUID, FK -> participants.id): Tim Kandang. (Bisa null jika type knockout/ TBD)
+- `away_participant_id` (UUID, FK -> participants.id): Tim Tandang. (Bisa null jika type knockout/ TBD)
 - `round` (INT): Minggu ke-/Babak ke-.
 - `start_time` (TIMESTAMP): Jadwal kick-off.
 - `status` (ENUM: 'scheduled', 'live', 'completed', 'postponed').
@@ -113,6 +112,7 @@ Klasemen sementara/akhir (khusus format Liga/Group).
 - `id` (UUID, PK).
 - `tournament_id` (UUID, FK).
 - `participant_id` (UUID, FK).
+- `group_name` (VARCHAR, Nullable): Nama grup (e.g., 'Group A') untuk format Group.
 - `points` (INT): Total Poin.
 - `played` (INT): Main.
 - `won` (INT): Menang.
@@ -194,9 +194,11 @@ Daftar pemain per tim dalam turnamen.
 ### `match_events`
 Kejadian dalam pertandingan (gol, kartu, dll).
 - `id` (UUID, PK): ID Event.
+- `tournament_id` (UUID, FK -> tournaments.id).
 - `match_id` (UUID, FK -> matches.id).
-- `player_id` (UUID, FK -> players.id, Nullable).
-- `type` (ENUM: 'goal', 'own_goal', 'yellow_card', 'red_card', 'substitution', 'penalty_scored', 'penalty_missed').
+- `participant_id` (UUID, FK -> participants.id, Nullable).
+- `type` (ENUM: 'goal', 'penalty_goal', 'own_goal', 'yellow_card', 'red_card', 'substitution', 'penalty_missed', 'kickoff', 'halftime', 'fulltime').
+- `player_name` (VARCHAR): Nama pemain. (Bisa null jika event tidak melibatkan pemain)
 - `minute` (INT): Menit kejadian.
 - `half` (INT): 1 atau 2.
 - `team_side` (ENUM: 'home', 'away').

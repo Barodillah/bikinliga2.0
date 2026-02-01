@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Search, Trophy, Calendar, Users, Grid, List as ListIcon, PlayCircle, ShieldCheck, Sparkles, Clock, TrendingUp, Filter } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Search, Trophy, Calendar, Users, Grid, List as ListIcon, PlayCircle, ShieldCheck, Sparkles, Clock, TrendingUp, Filter, Crown, Shield } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
@@ -8,112 +8,48 @@ import AdSlot from '../../components/ui/AdSlot'
 
 import UserBadge from '../../components/ui/UserBadge'
 
-// Sample data for Public Competitions
-const publicCompetitions = [
-    {
-        id: 101,
-        name: 'Open Liga Nusantara',
-        type: 'Liga',
-        players: 16,
-        currentPlayers: 12, // 4 slots left
-        matches: 0,
-        status: 'register',
-        startDate: '2024-05-01',
-        registrationDeadline: '2024-04-28',
-        description: 'Liga terbuka untuk umum, semua skill level welcome!',
-        isPublic: true,
-        creator: { name: 'Official IndoLeague', tier: 'pro_liga' },
-        userStatus: 'registered' // Example: User has registered
-    },
-    {
-        id: 102,
-        name: 'Amateur Cup 2024',
-        type: 'Knockout',
-        players: 8,
-        currentPlayers: 2,
-        matches: 0,
-        status: 'draft',
-        startDate: '2024-06-15',
-        registrationDeadline: '2024-06-10',
-        description: 'Turnamen santai akhir pekan.',
-        isPublic: true,
-        creator: { name: 'Komunitas Santai', tier: 'free' }
-    },
-    {
-        id: 103,
-        name: 'Pro Valorant Scrim',
-        type: 'Liga',
-        players: 6,
-        currentPlayers: 6, // Full
-        matches: 0,
-        status: 'register',
-        startDate: '2024-05-10',
-        registrationDeadline: '2024-05-08',
-        description: 'Scrim mingguan untuk tim semi-pro.',
-        isPublic: true,
-        creator: { name: 'ProScouts ID', tier: 'captain' },
-        userStatus: 'pending' // Example: User request pending
-    },
-    // ... other mock data can update similarly or retain defaults ...
-    {
-        id: 104,
-        name: 'Badminton Fun Match',
-        type: 'Group',
-        players: 16,
-        currentPlayers: 10,
-        matches: 0,
-        status: 'draft',
-        startDate: '2024-05-20',
-        registrationDeadline: '2024-05-18',
-        description: 'Cari lawan sparing badminton.',
-        isPublic: true,
-        creator: { name: 'Gor Asoy', tier: 'free' }
-    },
-    {
-        id: 105,
-        name: 'Weekly FIFA Tournament',
-        type: 'Knockout',
-        players: 32,
-        currentPlayers: 32,
-        matches: 15,
-        status: 'ongoing',
-        startDate: '2024-04-20',
-        registrationDeadline: '2024-04-18',
-        description: 'Turnamen mingguan FIFA 24.',
-        isPublic: true,
-        creator: { name: 'FIFA ID', tier: 'pro_liga' },
-        userStatus: 'playing' // Example: User is playing
-    },
-    {
-        id: 106,
-        name: 'Mobile Legends Community Cup',
-        type: 'Group',
-        players: 8,
-        currentPlayers: 8,
-        matches: 12,
-        status: 'finished',
-        startDate: '2024-01-10',
-        registrationDeadline: '2024-01-05',
-        description: 'Turnamen komunitas MLBB.',
-        isPublic: true,
-        creator: { name: 'MLBB Community', tier: 'captain' },
-        userStatus: 'finished' // Example: User participated and finished
-    }
-]
+import { authFetch } from '../../utils/api'
 
 export default function Competitions() {
     const navigate = useNavigate()
+    const [competitions, setCompetitions] = useState([])
+    const [highlighted, setHighlighted] = useState(null)
+    const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
     const [viewMode, setViewMode] = useState('grid')
-    const [filterType, setFilterType] = useState('all') // 'all' | 'participating'
+    const [searchParams] = useSearchParams()
+    const [filterType, setFilterType] = useState(searchParams.get('tab') === 'participating' ? 'participating' : 'all')
 
-    // Logic to find the "Featured" competition
-    // Priority: Pro Liga Tier -> Status Register -> Closest Deadline / Fewest Slots
-    const featuredCompetition = publicCompetitions.find(c =>
-        c.creator?.tier === 'pro_liga' && c.status === 'register' && c.currentPlayers < c.players
-    ) || publicCompetitions.find(c => c.status === 'register')
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                setLoading(true)
+                const res = await authFetch('/api/tournaments/public')
+                const data = await res.json()
+                if (data.success) {
+                    setCompetitions(data.data.competitions)
+                    setHighlighted(data.data.highlighted)
 
-    const filteredCompetitions = publicCompetitions.filter(c => {
+                    // Auto-switch to 'participating' if no public tournaments (register/draft) are found
+                    const hasPublic = data.data.competitions.some(c => (c.status === 'register' || c.status === 'draft') && c.isPublic)
+                    if (!hasPublic) {
+                        setFilterType('participating')
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching competitions:', error)
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchData()
+    }, [])
+
+
+
+    const featuredCompetition = highlighted
+
+    const filteredCompetitions = competitions.filter(c => {
         // ... (existing filter logic) ...
         const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase())
 
@@ -158,14 +94,41 @@ export default function Competitions() {
         }
     }
 
-    const getUserStatusLabel = (status) => {
-        // ... (existing getUserStatusLabel logic) ...
+    const getUserStatusLabel = (comp) => {
+        if (!comp.userStatus) return null
+
+        const status = comp.userStatus
+        const isApproved = status === 'approved'
+        const isPending = status === 'pending'
+        const isOngoingOrFinished = comp.status === 'ongoing' || comp.status === 'finished'
+
+        if (isPending) return { label: 'Menunggu Konfirmasi', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' }
+
+        if (isApproved) {
+            // If tournament is not actually playing yet (draft/register)
+            if (!isOngoingOrFinished) {
+                return { label: 'Disetujui', color: 'bg-neonGreen/20 text-neonGreen border-neonGreen/30' }
+            }
+
+            // If tournament is ongoing or finished, show progress
+            if (comp.userProgress) {
+                if (comp.type === 'league' && comp.userProgress.rank) {
+                    return { label: `Rank ${comp.userProgress.rank}`, color: 'bg-blue-500/20 text-blue-400 border-blue-500/30 font-bold' }
+                }
+                if (comp.userProgress.roundName) {
+                    return { label: comp.userProgress.roundName, color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30 font-bold' }
+                }
+            }
+
+            return { label: 'Terdaftar', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' }
+        }
+
         switch (status) {
-            case 'registered': return 'Terdaftar'
-            case 'pending': return 'Menunggu Konfirmasi'
-            case 'playing': return 'Sedang Main'
-            case 'finished': return 'Selesai'
-            default: return null
+            case 'registered': return { label: 'Terdaftar', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' }
+            case 'playing': return { label: 'Sedang Main', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' }
+            case 'finished': return { label: 'Selesai', color: 'bg-gray-500/20 text-gray-400 border-gray-500/30' }
+            case 'rejected': return { label: 'Ditolak', color: 'bg-red-500/20 text-red-400 border-red-500/30' }
+            default: return { label: status, color: 'bg-gray-500/20 text-gray-400 border-gray-500/30' }
         }
     }
 
@@ -187,6 +150,36 @@ export default function Competitions() {
         )
     }
 
+    const renderRecommendedBadge = (tier) => {
+        if (!tier || tier === 'free') return null
+
+        const isPro = tier === 'pro_liga' || tier === 'pro_league'
+        const Icon = isPro ? Crown : Shield
+        // Rules: Pro Liga = Gold Crown. Captain/Others = Blue Shield.
+        const colorClass = isPro ? 'text-yellow-400' : 'text-blue-400'
+        const bgClass = isPro ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20' : 'bg-blue-500/10'
+        const borderClass = isPro ? 'border-yellow-500/50' : 'border-blue-500/30'
+        const animateClass = isPro ? 'animate-shimmer overflow-hidden relative' : ''
+
+        return (
+            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border ${bgClass} ${borderClass} ${colorClass} ${animateClass}`}>
+                <Icon className="w-4 h-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">
+                    Recommended
+                </span>
+                {isPro && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                )}
+            </div>
+        )
+    }
+
+    const formatDate = (dateString) => {
+        if (!dateString || dateString === '-') return '-'
+        const options = { day: '2-digit', month: 'short', year: 'numeric' }
+        return new Date(dateString).toLocaleDateString('id-ID', options)
+    }
+
     return (
         <div className="space-y-6">
             {/* ... Header ... */}
@@ -205,20 +198,21 @@ export default function Competitions() {
                         <Trophy className="w-64 h-64 rotate-12" />
                     </div>
 
-                    <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start md:items-center">
+                    <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center">
+                        {featuredCompetition.logo && (
+                            <img
+                                src={featuredCompetition.logo}
+                                alt={featuredCompetition.name}
+                                className="w-24 h-24 rounded-2xl object-cover border-2 border-white/10 shadow-2xl"
+                            />
+                        )}
                         <div className="flex-1 space-y-4">
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-3">
                                 <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
                                     <Sparkles className="w-3 h-3" /> FEATURED
                                 </span>
-                                {featuredCompetition.creator?.tier && featuredCompetition.creator.tier !== 'free' && (
-                                    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/10">
-                                        <UserBadge tier={featuredCompetition.creator.tier} size="sm" />
-                                        <span className="text-xs font-bold text-white uppercase tracking-wider">
-                                            Recommended
-                                        </span>
-                                    </div>
-                                )}
+                                {renderRecommendedBadge(featuredCompetition.creator?.tier)}
+
                             </div>
 
                             <div>
@@ -230,11 +224,15 @@ export default function Competitions() {
                                 {/* ... (existing badges) ... */}
                                 <div className="flex items-center gap-2 bg-black/20 px-3 py-2 rounded-lg">
                                     <Clock className="w-4 h-4 text-neonGreen" />
-                                    <span>Deadline: {featuredCompetition.registrationDeadline}</span>
+                                    <span>Deadline: {formatDate(featuredCompetition.registrationDeadline)}</span>
                                 </div>
                                 <div className="flex items-center gap-2 bg-black/20 px-3 py-2 rounded-lg">
                                     <Users className="w-4 h-4 text-blue-400" />
                                     <span>{featuredCompetition.players - featuredCompetition.currentPlayers} Slot Tersisa</span>
+                                </div>
+                                <div className="flex items-center gap-2 bg-black/20 px-3 py-2 rounded-lg">
+                                    <Trophy className="w-4 h-4 text-purple-400" />
+                                    <span className="uppercase">{featuredCompetition.type.replace('_', ' ')}</span>
                                 </div>
                             </div>
                         </div>
@@ -256,9 +254,9 @@ export default function Competitions() {
                                     className="w-full"
                                     size="lg"
                                     icon={PlayCircle}
-                                    onClick={() => navigate(`/dashboard/competitions/${featuredCompetition.id}/join`)}
+                                    onClick={() => navigate(`/dashboard/competitions/${featuredCompetition.slug}/join`)}
                                 >
-                                    Daftar Sekarang
+                                    {featuredCompetition.userStatus ? 'Lihat Detail' : 'Daftar Sekarang'}
                                 </Button>
                                 <div className="flex items-center justify-center gap-2 pt-2 border-t border-white/5">
                                     <span className="text-xs text-gray-500">By</span>
@@ -331,54 +329,96 @@ export default function Competitions() {
                         <React.Fragment key={comp.id}>
                             <Card className="p-6 hover:border-neonGreen/30 transition-all group flex flex-col h-full">
                                 <div className="flex items-start justify-between mb-4">
-                                    <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center group-hover:scale-110 transition">
-                                        <Trophy className="w-6 h-6 text-blue-400" />
-                                    </div>
+                                    {comp.logo ? (
+                                        <img src={comp.logo} alt={comp.name} className="w-12 h-12 rounded-lg object-cover bg-white/5 border border-white/10 group-hover:scale-105 transition duration-300" />
+                                    ) : (
+                                        <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center group-hover:scale-110 transition">
+                                            <Trophy className="w-6 h-6 text-blue-400" />
+                                        </div>
+                                    )}
                                     <div className="flex flex-col items-end gap-1">
                                         <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(comp.status)}`}>
                                             {getStatusLabel(comp.status)}
                                         </span>
                                         {/* Verified Label Logic */}
                                         {renderVerifiedLabel(comp.creator?.tier)}
-                                        {comp.userStatus && (
-                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                                                {getUserStatusLabel(comp.userStatus)}
-                                            </span>
-                                        )}
+                                        {comp.userStatus && (() => {
+                                            const statusInfo = getUserStatusLabel(comp)
+                                            if (!statusInfo) return null
+                                            return (
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${statusInfo.color}`}>
+                                                    {statusInfo.label}
+                                                </span>
+                                            )
+                                        })()}
                                     </div>
                                 </div>
                                 <h3 className="font-display font-bold text-lg mb-2 group-hover:text-blue-400 transition">{comp.name}</h3>
-                                <div className="flex items-center gap-2 mb-2">
+                                <div className="flex flex-wrap items-center gap-2 mb-2">
                                     <span className="text-xs text-gray-500">by {comp.creator?.name}</span>
                                     <UserBadge tier={comp.creator?.tier} size="sm" className="scale-75 origin-left" />
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-gray-400 border border-white/10 uppercase">
+                                        {comp.type.replace('_', ' ')}
+                                    </span>
                                 </div>
                                 <p className="text-sm text-gray-500 mb-4 line-clamp-2 flex-grow">{comp.description}</p>
 
                                 <div className="space-y-3 mb-6">
-                                    <div className="flex items-center justify-between text-xs text-gray-400">
-                                        <span className="flex items-center gap-1">
-                                            <Users className="w-4 h-4" /> {comp.currentPlayers}/{comp.players} Peserta
-                                        </span>
-                                        <span>{Math.round((comp.currentPlayers / comp.players) * 100)}%</span>
-                                    </div>
-                                    <div className="w-full bg-white/5 rounded-full h-1.5">
-                                        <div
-                                            className="bg-blue-500 h-1.5 rounded-full"
-                                            style={{ width: `${(comp.currentPlayers / comp.players) * 100}%` }}
-                                        ></div>
-                                    </div>
+                                    {(() => {
+                                        const isJoinedAndActive = comp.userStatus && (comp.status === 'ongoing' || comp.status === 'finished' || comp.matches > 0);
+
+                                        let current, max, label, percentage;
+
+                                        if (isJoinedAndActive && comp.matches > 0) {
+                                            current = comp.completedMatches || 0;
+                                            max = comp.matches || 0;
+                                            percentage = max > 0 ? Math.min(100, Math.round((current / max) * 100)) : 0;
+                                            label = (
+                                                <span className="flex items-center gap-1">
+                                                    <Trophy className="w-4 h-4" /> {current}/{max} Match Selesai
+                                                </span>
+                                            );
+                                        } else {
+                                            // Default: Participant Progress
+                                            current = comp.participants
+                                                ? comp.participants.filter(p => p.status === 'approved').length
+                                                : (comp.currentPlayers || 0);
+                                            max = parseInt(comp.players || 0, 10);
+                                            percentage = max > 0 ? Math.min(100, Math.round((current / max) * 100)) : 0;
+                                            label = (
+                                                <span className="flex items-center gap-1">
+                                                    <Users className="w-4 h-4" /> {current}/{max} Peserta
+                                                </span>
+                                            );
+                                        }
+
+                                        return (
+                                            <>
+                                                <div className="flex items-center justify-between text-xs text-gray-400">
+                                                    {label}
+                                                    <span>{percentage}%</span>
+                                                </div>
+                                                <div className="w-full bg-white/5 rounded-full h-1.5">
+                                                    <div
+                                                        className={`h-1.5 rounded-full transition-all duration-1000 ${percentage >= 100 ? 'bg-neonGreen' : 'bg-gradient-to-r from-blue-500 to-purple-500'}`}
+                                                        style={{ width: `${percentage}%` }}
+                                                    ></div>
+                                                </div>
+                                            </>
+                                        )
+                                    })()}
                                     <div className="flex items-center gap-4 text-xs text-gray-400">
                                         <span className="flex items-center gap-1">
-                                            <Calendar className="w-4 h-4" /> {comp.startDate}
+                                            <Calendar className="w-4 h-4" /> Jadwal Selesai: {formatDate(comp.endDate)}
                                         </span>
                                     </div>
                                 </div>
 
                                 <Button className="w-full mt-auto" icon={PlayCircle} onClick={() => {
-                                    if (comp.userStatus) {
-                                        navigate(`/dashboard/tournaments/${comp.id}/view`)
+                                    if (comp.status !== 'draft' && comp.userStatus) {
+                                        navigate(`/dashboard/competitions/${comp.slug}/view`)
                                     } else {
-                                        navigate(`/dashboard/competitions/${comp.id}/join`)
+                                        navigate(`/dashboard/competitions/${comp.slug}/join`)
                                     }
                                 }}>
                                     {comp.userStatus ? 'Lihat Detail' : 'Ikuti Kompetisi'}
@@ -402,9 +442,13 @@ export default function Competitions() {
                                 className="flex items-center justify-between p-4 hover:bg-white/5 transition"
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                                        <Trophy className="w-5 h-5 text-blue-400" />
-                                    </div>
+                                    {comp.logo ? (
+                                        <img src={comp.logo} alt={comp.name} className="w-10 h-10 rounded-lg object-cover bg-white/5 border border-white/10" />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+                                            <Trophy className="w-5 h-5 text-blue-400" />
+                                        </div>
+                                    )}
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <div className="font-medium">{comp.name}</div>
@@ -416,7 +460,7 @@ export default function Competitions() {
                                 <div className="flex items-center gap-4">
                                     <div className="text-right hidden sm:block">
                                         <div className="text-xs text-gray-400">{comp.currentPlayers}/{comp.players} Slot</div>
-                                        <div className="text-[10px] text-gray-500">Deadline: {comp.registrationDeadline}</div>
+                                        <div className="text-[10px] text-gray-500">Deadline: {formatDate(comp.registrationDeadline)}</div>
                                     </div>
                                     <div className="flex flex-col items-end gap-1">
                                         <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(comp.status)}`}>
@@ -424,17 +468,21 @@ export default function Competitions() {
                                         </span>
                                         {/* Verified Label Logic for List View */}
                                         {renderVerifiedLabel(comp.creator?.tier)}
-                                        {comp.userStatus && (
-                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                                                {getUserStatusLabel(comp.userStatus)}
-                                            </span>
-                                        )}
+                                        {comp.userStatus && (() => {
+                                            const statusInfo = getUserStatusLabel(comp)
+                                            if (!statusInfo) return null
+                                            return (
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${statusInfo.color}`}>
+                                                    {statusInfo.label}
+                                                </span>
+                                            )
+                                        })()}
                                     </div>
                                     <Button size="sm" icon={PlayCircle} onClick={() => {
-                                        if (comp.userStatus) {
-                                            navigate(`/dashboard/tournaments/${comp.id}/view`)
+                                        if (comp.status !== 'draft' && comp.userStatus) {
+                                            navigate(`/dashboard/competitions/${comp.slug}/view`)
                                         } else {
-                                            navigate(`/dashboard/competitions/${comp.id}/join`)
+                                            navigate(`/dashboard/competitions/${comp.slug}/join`)
                                         }
                                     }}>
                                         {comp.userStatus ? 'Detail' : 'Ikuti'}
@@ -446,7 +494,7 @@ export default function Competitions() {
                 </Card>
             )}
 
-            {filteredCompetitions.length === 0 && (
+            {filteredCompetitions.length === 0 && !loading && (
                 <div className="text-center py-12">
                     <Trophy className="w-16 h-16 mx-auto text-gray-600 mb-4" />
                     <h3 className="font-display font-bold text-xl mb-2">Belum ada kompetisi publik</h3>

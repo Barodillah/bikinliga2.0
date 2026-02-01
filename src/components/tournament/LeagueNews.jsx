@@ -1,45 +1,94 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Card, { CardHeader, CardContent } from '../ui/Card'
-import { Calendar, Tag, ChevronRight, Newspaper } from 'lucide-react'
+import { Calendar, ChevronRight, Newspaper, MessageSquare, Phone, Users, MessageCircle, ChevronDown, Send, Loader2 } from 'lucide-react'
+import Button from '../ui/Button'
+import Input from '../ui/Input'
+import { authFetch } from '../../utils/api'
+import { useAuth } from '../../contexts/AuthContext'
+import { useToast } from '../../contexts/ToastContext'
 
-// Mock Data
-const mockNews = [
-    {
-        id: 1,
-        title: "Pendaftaran Liga Musim 2024 Telah Dibuka!",
-        excerpt: "Segera daftarkan tim mu untuk mengikuti kompetisi paling bergengsi tahun ini.",
-        date: "2024-04-15",
-        category: "Announcement",
-        image: "https://images.unsplash.com/flagged/photo-1550413231-202a9d53a331?q=80&w=2070&auto=format&fit=crop"
-    },
-    {
-        id: 2,
-        title: "Perubahan Jadwal Pertandingan Pekan ke-3",
-        excerpt: "Dikarenakan cuaca buruk, beberapa pertandingan akan dijadwalkan ulang.",
-        date: "2024-05-10",
-        category: "Schedule",
-        image: "https://images.unsplash.com/photo-1518091043644-c1d4457512c6?q=80&w=600&auto=format&fit=crop"
-    },
-    {
-        id: 3,
-        title: "Highlight: FCB vs RMA (3-2)",
-        excerpt: "Pertandingan sengit berakhir dengan kemenangan dramatis FCB di menit terakhir.",
-        date: "2024-05-12",
-        category: "Match Report",
-        image: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=600&auto=format&fit=crop"
-    },
-    {
-        id: 4,
-        title: "Wawancara Eksklusif dengan Top Scorer Sementara",
-        excerpt: "Simak rahasia latihan dan motivasi di balik performa gemilang striker andalan.",
-        date: "2024-05-14",
-        category: "Interview",
-        image: "https://plus.unsplash.com/premium_photo-1664908314252-4b847d39a9ed?q=80&w=2070&auto=format&fit=crop"
+export default function LeagueNews({ tournamentId, initialNews = [], participants = [], organizerId }) {
+    const { user } = useAuth()
+    const { success: showSuccess, error: showError } = useToast()
+
+    const [newsList, setNewsList] = useState(initialNews)
+    const [isNewsLoading, setIsNewsLoading] = useState(false)
+    const [commentsMap, setCommentsMap] = useState({})
+    const [newComment, setNewComment] = useState('')
+    const [openThreadNewsId, setOpenThreadNewsId] = useState(null)
+
+    // Sync newsList with props or fetch if needed
+    useEffect(() => {
+        if (initialNews && initialNews.length > 0) {
+            setNewsList(initialNews)
+        } else {
+            const fetchNews = async () => {
+                setIsNewsLoading(true)
+                try {
+                    const response = await authFetch(`/api/tournaments/${tournamentId}/news`)
+                    const data = await response.json()
+                    if (data.success) {
+                        setNewsList(data.data)
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch news:', err)
+                } finally {
+                    setIsNewsLoading(false)
+                }
+            }
+            if (tournamentId) fetchNews()
+        }
+    }, [initialNews, tournamentId])
+
+    // Interaction Handlers
+    const toggleComments = async (newsId) => {
+        if (openThreadNewsId === newsId) {
+            setOpenThreadNewsId(null)
+            return
+        }
+
+        setOpenThreadNewsId(newsId)
+        try {
+            const response = await authFetch(`/api/tournaments/${tournamentId}/news/${newsId}/comments`)
+            const data = await response.json()
+            if (data.success) {
+                setCommentsMap(prev => ({ ...prev, [newsId]: data.data }))
+            }
+        } catch (err) { console.error(err) }
     }
-]
 
-export default function LeagueNews({ tournamentId }) {
+    const handlePostComment = async (e, newsId) => {
+        e.preventDefault()
+        if (!newComment.trim()) return
+
+        try {
+            const response = await authFetch(`/api/tournaments/${tournamentId}/news/${newsId}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: newComment })
+            })
+            const data = await response.json()
+
+            if (data.success) {
+                setNewComment('')
+                const res = await authFetch(`/api/tournaments/${tournamentId}/news/${newsId}/comments`)
+                const d = await res.json()
+                if (d.success) {
+                    setCommentsMap(prev => ({ ...prev, [newsId]: d.data }))
+                }
+            } else {
+                showError(data.message || 'Gagal mengirim komentar')
+            }
+        } catch (err) {
+            console.error('Post comment error:', err)
+            showError('Gagal mengirim komentar')
+        }
+    }
+
+    const isMemberOfTournament = participants.some(p => String(p.user_id) === String(user?.id))
+    const isOrganizer = organizerId && user && String(organizerId) === String(user.id)
+
     return (
         <div className="space-y-6">
             <Card className="bg-gradient-to-r from-blue-900/10 to-purple-900/10 border-blue-500/10">
@@ -58,53 +107,126 @@ export default function LeagueNews({ tournamentId }) {
                 </CardContent>
             </Card>
 
-            <div className="grid md:grid-cols-2 gap-4">
-                {mockNews.map((news) => (
-                    <Link
-                        key={news.id}
-                        to={`/dashboard/tournaments/${tournamentId}/view/news/${news.id}`}
-                        className="block group"
-                    >
-                        <Card className="h-full cursor-pointer hover:border-blue-500/30 transition-all duration-300">
-                            <div className="relative aspect-video w-full overflow-hidden">
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
-                                <img
-                                    src={news.image}
-                                    alt={news.title}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                />
-                                <div className="absolute bottom-3 left-3 right-3 z-20">
-                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${news.category === 'Announcement' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                                        news.category === 'Schedule' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
-                                            'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                                        }`}>
-                                        {news.category}
-                                    </span>
+            <div className="space-y-4 animate-fadeIn">
+                {/* Welcome Message Card */}
+                {newsList.filter(n => n.is_welcome).map(news => (
+                    <div key={news.id} className="bg-gradient-to-br from-neonGreen/20 to-blue-600/20 border border-neonGreen/30 rounded-xl p-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <MessageSquare className="w-24 h-24 text-neonGreen" />
+                        </div>
+                        <div className="relative z-10">
+                            <div className="flex justify-between items-start mb-3">
+                                <div className="flex items-center gap-2">
+                                    <span className="bg-neonGreen text-black text-[10px] font-bold px-2 py-0.5 rounded uppercase">Pinned</span>
+                                    <h3 className="font-bold text-xl text-white">{news.title}</h3>
                                 </div>
                             </div>
-                            <CardContent className="p-4 space-y-3">
-                                <div className="space-y-2">
-                                    <h3 className="font-bold text-lg leading-tight text-white group-hover:text-blue-400 transition-colors">
-                                        {news.title}
-                                    </h3>
-                                    <p className="text-sm text-gray-400 line-clamp-2">
-                                        {news.excerpt}
-                                    </p>
-                                </div>
+                            <p className="text-gray-200 mb-6 whitespace-pre-wrap">{news.content}</p>
 
-                                <div className="pt-3 border-t border-white/5 flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                                        <Calendar className="w-3 h-3" />
-                                        {news.date}
-                                    </div>
-                                    <div className="flex items-center gap-1 text-xs font-medium text-blue-400 group-hover:translate-x-1 transition-transform">
-                                        Baca Selengkapnya <ChevronRight className="w-3 h-3" />
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </Link>
+                            <div className="flex flex-wrap gap-3">
+                                {news.contact_info && (
+                                    <a href={`https://wa.me/${news.contact_info.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
+                                        className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition">
+                                        <Phone className="w-4 h-4" />
+                                        Hubungi Admin
+                                    </a>
+                                )}
+                                {news.group_link && (
+                                    <a href={news.group_link} target="_blank" rel="noreferrer"
+                                        className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition">
+                                        <Users className="w-4 h-4" />
+                                        Gabung Grup
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 ))}
+
+                {isNewsLoading ? (
+                    <div className="text-center py-12"><Loader2 className="w-8 h-8 animate-spin mx-auto text-neonGreen" /></div>
+                ) : newsList.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500 bg-white/5 rounded-xl border border-white/10">
+                        <Newspaper className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                        <p>Belum ada berita yang dipublish.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {newsList.filter(n => !n.is_welcome).map((news) => (
+                            <div key={news.id} className="bg-white/5 border border-white/10 rounded-xl p-6 hover:bg-white/10 transition group relative">
+                                <div className="flex justify-between items-start mb-2">
+                                    <h3 className="font-bold text-lg text-white">{news.title}</h3>
+                                    <span className="text-xs text-gray-500 bg-black/20 px-2 py-1 rounded">
+                                        {new Date(news.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    </span>
+                                </div>
+                                <p className="text-gray-300 text-sm whitespace-pre-wrap mb-4">{news.content}</p>
+
+                                {/* Interaction Bar */}
+                                {news.open_thread && (
+                                    <div className="border-t border-white/10 pt-3">
+                                        <button
+                                            onClick={() => toggleComments(news.id)}
+                                            className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition"
+                                        >
+                                            <MessageCircle className="w-4 h-4" />
+                                            {news.comment_count || 0} Komentar
+                                            <ChevronDown className={`w-3 h-3 transition-transform ${openThreadNewsId === news.id ? 'rotate-180' : ''}`} />
+                                        </button>
+
+                                        {/* Comments Section */}
+                                        {openThreadNewsId === news.id && (
+                                            <div className="mt-4 space-y-4 pl-4 border-l-2 border-white/10">
+                                                {/* Comment List */}
+                                                {commentsMap[news.id]?.length > 0 ? (
+                                                    <div className="space-y-3">
+                                                        {commentsMap[news.id].map(comment => (
+                                                            <div key={comment.id} className="flex gap-3">
+                                                                <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden flex-shrink-0">
+                                                                    {comment.participant_logo || comment.user_avatar ? (
+                                                                        <img src={comment.participant_logo || comment.user_avatar} alt="" className="w-full h-full object-cover" />
+                                                                    ) : (
+                                                                        <Users className="w-4 h-4 m-auto text-gray-400 h-full" />
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <span className="text-sm font-bold text-white">{comment.team_name || comment.participant_name || comment.user_name || 'User'}</span>
+                                                                        <span className="text-[10px] text-gray-500">{new Date(comment.created_at).toLocaleString()}</span>
+                                                                    </div>
+                                                                    <p className="text-sm text-gray-300">{comment.content}</p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-sm text-gray-500 italic">Belum ada komentar.</p>
+                                                )}
+
+                                                {/* Comment Input */}
+                                                {(isOrganizer || isMemberOfTournament) ? (
+                                                    <form onSubmit={(e) => handlePostComment(e, news.id)} className="flex gap-2 mt-4">
+                                                        <Input
+                                                            value={newComment}
+                                                            onChange={(e) => setNewComment(e.target.value)}
+                                                            placeholder="Tulis komentar..."
+                                                            className="flex-1 bg-black/20"
+                                                        />
+                                                        <Button type="submit" size="sm" icon={Send}>
+                                                            Kirim
+                                                        </Button>
+                                                    </form>
+                                                ) : (
+                                                    <p className="text-xs text-gray-500 mt-2">Hanya peserta yang dapat berkomentar.</p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     )

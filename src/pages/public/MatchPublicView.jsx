@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, Goal, Trophy, Brain, Percent, History, MessageCircle,
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import AdSlot from '../../components/ui/AdSlot'
 import Button from '../../components/ui/Button'
+import { authFetch } from '../../utils/api'
 
 // Mock Data (Shared structure with MatchManagement but simplified/static for demo)
 const matchData = {
@@ -107,14 +108,41 @@ const LiveChat = ({ className, isWidget = false }) => {
 export default function MatchPublicView() {
     const { slug, matchId } = useParams()
     const [activeTab, setActiveTab] = useState('timeline')
+    const [match, setMatch] = useState(null)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(null)
+
+    useEffect(() => {
+        const fetchMatch = async () => {
+            try {
+                const response = await fetch(`/api/matches/${matchId}`)
+                const data = await response.json()
+                if (data.success) {
+                    setMatch(data.data)
+                } else {
+                    setError(data.message)
+                }
+            } catch (err) {
+                setError('Gagal memuat data pertandingan')
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchMatch()
+    }, [matchId])
 
     // Simple formatted time helper
     const getStatusDisplay = () => {
-        if (matchData.status === 'scheduled') return new Date(matchData.startTime).toLocaleDateString()
-        if (matchData.status === 'finished') return 'FULL TIME'
-        if (matchData.status === 'halftime') return 'HALF TIME'
-        return `LIVE • ${matchData.matchTime}'`
+        if (!match) return ''
+        if (match.status === 'scheduled') return new Date(match.startTime).toLocaleDateString()
+        if (match.status === 'completed' || match.status === 'finished') return 'FULL TIME'
+        if (match.status === 'halftime' || match.details?.period === 'halftime') return 'HALF TIME'
+        return `LIVE • ${match.details?.period?.replace('_', ' ') || 'In Game'}`
     }
+
+    if (loading) return <div className="min-h-screen flex items-center justify-center text-white">Loading...</div>
+    if (error) return <div className="min-h-screen flex items-center justify-center text-white">{error}</div>
+    if (!match) return <div className="min-h-screen flex items-center justify-center text-white">Pertandingan tidak ditemukan</div>
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-20">
@@ -131,8 +159,8 @@ export default function MatchPublicView() {
                 <div className="bg-[#0a0a0a] p-6 sm:p-10 text-center relative">
                     {/* Status Badge */}
                     <div className="absolute top-4 left-1/2 -translate-x-1/2 transition-all duration-500">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${['1st_half', '2nd_half'].includes(matchData.status) ? 'bg-red-500 text-white animate-pulse' :
-                            matchData.status === 'finished' ? 'bg-neonGreen/20 text-neonGreen' :
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${match.status === 'live' ? 'bg-red-500 text-white animate-pulse' :
+                            (match.status === 'completed' || match.status === 'finished') ? 'bg-neonGreen/20 text-neonGreen' :
                                 'bg-white/10 text-gray-400'
                             }`}>
                             {getStatusDisplay()}
@@ -142,46 +170,60 @@ export default function MatchPublicView() {
                     <div className="flex items-center justify-between mt-8">
                         {/* Home Team */}
                         <div className="flex flex-col items-center flex-1">
-                            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-blue-500/20 ring-4 ring-blue-500/10 flex items-center justify-center mb-4">
-                                <span className="text-2xl sm:text-3xl font-bold text-blue-400">{matchData.homeTeam.name.charAt(0)}</span>
+                            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-blue-500/20 ring-4 ring-blue-500/10 flex items-center justify-center mb-4 overflow-hidden">
+                                {match.homeTeam.logo ? (
+                                    <img src={match.homeTeam.logo} alt="" className="w-full h-full object-contain" />
+                                ) : (
+                                    <span className="text-2xl sm:text-3xl font-bold text-blue-400">{match.homeTeam.name?.charAt(0)}</span>
+                                )}
                             </div>
-                            <h2 className="text-lg sm:text-2xl font-display font-bold">{matchData.homeTeam.name}</h2>
-                            {/* Mobile only scorers list could go here if needed, but keeping cleaner for now */}
+                            <h2 className="text-lg sm:text-2xl font-display font-bold">{match.homeTeam.teamName || match.homeTeam.name}</h2>
+                            <p className="text-xs text-gray-500 mt-1">{match.homeTeam.name}</p>
                         </div>
 
                         {/* Score */}
                         <div className="px-4 sm:px-12">
                             <div className="text-4xl sm:text-7xl font-display font-bold tracking-tighter flex items-center gap-4">
-                                <span className={matchData.homeScore > matchData.awayScore ? 'text-neonGreen' : 'text-white'}>
-                                    {matchData.homeScore}
+                                <span className={match.homeScore > match.awayScore ? 'text-neonGreen' : 'text-white'}>
+                                    {match.homeScore}
                                 </span>
                                 <span className="text-white/20">:</span>
-                                <span className={matchData.awayScore > matchData.homeScore ? 'text-neonGreen' : 'text-white'}>
-                                    {matchData.awayScore}
+                                <span className={match.awayScore > match.homeScore ? 'text-neonGreen' : 'text-white'}>
+                                    {match.awayScore}
                                 </span>
                             </div>
+                            {match.homePenaltyScore !== null && match.awayPenaltyScore !== null && (
+                                <div className="text-sm text-gray-400 mt-2 font-mono">
+                                    Penalty: ({match.homePenaltyScore} - {match.awayPenaltyScore})
+                                </div>
+                            )}
                         </div>
 
                         {/* Away Team */}
                         <div className="flex flex-col items-center flex-1">
-                            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-red-500/20 ring-4 ring-red-500/10 flex items-center justify-center mb-4">
-                                <span className="text-2xl sm:text-3xl font-bold text-red-400">{matchData.awayTeam.name.charAt(0)}</span>
+                            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-red-500/20 ring-4 ring-red-500/10 flex items-center justify-center mb-4 overflow-hidden">
+                                {match.awayTeam.logo ? (
+                                    <img src={match.awayTeam.logo} alt="" className="w-full h-full object-contain" />
+                                ) : (
+                                    <span className="text-2xl sm:text-3xl font-bold text-red-400">{match.awayTeam.name?.charAt(0)}</span>
+                                )}
                             </div>
-                            <h2 className="text-lg sm:text-2xl font-display font-bold">{matchData.awayTeam.name}</h2>
+                            <h2 className="text-lg sm:text-2xl font-display font-bold">{match.awayTeam.teamName || match.awayTeam.name}</h2>
+                            <p className="text-xs text-gray-500 mt-1">{match.awayTeam.name}</p>
                         </div>
                     </div>
 
                     {/* Scorers Summary (Below Scoreboard) */}
                     <div className="mt-8 pt-6 border-t border-white/5 grid grid-cols-2 gap-8">
                         <div className="text-right space-y-1">
-                            {matchData.events.filter(e => e.type === 'goal' && e.team === 'home').map(e => (
+                            {match.events.filter(e => e.type === 'goal' && e.team === 'home').map(e => (
                                 <div key={e.id} className="text-sm text-gray-400 flex items-center justify-end gap-2">
                                     {e.player} <span className="text-neonGreen font-bold">{e.time}'</span> <Goal className="w-3 h-3 text-neonGreen" />
                                 </div>
                             ))}
                         </div>
                         <div className="text-left space-y-1">
-                            {matchData.events.filter(e => e.type === 'goal' && e.team === 'away').map(e => (
+                            {match.events.filter(e => e.type === 'goal' && e.team === 'away').map(e => (
                                 <div key={e.id} className="text-sm text-gray-400 flex items-center justify-start gap-2">
                                     <Goal className="w-3 h-3 text-neonGreen" /> <span className="text-neonGreen font-bold">{e.time}'</span> {e.player}
                                 </div>
@@ -228,21 +270,21 @@ export default function MatchPublicView() {
                             {/* TIMELINE TAB */}
                             {activeTab === 'timeline' && (
                                 <div className="p-6">
-                                    {matchData.events.length === 0 ? (
+                                    {match.events.length === 0 ? (
                                         <div className="text-center py-8 text-gray-500">Belum ada kejadian</div>
                                     ) : (
                                         <div className="relative border-l border-white/10 ml-4 space-y-6 py-2">
-                                            {matchData.events.map((event) => (
+                                            {match.events.map((event) => (
                                                 <div key={event.id} className="relative pl-6">
                                                     <div className={`absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ${event.team === 'home' ? 'bg-blue-500' : 'bg-red-500'}`}></div>
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-mono font-bold text-neonGreen">{event.time}'</span>
                                                         <span className="font-bold flex items-center gap-1">
                                                             {event.type === 'goal' && <Goal className="w-4 h-4 text-neonGreen" />}
-                                                            {event.type === 'card' && <div className="w-3 h-4 bg-yellow-500 rounded-sm"></div>}
+                                                            {event.type === 'card' && <div className={`w-3 h-4 rounded-sm ${event.detail.includes('Red') ? 'bg-red-500' : 'bg-yellow-500'}`}></div>}
                                                             {event.type.toUpperCase()}
                                                         </span>
-                                                        <span className="text-gray-400">- {event.player} {event.detail === 'Penalty' && '(P)'} ({event.team === 'home' ? matchData.homeTeam.name : matchData.awayTeam.name})</span>
+                                                        <span className="text-gray-400">- {event.player} {event.detail === 'Penalty' && '(P)'} ({event.team === 'home' ? match.homeTeam.teamName || match.homeTeam.name : match.awayTeam.teamName || match.awayTeam.name})</span>
                                                     </div>
                                                 </div>
                                             ))}
@@ -271,7 +313,7 @@ export default function MatchPublicView() {
                                                 <div className="h-full bg-red-500" style={{ width: '30%' }}></div>
                                             </div>
                                             <p className="text-xs text-gray-500 mt-2 italic">
-                                                "Berdasarkan sistem AI kami, Barcelona FC memiliki momentum serangan yang lebih baik dalam 15 menit terakhir."
+                                                "Sistem AI kami memprediksi pertandingan yang sengit berdasarkan statistik historis."
                                             </p>
                                         </div>
                                     </div>

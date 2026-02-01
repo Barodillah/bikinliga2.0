@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useMemo } from 'react'
+import { useAuth } from './AuthContext'
 
 /**
  * Ad Context for managing subscription state and ad visibility
@@ -19,22 +20,23 @@ const AdContext = createContext(null)
 const TIERS_WITH_ADS = ['free', 'basic']
 
 export function AdProvider({ children }) {
-    // TODO: Replace with actual user subscription data from database/API
-    const [subscriptionTier, setSubscriptionTier] = useState('free') // 'free' | 'basic' | 'premium'
+    const { subscription } = useAuth()
+    const subscriptionTier = subscription?.plan || 'free'
 
     // Calculate if ads should be shown based on subscription
+    // Only show ads for 'free' tier
     const showAds = useMemo(() => {
-        return TIERS_WITH_ADS.includes(subscriptionTier)
+        return subscriptionTier === 'free'
     }, [subscriptionTier])
 
     const value = useMemo(() => ({
         showAds,
         subscriptionTier,
-        setSubscriptionTier, // For testing/admin purposes
+        setSubscriptionTier: () => { }, // No-op as it's driven by auth now
 
         // Helper methods for future integration
-        isPremium: subscriptionTier === 'premium',
-        isBasic: subscriptionTier === 'basic',
+        isPremium: subscriptionTier !== 'free',
+        isBasic: false, // Deprecated koncept 'basic'
         isFree: subscriptionTier === 'free',
     }), [showAds, subscriptionTier])
 

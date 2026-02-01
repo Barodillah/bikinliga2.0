@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Calendar, Trophy, Users, Lock, ChevronRight, Share2, MapPin, Grid, List, Shield } from 'lucide-react'
 import Card, { CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import AdSlot from '../../components/ui/AdSlot'
+import { authFetch } from '../../utils/api' // Assuming authFetch is available globally or need to import
 
 // Mock Data
 const tournamentData = {
@@ -43,6 +44,74 @@ const topScorers = [
 export default function TournamentPublicView() {
     const { slug } = useParams()
     const [activeTab, setActiveTab] = useState('standings')
+    const [tournament, setTournament] = useState(null)
+    const [loading, setLoading] = useState(true)
+    const [standings, setStandings] = useState([])
+    const [matches, setMatches] = useState([])
+    const [topScorers, setTopScorers] = useState([])
+    const [error, setError] = useState(null)
+
+    useEffect(() => {
+        const fetchTournament = async () => {
+            try {
+                const response = await fetch(`/api/tournaments/${slug}`)
+                const data = await response.json()
+                if (data.success) {
+                    setTournament(data.data)
+                    // Set default tab based on type
+                    if (data.data.type === 'knockout') {
+                        setActiveTab('bracket')
+                    } else if (data.data.type === 'group' || data.data.type === 'group_knockout') {
+                        setActiveTab('standings')
+                    }
+                } else {
+                    setError(data.message)
+                }
+            } catch (err) {
+                setError('Gagal memuat data turnamen')
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchTournament()
+    }, [slug])
+
+    useEffect(() => {
+        if (!tournament) return
+
+        if (activeTab === 'standings' && standings.length === 0) {
+            fetch(`/api/tournaments/${slug}/standings`)
+                .then(res => res.json())
+                .then(data => { if (data.success) setStandings(data.data) })
+        }
+        if (activeTab === 'matches' && matches.length === 0) {
+            fetch(`/api/tournaments/${slug}/matches`)
+                .then(res => res.json())
+                .then(data => { if (data.success) setMatches(data.data) })
+        }
+        if (activeTab === 'topscore' && topScorers.length === 0) {
+            fetch(`/api/tournaments/${slug}/top-scorers`)
+                .then(res => res.json())
+                .then(data => { if (data.success) setTopScorers(data.data) })
+        }
+        if (activeTab === 'bracket' && matches.length === 0) {
+            fetch(`/api/tournaments/${slug}/matches`)
+                .then(res => res.json())
+                .then(data => { if (data.success) setMatches(data.data) })
+        }
+    }, [activeTab, tournament, slug])
+
+    if (loading) return <div className="min-h-screen flex items-center justify-center text-white">Loading...</div>
+    if (error) return <div className="min-h-screen flex items-center justify-center text-white">{error}</div>
+    if (!tournament) return <div className="min-h-screen flex items-center justify-center text-white">Turnamen tidak ditemukan</div>
+
+    const displayTabs = [
+        { id: 'standings', label: 'Klasemen', icon: List, hidden: tournament.type === 'knockout' },
+        { id: 'matches', label: 'Jadwal & Hasil', icon: Calendar },
+        { id: 'topscore', label: 'Top Score', icon: Users },
+        { id: 'bracket', label: 'Bracket', icon: Grid, hidden: tournament.type === 'league' },
+        { id: 'stats', label: 'Statistik', icon: Trophy, locked: true },
+    ].filter(t => !t.hidden)
 
     return (
         <div className="space-y-6 pb-20">
@@ -53,7 +122,7 @@ export default function TournamentPublicView() {
                 {/* Cover Image */}
                 <div className="h-64 sm:h-80 w-full overflow-hidden">
                     <img
-                        src={tournamentData.cover}
+                        src={tournament.cover || 'https://images.unsplash.com/photo-1522770179533-24471fcdba45?auto=format&fit=crop&q=80&w=1200'}
                         alt="Cover"
                         className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
                     />
@@ -63,24 +132,25 @@ export default function TournamentPublicView() {
                 <div className="absolute bottom-0 left-0 w-full p-4 sm:p-8 z-20 flex flex-col sm:flex-row items-start sm:items-end gap-6 justify-between">
                     <div className="flex flex-row items-center gap-4 sm:gap-6 w-full sm:w-auto">
                         <img
-                            src={tournamentData.logo}
+                            src={tournament.logo || 'https://media.api-sports.io/football/leagues/39.png'}
                             alt="Logo"
-                            className="w-16 h-16 sm:w-24 sm:h-24 bg-white/10 backdrop-blur-md rounded-2xl p-2 sm:p-3 border border-white/20 shadow-2xl flex-shrink-0"
+                            className="w-16 h-16 sm:w-24 sm:h-24 bg-white/10 backdrop-blur-md rounded-2xl p-2 sm:p-3 border border-white/20 shadow-2xl flex-shrink-0 object-contain"
                         />
                         <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2 mb-2">
-                                <span className="bg-neonGreen text-black text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                                    {tournamentData.status}
+                                <span className={`text-black text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider ${tournament.status === 'completed' ? 'bg-gray-400' : 'bg-neonGreen'
+                                    }`}>
+                                    {tournament.status}
                                 </span>
                                 <span className="text-gray-300 text-[10px] sm:text-xs flex items-center gap-1 truncate max-w-[200px] sm:max-w-none">
-                                    <MapPin className="w-3 h-3" /> {tournamentData.location}
+                                    <MapPin className="w-3 h-3" /> {tournament.location || 'Online'}
                                 </span>
                             </div>
                             <h1 className="text-2xl sm:text-4xl font-display font-bold text-white mb-1 shadow-black drop-shadow-lg leading-tight">
-                                {tournamentData.name}
+                                {tournament.name}
                             </h1>
                             <p className="text-gray-300 text-xs sm:text-sm flex items-center gap-2">
-                                Organized by <span className="text-neonGreen font-medium">{tournamentData.organizer}</span>
+                                Organized by <span className="text-neonGreen font-medium">{tournament.creator?.name || 'Organizer'}</span>
                             </p>
                         </div>
                     </div>
@@ -89,9 +159,9 @@ export default function TournamentPublicView() {
                         <Button className="flex-1 sm:flex-none bg-white text-black hover:bg-gray-200 text-xs py-2 h-9 sm:text-sm sm:h-10">
                             <Share2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" /> Share
                         </Button>
-                        <Link to="/register" className="flex-1 sm:flex-none">
+                        <Link to={`/join/${tournament.id}`} className="flex-1 sm:flex-none">
                             <Button className="w-full bg-neonGreen text-black hover:bg-neonGreen/80 text-xs py-2 h-9 sm:text-sm sm:h-10">
-                                Join League
+                                Join Tournament
                             </Button>
                         </Link>
                     </div>
@@ -103,13 +173,7 @@ export default function TournamentPublicView() {
 
             {/* Navigation Tabs */}
             <div className="flex overflow-x-auto pb-2 gap-2 scrollbar-hide">
-                {[
-                    { id: 'standings', label: 'Klasemen', icon: List },
-                    { id: 'matches', label: 'Jadwal & Hasil', icon: Calendar },
-                    { id: 'topscore', label: 'Top Score', icon: Users },
-                    { id: 'bracket', label: 'Bracket', icon: Grid },
-                    { id: 'stats', label: 'Statistik', icon: Trophy, locked: true },
-                ].map((tab) => (
+                {displayTabs.map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
@@ -142,38 +206,36 @@ export default function TournamentPublicView() {
                                                 <th className="p-4">Tim</th>
                                                 <th className="p-4 text-center">Main</th>
                                                 <th className="p-4 text-center">Poin</th>
-                                                <th className="p-4 text-center hidden sm:table-cell">Form</th>
+                                                <th className="p-4 text-center hidden sm:table-cell">Selisih Gol</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/5">
-                                            {standingsData.map((row) => (
-                                                <tr key={row.rank} className="hover:bg-white/5 transition">
-                                                    <td className="p-4 text-center font-bold text-gray-500">{row.rank}</td>
-                                                    <td className="p-4 font-bold flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs">
-                                                            {row.team.charAt(0)}
-                                                        </div>
-                                                        {row.team}
-                                                    </td>
-                                                    <td className="p-4 text-center text-gray-400">{row.p}</td>
-                                                    <td className="p-4 text-center font-bold text-neonGreen text-base">{row.pts}</td>
-                                                    <td className="p-4 hidden sm:table-cell text-center">
-                                                        <div className="flex gap-1 justify-center">
-                                                            {row.form.map((f, i) => (
-                                                                <span
-                                                                    key={i}
-                                                                    className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold ${f === 'W' ? 'bg-green-500/20 text-green-500' :
-                                                                        f === 'D' ? 'bg-gray-500/20 text-gray-400' :
-                                                                            'bg-red-500/20 text-red-500'
-                                                                        }`}
-                                                                >
-                                                                    {f}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {standings.length === 0 ? (
+                                                <tr><td colSpan="5" className="p-8 text-center text-gray-500">Belum ada data klasemen</td></tr>
+                                            ) : (
+                                                standings.map((row, index) => (
+                                                    <tr key={index} className="hover:bg-white/5 transition">
+                                                        <td className="p-4 text-center font-bold text-gray-500">{index + 1}</td>
+                                                        <td className="p-4 font-bold flex items-center gap-3">
+                                                            {row.team_logo ? (
+                                                                <img src={row.team_logo} alt="" className="w-8 h-8 rounded-full bg-gray-800 object-contain" />
+                                                            ) : (
+                                                                <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs">
+                                                                    {(row.team_name || row.participant_name || '?').charAt(0)}
+                                                                </div>
+                                                            )}
+                                                            {row.team_name || row.participant_name}
+                                                        </td>
+                                                        <td className="p-4 text-center text-gray-400">{row.played}</td>
+                                                        <td className="p-4 text-center font-bold text-neonGreen text-base">{row.points}</td>
+                                                        <td className="p-4 hidden sm:table-cell text-center">
+                                                            <span className={row.goal_difference > 0 ? 'text-green-500' : row.goal_difference < 0 ? 'text-red-500' : 'text-gray-400'}>
+                                                                {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
@@ -184,20 +246,28 @@ export default function TournamentPublicView() {
                     {/* MATCHES TAB */}
                     {activeTab === 'matches' && (
                         <div className="space-y-4">
-                            {recentMatches.map((match) => (
-                                <Link key={match.id} to={`/t/${slug}/match/${match.id}`}>
-                                    <Card className="hover:border-neonGreen/30 transition group cursor-pointer h-full">
-                                        <CardContent className="p-4 sm:p-6 flex items-center justify-between">
-                                            <div className="flex-1 text-right font-bold text-gray-300 sm:text-lg">{match.home}</div>
-                                            <div className="px-4 sm:px-8 flex flex-col items-center">
-                                                <span className="text-2xl sm:text-3xl font-display font-bold text-white group-hover:text-neonGreen transition">{match.score}</span>
-                                                <span className="text-xs text-gray-500 bg-white/10 px-2 py-0.5 rounded mt-1">{match.time}</span>
-                                            </div>
-                                            <div className="flex-1 text-left font-bold text-gray-300 sm:text-lg">{match.away}</div>
-                                        </CardContent>
-                                    </Card>
-                                </Link>
-                            ))}
+                            {matches.length === 0 ? (
+                                <div className="text-center py-12 text-gray-500">Belum ada jadwal pertandingan</div>
+                            ) : (
+                                matches.map((match) => (
+                                    <Link key={match.id} to={`/t/${slug}/match/${match.id}`}>
+                                        <Card className="hover:border-neonGreen/30 transition group cursor-pointer h-full">
+                                            <CardContent className="p-4 sm:p-6 flex items-center justify-between">
+                                                <div className="flex-1 text-right font-bold text-gray-300 sm:text-lg truncate">{match.home_team_name || match.home_player_name}</div>
+                                                <div className="px-4 sm:px-8 flex flex-col items-center min-w-[100px]">
+                                                    <span className="text-2xl sm:text-3xl font-display font-bold text-white group-hover:text-neonGreen transition">
+                                                        {match.status === 'completed' || match.status === 'finished' ? `${match.home_score} - ${match.away_score}` : 'VS'}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-500 bg-white/10 px-2 py-0.5 rounded mt-1 uppercase tracking-tighter">
+                                                        {match.status === 'completed' ? 'Full Time' : match.status === 'live' ? 'Live' : 'Scheduled'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex-1 text-left font-bold text-gray-300 sm:text-lg truncate">{match.away_team_name || match.away_player_name}</div>
+                                            </CardContent>
+                                        </Card>
+                                    </Link>
+                                ))
+                            )}
                         </div>
                     )}
 
@@ -206,27 +276,31 @@ export default function TournamentPublicView() {
                         <Card>
                             <CardContent className="p-0">
                                 <div className="space-y-1">
-                                    {topScorers.map((player, index) => (
-                                        <div key={index} className="flex items-center justify-between p-4 hover:bg-white/5 transition border-b border-white/5 last:border-0">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-500 text-black' :
-                                                    index === 1 ? 'bg-gray-400 text-black' :
-                                                        index === 2 ? 'bg-orange-700 text-white' :
-                                                            'bg-white/10 text-gray-400'
-                                                    }`}>
-                                                    {player.rank}
+                                    {topScorers.length === 0 ? (
+                                        <div className="p-8 text-center text-gray-500">Belum ada data top scorer</div>
+                                    ) : (
+                                        topScorers.map((player, index) => (
+                                            <div key={index} className="flex items-center justify-between p-4 hover:bg-white/5 transition border-b border-white/5 last:border-0">
+                                                <div className="flex items-center gap-4">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-500 text-black' :
+                                                        index === 1 ? 'bg-gray-400 text-black' :
+                                                            index === 2 ? 'bg-orange-700 text-white' :
+                                                                'bg-white/10 text-gray-400'
+                                                        }`}>
+                                                        {index + 1}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-white">{player.name}</div>
+                                                        <div className="text-xs text-gray-400">{player.team_name}</div>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <div className="font-bold text-white">{player.player}</div>
-                                                    <div className="text-xs text-gray-400">{player.team}</div>
+                                                <div className="text-right">
+                                                    <div className="text-xl font-bold text-neonGreen">{player.goals}</div>
+                                                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">Goals</div>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <div className="text-xl font-bold text-neonGreen">{player.goals}</div>
-                                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Goals</div>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        ))
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
@@ -285,11 +359,11 @@ export default function TournamentPublicView() {
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
                                     <div className="text-gray-500 text-xs uppercase">Format</div>
-                                    <div className="text-white font-medium">{tournamentData.type}</div>
+                                    <div className="text-white font-medium capitalize">{tournament.type?.replace('_', ' + ')}</div>
                                 </div>
                                 <div>
                                     <div className="text-gray-500 text-xs uppercase">Peserta</div>
-                                    <div className="text-white font-medium">{tournamentData.participants} Tim</div>
+                                    <div className="text-white font-medium">{tournament.players || 0} / {tournament.maxParticipants} Tim</div>
                                 </div>
                             </div>
                         </div>

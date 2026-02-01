@@ -5,20 +5,41 @@ import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import AdSlot from '../../components/ui/AdSlot'
+import { authFetch } from '../../utils/api'
 
 // Sample data
-const tournaments = [
-    { id: 1, name: 'Warkop Cup Season 5', type: 'Liga', players: 16, matches: 12, status: 'active', startDate: '2024-01-15', progress: 65 },
-    { id: 2, name: 'Ramadhan Cup 2024', type: 'Knockout', players: 32, matches: 31, status: 'completed', startDate: '2024-03-10', progress: 100 },
-    { id: 3, name: 'Sunday League', type: 'Group+KO', players: 8, matches: 4, status: 'active', startDate: '2024-02-01', progress: 35 },
-    { id: 4, name: 'Merdeka Tournament', type: 'Liga', players: 24, matches: 0, status: 'draft', startDate: '2024-08-17', progress: 0 },
-    { id: 5, name: 'Weekend Warriors', type: 'Liga', players: 12, matches: 22, status: 'completed', startDate: '2023-12-01', progress: 100 },
-]
+import { useToast } from '../../contexts/ToastContext'
 
 export default function TournamentList() {
+    const { error } = useToast()
     const [searchQuery, setSearchQuery] = useState('')
     const [viewMode, setViewMode] = useState('grid')
     const [filterStatus, setFilterStatus] = useState('all')
+    const [tournaments, setTournaments] = useState([])
+    const [loading, setLoading] = useState(true)
+
+    // Fetch tournaments
+    React.useEffect(() => {
+        const fetchTournaments = async () => {
+            try {
+                const response = await authFetch('/api/tournaments')
+                const data = await response.json()
+
+                if (data.success) {
+                    setTournaments(data.data)
+                } else {
+                    throw new Error(data.message)
+                }
+            } catch (err) {
+                console.error('Failed to fetch tournaments:', err)
+                error('Gagal memuat data turnamen')
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        fetchTournaments()
+    }, [])
 
     const filteredTournaments = tournaments.filter(t => {
         const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -100,14 +121,31 @@ export default function TournamentList() {
             <AdSlot variant="leaderboard" adId="tournament-list" />
 
             {/* Tournament Grid/List */}
-            {viewMode === 'grid' ? (
+            {loading ? (
+                <div className="flex justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neonGreen"></div>
+                </div>
+            ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredTournaments.map((tournament) => (
-                        <Link key={tournament.id} to={`/dashboard/tournaments/${tournament.id}`}>
+                        <Link key={tournament.id} to={`/dashboard/tournaments/${tournament.slug}`}>
                             <Card className="p-6 hover:border-neonGreen/30 transition-all group">
                                 <div className="flex items-start justify-between mb-4">
-                                    <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-neonGreen/20 to-neonPink/20 flex items-center justify-center group-hover:scale-110 transition">
-                                        <Trophy className="w-6 h-6 text-neonGreen" />
+                                    <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-neonGreen/20 to-neonPink/20 flex items-center justify-center group-hover:scale-110 transition overflow-hidden">
+                                        {tournament.logo ? (
+                                            <img
+                                                src={tournament.logo}
+                                                alt={tournament.name}
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                    e.target.parentElement.classList.add('flex', 'items-center', 'justify-center');
+                                                }}
+                                            />
+                                        ) : (
+                                            <Trophy className="w-6 h-6 text-neonGreen" />
+                                        )}
+                                        {tournament.logo && <Trophy className="w-6 h-6 text-neonGreen hidden" />}
                                     </div>
                                     <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(tournament.status)}`}>
                                         {getStatusLabel(tournament.status)}
@@ -143,12 +181,25 @@ export default function TournamentList() {
                         {filteredTournaments.map((tournament) => (
                             <Link
                                 key={tournament.id}
-                                to={`/dashboard/tournaments/${tournament.id}`}
+                                to={`/dashboard/tournaments/${tournament.slug}`}
                                 className="flex items-center justify-between p-4 hover:bg-white/5 transition"
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-neonGreen/20 to-neonPink/20 flex items-center justify-center">
-                                        <Trophy className="w-5 h-5 text-neonGreen" />
+                                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-neonGreen/20 to-neonPink/20 flex items-center justify-center overflow-hidden">
+                                        {tournament.logo ? (
+                                            <img
+                                                src={tournament.logo}
+                                                alt={tournament.name}
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                    e.target.parentElement.classList.add('flex', 'items-center', 'justify-center');
+                                                }}
+                                            />
+                                        ) : (
+                                            <Trophy className="w-5 h-5 text-neonGreen" />
+                                        )}
+                                        {tournament.logo && <Trophy className="w-5 h-5 text-neonGreen hidden" />}
                                     </div>
                                     <div>
                                         <div className="font-medium">{tournament.name}</div>
@@ -172,8 +223,8 @@ export default function TournamentList() {
                 </Card>
             )}
 
-            {filteredTournaments.length === 0 && (
-                <div className="text-center py-12">
+            {!loading && filteredTournaments.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
                     <Trophy className="w-16 h-16 mx-auto text-gray-600 mb-4" />
                     <h3 className="font-display font-bold text-xl mb-2">Tidak ada turnamen</h3>
                     <p className="text-gray-500 mb-6">Buat turnamen pertamamu dan mulai kompetisi!</p>

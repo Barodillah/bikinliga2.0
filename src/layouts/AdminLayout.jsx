@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
-import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
+import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
     LayoutDashboard, Users, MessageSquare,
     BarChart2, History, Menu, X,
     ChevronRight, Wallet, LogOut, ArrowLeft
 } from 'lucide-react'
 import ChatWidget from '../components/ChatWidget'
+import { useAuth } from '../contexts/AuthContext'
 
 const sidebarLinks = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard, exact: true },
@@ -19,6 +20,13 @@ const sidebarLinks = [
 export default function AdminLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const location = useLocation()
+    const navigate = useNavigate()
+    const { logout } = useAuth()
+
+    const handleLogout = async () => {
+        await logout()
+        navigate('/login')
+    }
 
     return (
         <div className="h-screen bg-gray-50 flex overflow-hidden">
@@ -64,13 +72,13 @@ export default function AdminLayout() {
                         <ArrowLeft className="w-5 h-5" />
                         Kembali ke App
                     </Link>
-                    <Link
-                        to="/"
-                        className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-red-500 transition"
+                    <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-red-500 transition"
                     >
                         <LogOut className="w-5 h-5" />
                         Keluar
-                    </Link>
+                    </button>
                 </div>
             </aside>
 
@@ -124,14 +132,13 @@ export default function AdminLayout() {
                         <ArrowLeft className="w-5 h-5" />
                         Kembali ke App
                     </Link>
-                    <Link
-                        to="/"
-                        onClick={() => setSidebarOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-red-500 transition"
+                    <button
+                        onClick={() => { setSidebarOpen(false); handleLogout(); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-red-500 transition"
                     >
                         <LogOut className="w-5 h-5" />
                         Keluar
-                    </Link>
+                    </button>
                 </div>
             </aside>
 

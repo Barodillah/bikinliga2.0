@@ -3,26 +3,26 @@ import { BarChart, Activity, ShieldAlert, Award, TrendingUp, Percent } from 'luc
 import Card, { CardContent, CardHeader } from '../ui/Card'
 import AdSlot from '../ui/AdSlot'
 
-// Mock Data
-const tournamentStats = {
-    totalGoals: 124,
-    goalsPerMatch: 2.8,
-    mostGoalsTeam: { name: 'Barcelona FC', count: 18 },
-    mostConcededTeam: { name: 'Bayern Munich', count: 16 }
-}
+export default function TournamentStatistics({ stats, loading }) {
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[40vh]">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neonGreen"></div>
+            </div>
+        )
+    }
 
-const teamStats = [
-    { id: 1, name: 'Barcelona FC', productivity: 2.25, topScorer: 'Lionel Messi', winRate: 62.5, chance: 45 },
-    { id: 2, name: 'Man City', productivity: 2.1, topScorer: 'Erling Haaland', winRate: 58.3, chance: 35 },
-    { id: 3, name: 'Real Madrid', productivity: 1.9, topScorer: 'Jude Bellingham', winRate: 50.0, chance: 30 },
-    { id: 4, name: 'Arsenal', productivity: 1.5, topScorer: 'Bukayo Saka', winRate: 37.5, chance: 15 },
-    { id: 5, name: 'Liverpool', productivity: 1.4, topScorer: 'Mo Salah', winRate: 37.5, chance: 12 },
-    { id: 6, name: 'PSG', productivity: 1.1, topScorer: 'Kylian Mbappe', winRate: 25.0, chance: 8 },
-    { id: 7, name: 'Bayern Munich', productivity: 0.9, topScorer: 'Harry Kane', winRate: 12.5, chance: 5 },
-    { id: 8, name: 'Chelsea', productivity: 1.25, topScorer: 'Cole Palmer', winRate: 25.0, chance: 5 },
-]
+    if (!stats || !stats.tournamentStats) {
+        return (
+            <div className="text-center py-12 text-gray-500">
+                <BarChart className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                <p>Belum ada statistik yang tersedia.</p>
+            </div>
+        )
+    }
 
-export default function TournamentStatistics() {
+    const { tournamentStats, teamStats } = stats
+
     return (
         <div className="space-y-6">
             {/* Tournament Stats Overview */}
@@ -50,7 +50,7 @@ export default function TournamentStatistics() {
                         <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center mb-2">
                             <Award className="w-5 h-5 text-yellow-400" />
                         </div>
-                        <div className="text-lg font-bold font-display">{tournamentStats.mostGoalsTeam.name}</div>
+                        <div className="text-lg font-bold font-display truncate w-full">{tournamentStats.mostGoalsTeam.name}</div>
                         <div className="text-xs text-gray-400">{tournamentStats.mostGoalsTeam.count} Goals</div>
                     </CardContent>
                 </Card>
@@ -59,7 +59,7 @@ export default function TournamentStatistics() {
                         <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center mb-2">
                             <ShieldAlert className="w-5 h-5 text-red-400" />
                         </div>
-                        <div className="text-lg font-bold font-display">{tournamentStats.mostConcededTeam.name}</div>
+                        <div className="text-lg font-bold font-display truncate w-full">{tournamentStats.mostConcededTeam.name}</div>
                         <div className="text-xs text-gray-400">{tournamentStats.mostConcededTeam.count} Conceded</div>
                     </CardContent>
                 </Card>
@@ -91,16 +91,16 @@ export default function TournamentStatistics() {
                                     <tr key={team.id} className="hover:bg-white/5 transition">
                                         <td className="p-4 font-medium">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold">
+                                                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold shrink-0">
                                                     {team.name.substring(0, 2).toUpperCase()}
                                                 </div>
-                                                {team.name}
+                                                <span className="truncate max-w-[150px]">{team.name}</span>
                                             </div>
                                         </td>
                                         <td className="p-4 text-center">
                                             <span className="font-bold text-neonGreen">{team.productivity}</span>
                                         </td>
-                                        <td className="p-4 text-sm text-gray-300">{team.topScorer}</td>
+                                        <td className="p-4 text-sm text-gray-300">{team.topScorer !== '-' ? team.topScorer : <span className="text-gray-600">-</span>}</td>
                                         <td className="p-4 text-center">
                                             <div className="inline-block px-2 py-1 rounded text-xs font-bold bg-blue-500/20 text-blue-400">
                                                 {team.winRate}%

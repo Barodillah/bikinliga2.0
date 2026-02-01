@@ -1,16 +1,17 @@
 import React, { useState } from 'react'
-import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
+import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
     Trophy, LayoutDashboard, List, Plus, Users, Tv,
     Calendar, BarChart2, Settings, LogOut, Menu, X,
     ChevronRight, Wallet, Shield, FileText, Globe, Bell,
-    User, Key
+    User, Key, Crown, Star
 } from 'lucide-react'
 import ChatWidget from '../components/ChatWidget'
+import { useAuth } from '../contexts/AuthContext'
 
 const sidebarLinks = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, exact: true },
-    { name: 'Turnamen Saya', href: '/dashboard/tournaments', icon: List },
+    { name: 'Turnamen Saya', href: '/dashboard/tournaments', icon: List, exclude: ['/dashboard/tournaments/new'] },
     { name: 'Buat Turnamen', href: '/dashboard/tournaments/new', icon: Plus },
     { name: 'Kompetisi', href: '/dashboard/competitions', icon: Globe },
     { name: 'Stream', href: '/dashboard/stream', icon: Tv },
@@ -24,6 +25,57 @@ export default function DashboardLayout() {
     const [notificationsOpen, setNotificationsOpen] = useState(false)
     const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
     const location = useLocation()
+    const navigate = useNavigate()
+    const { logout, user, wallet, subscription } = useAuth()
+
+    const [activeSidebarOverride, setActiveSidebarOverride] = useState(null)
+
+    const handleLogout = async () => {
+        await logout()
+        navigate('/login')
+    }
+
+    // Get subscription tier styling
+    // Get subscription tier styling
+    const getSubscriptionStyle = (plan) => {
+        switch (plan?.toLowerCase()) {
+            case 'pro_league':
+                return {
+                    bg: 'bg-purple-500/20',
+                    text: 'text-purple-400',
+                    border: 'border-purple-500/50',
+                    name: 'Pro League',
+                    Icon: Crown,
+                    gradient: 'from-purple-600/20 via-pink-500/20 to-purple-600/20',
+                    cardBorder: 'border-purple-500/30',
+                    buttonGradient: 'from-purple-500 to-pink-500'
+                }
+            case 'captain':
+                return {
+                    bg: 'bg-yellow-500/20',
+                    text: 'text-yellow-400',
+                    border: 'border-yellow-500/50',
+                    name: 'Captain',
+                    Icon: Star,
+                    gradient: 'from-yellow-500/20 via-amber-500/20 to-yellow-500/20',
+                    cardBorder: 'border-yellow-500/30',
+                    buttonGradient: 'from-yellow-500 to-amber-500'
+                }
+            default:
+                return {
+                    bg: 'bg-neonGreen/20',
+                    text: 'text-neonGreen',
+                    border: 'border-neonGreen/50',
+                    name: 'Free',
+                    Icon: Shield,
+                    gradient: 'from-white/5 to-white/10',
+                    cardBorder: 'border-white/10',
+                    buttonGradient: 'from-neonGreen to-neonPink'
+                }
+        }
+    }
+
+    const subStyle = getSubscriptionStyle(subscription?.plan)
 
     // Mock notifications
     const notifications = [
@@ -50,7 +102,15 @@ export default function DashboardLayout() {
         }
     ]
 
-    const isActive = (href, exact = false) => {
+    const isActive = (href, exact = false, exclude = []) => {
+        if (activeSidebarOverride) {
+            return activeSidebarOverride === href
+        }
+        if (exclude && exclude.length > 0) {
+            if (exclude.some(path => location.pathname.startsWith(path))) {
+                return false
+            }
+        }
         if (exact) return location.pathname === href
         return location.pathname.startsWith(href)
     }
@@ -74,9 +134,8 @@ export default function DashboardLayout() {
                             key={link.href}
                             to={link.href}
                             end={link.exact}
-                            className={({ isActive }) => {
-                                const isOverridden = link.href === '/dashboard/tournaments' && location.pathname === '/dashboard/tournaments/new'
-                                const active = isActive && !isOverridden
+                            className={() => {
+                                const active = isActive(link.href, link.exact, link.exclude)
                                 return `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${active
                                     ? 'bg-neonGreen/10 text-neonGreen border-l-2 border-neonGreen'
                                     : 'text-gray-400 hover:bg-white/5 hover:text-white'
@@ -93,34 +152,43 @@ export default function DashboardLayout() {
                 <div className="flex-shrink-0">
                     {/* Subscription Card */}
                     <div className="p-4 border-t border-white/10">
-                        <div className="bg-gradient-to-br from-white/5 to-white/10 rounded-xl p-4 border border-white/10">
-                            <div className="flex items-center justify-between mb-3">
+                        <div className={`bg-gradient-to-br ${subStyle.gradient} rounded-xl p-4 border ${subStyle.cardBorder} relative overflow-hidden`}>
+                            {/* Decorative glow for premium tiers */}
+                            {subscription?.plan !== 'free' && (
+                                <div className={`absolute -top-10 -right-10 w-24 h-24 ${subStyle.bg} rounded-full blur-2xl opacity-50`}></div>
+                            )}
+                            <div className="relative flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
                                     <img src="/coin.png" alt="Coin" className="w-5 h-5" />
-                                    <span className="font-display font-bold text-lg text-yellow-400">1,250</span>
+                                    <span className="font-display font-bold text-lg text-yellow-400">
+                                        {Math.floor(wallet?.balance || 0).toLocaleString()}
+                                    </span>
                                 </div>
-                                <span className="text-xs px-2 py-1 rounded-full bg-neonGreen/20 text-neonGreen font-medium">
-                                    Free
+                                <span className={`text-xs px-2 py-1 rounded-full font-medium ${subStyle.bg} ${subStyle.text} flex items-center gap-1`}>
+                                    <subStyle.Icon className="w-3 h-3" />
+                                    {subStyle.name}
                                 </span>
                             </div>
                             <Link
-                                to="/dashboard/upgrade"
-                                className="block w-full text-center py-2 rounded-lg bg-gradient-to-r from-neonGreen to-neonPink text-black text-sm font-bold hover:opacity-90 transition"
+                                to="/dashboard/topup"
+                                className={`relative block w-full text-center py-2 rounded-lg bg-gradient-to-r ${subStyle.buttonGradient} text-black text-sm font-bold hover:opacity-90 transition`}
                             >
-                                Upgrade
+                                {subscription?.plan === 'free' ? 'Upgrade' : 'Top Up'}
                             </Link>
                         </div>
                     </div>
 
                     {/* Bottom Actions */}
                     <div className="p-4 border-t border-white/10 space-y-2">
-                        <Link
-                            to="/admin"
-                            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white transition"
-                        >
-                            <Shield className="w-5 h-5" />
-                            Admin Panel
-                        </Link>
+                        {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                            <Link
+                                to="/admin"
+                                className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white transition"
+                            >
+                                <Shield className="w-5 h-5" />
+                                Admin Panel
+                            </Link>
+                        )}
                         <Link
                             to="/dashboard/settings"
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${location.pathname === '/dashboard/settings'
@@ -131,13 +199,13 @@ export default function DashboardLayout() {
                             <Settings className="w-5 h-5" />
                             Pengaturan
                         </Link>
-                        <Link
-                            to="/"
-                            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-red-400 transition"
+                        <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-red-400 transition"
                         >
                             <LogOut className="w-5 h-5" />
                             Keluar
-                        </Link>
+                        </button>
                     </div>
                 </div>
             </aside>
@@ -173,9 +241,8 @@ export default function DashboardLayout() {
                             to={link.href}
                             end={link.exact}
                             onClick={() => setSidebarOpen(false)}
-                            className={({ isActive }) => {
-                                const isOverridden = link.href === '/dashboard/tournaments' && location.pathname === '/dashboard/tournaments/new'
-                                const active = isActive && !isOverridden
+                            className={() => {
+                                const active = isActive(link.href, link.exact, link.exclude)
                                 return `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${active
                                     ? 'bg-neonGreen/10 text-neonGreen border-l-2 border-neonGreen'
                                     : 'text-gray-400 hover:bg-white/5 hover:text-white'
@@ -210,14 +277,13 @@ export default function DashboardLayout() {
                             <Settings className="w-5 h-5" />
                             Pengaturan
                         </Link>
-                        <Link
-                            to="/"
-                            onClick={() => setSidebarOpen(false)}
-                            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-red-400 transition"
+                        <button
+                            onClick={() => { setSidebarOpen(false); handleLogout(); }}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-red-400 transition"
                         >
                             <LogOut className="w-5 h-5" />
                             Keluar
-                        </Link>
+                        </button>
                     </div>
                 </div>
             </aside>
@@ -255,7 +321,9 @@ export default function DashboardLayout() {
                             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 transition"
                         >
                             <img src="/coin.png" alt="Coin" className="w-5 h-5" />
-                            <span className="font-display font-bold text-yellow-400">1,250</span>
+                            <span className="font-display font-bold text-yellow-400">
+                                {Math.floor(wallet?.balance || 0).toLocaleString()}
+                            </span>
                         </Link>
 
                         {/* Notification Bell */}
@@ -320,12 +388,20 @@ export default function DashboardLayout() {
                                 className="flex items-center gap-3 hover:bg-white/5 p-1 rounded-lg transition"
                             >
                                 <div className="text-right hidden sm:block">
-                                    <div className="text-sm font-medium">Admin User</div>
-                                    <div className="text-xs text-gray-500">admin@bikinliga.com</div>
+                                    <div className="text-sm font-medium">{user?.name || 'User'}</div>
+                                    <div className="text-xs text-gray-500">{user?.email}</div>
                                 </div>
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neonGreen to-neonPink flex items-center justify-center text-black font-bold">
-                                    A
-                                </div>
+                                {user?.avatar_url ? (
+                                    <img
+                                        src={user.avatar_url}
+                                        alt={user.name}
+                                        className="w-10 h-10 rounded-full object-cover border-2 border-neonGreen"
+                                    />
+                                ) : (
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neonGreen to-neonPink flex items-center justify-center text-black font-bold">
+                                        {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                    </div>
+                                )}
                             </button>
 
                             {/* Profile Dropdown */}
@@ -339,12 +415,20 @@ export default function DashboardLayout() {
                                         <div className="w-[90vw] max-w-sm bg-cardBg border border-white/10 rounded-xl shadow-xl overflow-hidden pointer-events-auto md:absolute md:top-full md:right-0 md:w-56 md:mt-2">
                                             {/* Mobile User Info Header */}
                                             <div className="p-4 border-b border-white/10 flex items-center gap-3 md:hidden bg-white/5">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neonGreen to-neonPink flex items-center justify-center text-black font-bold">
-                                                    A
-                                                </div>
+                                                {user?.avatar_url ? (
+                                                    <img
+                                                        src={user.avatar_url}
+                                                        alt={user.name}
+                                                        className="w-10 h-10 rounded-full object-cover border-2 border-neonGreen"
+                                                    />
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-neonGreen to-neonPink flex items-center justify-center text-black font-bold">
+                                                        {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                                    </div>
+                                                )}
                                                 <div>
-                                                    <div className="text-sm font-medium text-white">Admin User</div>
-                                                    <div className="text-xs text-gray-400">admin@bikinliga.com</div>
+                                                    <div className="text-sm font-medium text-white">{user?.name || 'User'}</div>
+                                                    <div className="text-xs text-gray-400">{user?.email}</div>
                                                 </div>
                                             </div>
 
@@ -368,7 +452,7 @@ export default function DashboardLayout() {
                                                 <div className="h-px bg-white/10 my-1"></div>
                                                 <button
                                                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-white/5 transition"
-                                                    onClick={() => setProfileDropdownOpen(false)}
+                                                    onClick={() => { setProfileDropdownOpen(false); handleLogout(); }}
                                                 >
                                                     <LogOut className="w-4 h-4" />
                                                     Log Out
@@ -384,7 +468,7 @@ export default function DashboardLayout() {
 
                 {/* Page Content */}
                 <main className="flex-1 p-4 lg:p-8 overflow-y-auto overflow-x-hidden">
-                    <Outlet />
+                    <Outlet context={{ setActiveSidebarOverride }} />
                 </main>
 
                 {/* AI Chat Widget */}

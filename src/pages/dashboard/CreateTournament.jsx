@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react'
+﻿import React, { useState, useEffect, useRef } from 'react'
+import { authFetch } from '../../utils/api'
 import { useNavigate } from 'react-router-dom'
 import { Trophy, Users, Calendar, ArrowLeft, ArrowRight, Check, Image, Upload, Link, Loader2, Sparkles, Pencil, X } from 'lucide-react'
 import Card, { CardContent } from '../../components/ui/Card'
@@ -11,7 +12,7 @@ import AdSlot, { AdSlotWrapper } from '../../components/ui/AdSlot'
 const tournamentTypes = [
     { value: 'league', label: 'Liga (Round Robin)', desc: 'Semua tim bermain melawan satu sama lain' },
     { value: 'knockout', label: 'Knockout (Gugur)', desc: 'Kalah berarti tersingkir langsung' },
-    { value: 'group', label: 'Group Stage + Knockout', desc: 'Babak grup lalu babak gugur' },
+    { value: 'group_knockout', label: 'Group Stage + Knockout', desc: 'Babak grup lalu babak gugur' },
 ]
 
 const pointSystems = [
@@ -75,7 +76,7 @@ export default function CreateTournament() {
             setLoadingLogos(true)
             try {
                 // Use local proxy to avoid CORS issues
-                const response = await fetch("/api/leagues")
+                const response = await authFetch("/api/leagues")
                 const data = await response.json()
 
                 if (data?.response) {
@@ -147,16 +148,67 @@ export default function CreateTournament() {
         setFormData(prev => ({ ...prev, logo: url, logoType: 'url' }))
     }
 
-    const handleChange = (field, value) => {
-        setFormData(prev => ({ ...prev, [field]: value }))
+    // Validation for steps
+    const isStepValid = () => {
+        if (step === 1) {
+            // Step 1: Name and Logo required
+            // Note: User said "semua wajib diisi kecuali deskripsi"
+            // For logo, we check if logo string is not empty
+            return formData.name.trim() !== '' && formData.logo !== ''
+        }
+        if (step === 2) {
+            // Step 2: Player count validation
+            if (formData.type === 'league') {
+                return formData.playerCount >= 3
+            }
+            return formData.playerCount > 1 // Simplest check for other types
+        }
+        return true
     }
 
-    const handleSubmit = (e) => {
+    const handleChange = (field, value) => {
+        let finalValue = value;
+        if (field === 'name') {
+            // Capitalize first letter of every word
+            finalValue = value.replace(/\b\w/g, (char) => char.toUpperCase());
+        }
+
+        setFormData(prev => {
+            const newState = { ...prev, [field]: finalValue };
+
+            // If user selects Knockout, default to Single Match (homeAway = false)
+            if (field === 'type' && finalValue === 'knockout') {
+                newState.homeAway = false;
+            }
+
+            return newState;
+        })
+    }
+
+    const handleSubmit = async (e) => {
         e.preventDefault()
-        // In real app, would call API here
-        console.log('Creating tournament:', formData)
-        success('Turnamen berhasil dibuat!')
-        navigate('/dashboard/tournaments')
+
+        try {
+            const response = await authFetch('/api/tournaments', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+
+            const data = await response.json()
+
+            if (!data.success) {
+                throw new Error(data.message)
+            }
+
+            success('Turnamen berhasil dibuat!')
+            navigate('/dashboard/tournaments')
+        } catch (err) {
+            console.error('Failed to create tournament:', err)
+            error(err.message || 'Gagal membuat turnamen')
+        }
     }
 
     return (
@@ -401,7 +453,12 @@ export default function CreateTournament() {
                         </div>
 
                         <div className="flex justify-end mt-8">
-                            <Button type="button" onClick={() => setStep(2)} icon={ArrowRight}>
+                            <Button
+                                type="button"
+                                onClick={() => setStep(2)}
+                                icon={ArrowRight}
+                                disabled={!isStepValid()}
+                            >
                                 Lanjut
                             </Button>
                         </div>
@@ -431,15 +488,19 @@ export default function CreateTournament() {
                                                 <h4 className="text-blue-400 font-medium mb-1">Liga (Round Robin)</h4>
                                                 <p className="text-sm text-gray-400">
                                                     Tidak ada batasan kaku jumlah peserta. Liga akan berjalan sesuai jumlah tim yang mendaftar.
+                                                    ```
                                                     <span className="block mt-1 text-white/80">Minimal 3 tim diperlukan.</span>
                                                 </p>
                                             </div>
                                         </div>
                                         <Input
-                                            type="number"
-                                            min="3"
+                                            type="text"
+                                            inputMode="numeric"
                                             value={formData.playerCount}
-                                            onChange={(e) => handleChange('playerCount', parseInt(e.target.value) || 0)}
+                                            onChange={(e) => {
+                                                const val = e.target.value.replace(/[^0-9]/g, '');
+                                                handleChange('playerCount', val ? parseInt(val) : 0);
+                                            }}
                                             placeholder="Masukkan jumlah tim..."
                                             label="Estimasi Jumlah Tim"
                                         />
@@ -466,7 +527,7 @@ export default function CreateTournament() {
                                 )}
 
                                 {/* GROUP STAGE Logic */}
-                                {formData.type === 'group' && (
+                                {formData.type === 'group_knockout' && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         {[
                                             { total: 6, label: '6 Tim', sub: '2 Grup @ 3 Tim' },
@@ -497,12 +558,14 @@ export default function CreateTournament() {
                                 )}
                             </div>
 
-                            <Select
-                                label="Sistem Poin"
-                                options={pointSystems}
-                                value={formData.pointSystem}
-                                onChange={(e) => handleChange('pointSystem', e.target.value)}
-                            />
+                            {formData.type !== 'knockout' && (
+                                <Select
+                                    label="Sistem Poin"
+                                    options={pointSystems}
+                                    value={formData.pointSystem}
+                                    onChange={(e) => handleChange('pointSystem', e.target.value)}
+                                />
+                            )}
 
                             <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
                                 <div>
@@ -571,6 +634,7 @@ export default function CreateTournament() {
                                     setStep(3)
                                 }}
                                 icon={ArrowRight}
+                                disabled={!isStepValid()}
                             >
                                 Lanjut
                             </Button>

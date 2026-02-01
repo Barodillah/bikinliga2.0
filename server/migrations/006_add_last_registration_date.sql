@@ -1,0 +1,2 @@
+-- ALTER TABLE tournaments
+-- ADD COLUMN last_registration_date DATE AFTER end_date;

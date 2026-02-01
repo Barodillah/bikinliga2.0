@@ -24,7 +24,7 @@ export default function Button({
 }) {
     return (
         <button
-            className={`${variants[variant]} ${sizes[size]} ${rounded} flex items-center justify-center gap-2 ${className}`}
+            className={`${variants[variant]} ${sizes[size]} ${rounded} flex items-center justify-center gap-2 ${className} ${props.disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
             {...props}
         >
             {Icon && <Icon className="w-5 h-5" />}

@@ -1,102 +1,71 @@
-import React from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { Trophy, Medal, Star, TrendingUp, Shield, Gamepad2, Calendar, Swords, ArrowLeft, Twitch, Instagram, Twitter } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { Trophy, Medal, Star, Shield, Gamepad2, Calendar, Swords, ArrowLeft, Twitch, Instagram, Twitter, MessageCircle, AlertCircle, Loader2 } from 'lucide-react'
 import AdSlot from '../../components/ui/AdSlot'
-
-// Mock Data (Shared with Ranking for consistency)
-const MOCK_USERS = [
-    {
-        id: 1,
-        name: 'Budi Santoso',
-        username: '@budigaming',
-        team: 'RRQ Hoshi',
-        points: 2450,
-        totalTournaments: 15,
-        winRate: '75%',
-        avatar: 'https://ui-avatars.com/api/?name=Budi+Santoso&background=random&size=150',
-        role: 'Jungler',
-        recentMatches: ['Win', 'Win', 'Lose', 'Win', 'Win'],
-        joinDate: 'January 2024',
-        bio: 'Professional Mobile Legends Player for RRQ Hoshi. Focus on Jungler role. #VivaRRQ',
-        socials: {
-            twitch: 'budigaming',
-            instagram: 'budigaming.official',
-            twitter: 'budigaming'
-        }
-    },
-    {
-        id: 2,
-        name: 'Sarah Wijaya',
-        username: '@sarahpros',
-        team: 'EVOS Legends',
-        points: 2300,
-        totalTournaments: 14,
-        winRate: '70%',
-        avatar: 'https://ui-avatars.com/api/?name=Sarah+Wijaya&background=random&size=150',
-        role: 'Roamer',
-        recentMatches: ['Win', 'Lose', 'Win', 'Win', 'Lose'],
-        joinDate: 'February 2024',
-        bio: 'Support main. Always ready to heal!',
-        socials: {
-            instagram: 'sarahpros'
-        }
-    },
-    {
-        id: 3,
-        name: 'Reza Arap',
-        username: '@ybrap',
-        team: 'Morph Team',
-        points: 2150,
-        totalTournaments: 12,
-        winRate: '68%',
-        avatar: 'https://ui-avatars.com/api/?name=Reza+Arap&background=random&size=150',
-        role: 'Gold Laner',
-        recentMatches: ['Lose', 'Win', 'Win', 'Lose', 'Win'],
-        joinDate: 'March 2024',
-        bio: 'Gamer ganteng idaman.',
-        socials: {
-            youtube: 'yb'
-        }
-    },
-    {
-        id: 99,
-        name: 'Admin User',
-        username: '@admin',
-        team: 'Admin Team',
-        points: 9999,
-        totalTournaments: 0,
-        winRate: '100%',
-        avatar: 'https://ui-avatars.com/api/?name=Admin+User&background=random&size=150',
-        role: 'Administrator',
-        recentMatches: [],
-        joinDate: 'January 2024',
-        bio: 'The one who runs the show.',
-        socials: {
-            twitter: 'bikinliga_admin'
-        }
-    }
-    // Generic fallback for others
-]
+import { authFetch } from '../../utils/api'
+import Button from '../../components/ui/Button'
+import UserBadge from '../../components/ui/UserBadge'
 
 export default function Profile() {
-    const { username } = useParams() // Get username from URL
+    const { username } = useParams()
     const navigate = useNavigate()
 
-    // Find user based on username (remove @ for comparison if needed)
-    const user = MOCK_USERS.find(u => u.username.replace('@', '') === username) || {
-        // Fallback user if not found in top lists
-        name: 'Unknown Player',
-        username: `@${username}`,
-        team: 'Free Agent',
-        points: 0,
-        totalTournaments: 0,
-        winRate: '0%',
-        avatar: `https://ui-avatars.com/api/?name=${username}&background=random`,
-        role: 'Unknown',
-        recentMatches: [],
-        joinDate: 'Unknown',
-        bio: 'This player has not set up their bio yet.',
-        socials: {}
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(null)
+    const [user, setUser] = useState(null)
+
+    useEffect(() => {
+        const fetchProfile = async () => {
+            setLoading(true)
+            setError(null)
+            try {
+                // If username starts with @, strip it
+                const searchUsername = username.startsWith('@') ? username : username;
+
+                const response = await authFetch(`/api/user/public/${searchUsername}`)
+                const data = await response.json()
+
+                if (!data.success) {
+                    throw new Error(data.message || 'User not found')
+                }
+
+                setUser(data.data)
+            } catch (err) {
+                console.error('Fetch profile error:', err)
+                setError(err.message)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        if (username) {
+            fetchProfile()
+        }
+    }, [username])
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <Loader2 className="w-8 h-8 animate-spin text-neonGreen" />
+            </div>
+        )
+    }
+
+    if (error || !user) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
+                    <AlertCircle className="w-8 h-8 text-red-500" />
+                </div>
+                <h2 className="text-xl font-bold text-white">Profil Tidak Ditemukan</h2>
+                <p className="text-gray-400 max-w-md">
+                    Pengguna dengan username <span className="text-white font-mono">{username}</span> tidak ditemukan atau tidak tersedia.
+                </p>
+                <Button onClick={() => navigate(-1)} icon={ArrowLeft}>
+                    Kembali
+                </Button>
+            </div>
+        )
     }
 
     return (
@@ -107,7 +76,7 @@ export default function Profile() {
                 className="flex items-center gap-2 text-gray-400 hover:text-white transition group"
             >
                 <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                Back to Ranking
+                Back
             </button>
 
             {/* Profile Header Card */}
@@ -117,9 +86,9 @@ export default function Profile() {
 
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6 relative z-10">
                     <img
-                        src={user.avatar}
+                        src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=random&size=150`}
                         alt={user.name}
-                        className="w-32 h-32 rounded-full border-4 border-white/10 shadow-xl"
+                        className="w-32 h-32 rounded-full border-4 border-white/10 shadow-xl object-cover"
                     />
 
                     <div className="flex-1 text-center md:text-left space-y-2">
@@ -129,14 +98,23 @@ export default function Profile() {
                         </div>
 
                         <div className="flex flex-wrap justify-center md:justify-start gap-3 text-sm text-gray-400">
+
+                            {/* User Tier Badge (if any) */}
+                            <UserBadge tier={user.tier} showLabel={true} />
+
                             <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
                                 <Shield className="w-4 h-4" />
                                 {user.team}
                             </span>
-                            <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
-                                <Gamepad2 className="w-4 h-4" />
-                                {user.role || 'Flex'}
-                            </span>
+
+                            {/* Default Role Badge (Only if no tier) */}
+                            {(!user.tier || user.tier === 'free') && (
+                                <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
+                                    <Gamepad2 className="w-4 h-4" />
+                                    {user.role || 'Player'}
+                                </span>
+                            )}
+
                             <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
                                 <Calendar className="w-4 h-4" />
                                 Joined {user.joinDate}
@@ -200,29 +178,43 @@ export default function Profile() {
                             Recent Matches
                         </h3>
                         <div className="space-y-3">
-                            {(user.recentMatches?.length > 0 ? user.recentMatches : ['Win', 'Lose', 'Win']).map((result, i) => (
-                                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition border border-white/5">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-2 h-10 rounded-full ${result === 'Win' ? 'bg-green-500' : 'bg-red-500'}`} />
-                                        <div>
-                                            <div className="text-white font-medium">Ranked Match</div>
-                                            <div className="text-xs text-gray-500">2 hours ago</div>
+                            {user.recentMatchesDetails?.length > 0 ? (
+                                user.recentMatchesDetails.map((match, i) => (
+                                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition border border-white/5">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-2 h-10 rounded-full ${match.result === 'Win' ? 'bg-green-500' :
+                                                match.result === 'Draw' ? 'bg-yellow-500' : 'bg-red-500'
+                                                }`} />
+                                            <div>
+                                                <div className="text-white font-medium">vs {match.opponent}</div>
+                                                <div className="text-xs text-gray-500">{new Date(match.date).toLocaleDateString()}</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${match.result === 'Win'
+                                                ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                                                : match.result === 'Draw'
+                                                    ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                                                    : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                                }`}>
+                                                {match.result.toUpperCase()}
+                                            </span>
+                                            <span className="text-xs font-mono text-gray-400">{match.score}</span>
                                         </div>
                                     </div>
-                                    <span className={`px-2 py-1 rounded text-xs font-bold ${result === 'Win'
-                                        ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                                        : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                        }`}>
-                                        {result.toUpperCase()}
-                                    </span>
+                                ))
+                            ) : (
+                                <div className="text-center py-8 text-gray-500 bg-white/5 rounded-lg border border-dashed border-white/10">
+                                    Belum ada pertandingan yang dimainkan.
                                 </div>
-                            ))}
+                            )}
                         </div>
                     </div>
                 </div>
 
                 {/* Sidebar */}
                 <div className="space-y-6">
+                    {/* Achievements (Mock) */}
                     <div className="bg-cardBg border border-white/10 rounded-xl p-6">
                         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                             <Trophy className="w-5 h-5 text-yellow-500" />
@@ -237,7 +229,47 @@ export default function Profile() {
                         </div>
                     </div>
 
+                    {/* Joined Tournaments */}
+                    <div className="bg-cardBg border border-white/10 rounded-xl p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                <Trophy className="w-5 h-5 text-neonPink" />
+                                Kompetisi
+                            </h3>
+                            <span className="bg-white/10 text-white text-xs px-2 py-1 rounded-full">
+                                {user.totalTournaments} Joined
+                            </span>
+                        </div>
 
+                        <div className="space-y-3">
+                            {user.joinedTournaments?.length > 0 ? (
+                                user.joinedTournaments.map((t) => (
+                                    <Link
+                                        key={t.id}
+                                        to={`/t/${t.slug}`}
+                                        className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition border border-white/5 group"
+                                    >
+                                        <img
+                                            src={t.logo_url}
+                                            alt={t.name}
+                                            className="w-10 h-10 rounded object-contain bg-black/20 p-1"
+                                            onError={(e) => {
+                                                e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🏆</text></svg>'
+                                            }}
+                                        />
+                                        <div className="overflow-hidden">
+                                            <div className="text-sm font-medium text-white truncate group-hover:text-neonGreen transition">{t.name}</div>
+                                            <div className="text-xs text-gray-500 capitalize">{t.type?.replace('_', ' ')}</div>
+                                        </div>
+                                    </Link>
+                                ))
+                            ) : (
+                                <div className="text-sm text-gray-500 text-center py-4">
+                                    Belum mengikuti turnamen apapun.
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

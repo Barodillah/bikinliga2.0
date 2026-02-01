@@ -16,6 +16,12 @@ export default defineConfig({
             proxyReq.setHeader('x-apisports-key', 'ba7f9e9f4e2895c61a3e211ce5d7897a')
           })
         }
+      },
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: 'localhost'
       }
     }
   }

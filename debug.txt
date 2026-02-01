@@ -1,0 +1,282 @@
+2026-01-25T11:53:15.871Z - [Progression] Draw detected. MatchId:eda1cb2d-3dfc-447e-a1c1-e7d2c5ac34c9. H:0 A:0
+2026-01-25T11:53:15.872Z - [Progression] Winner via penalty: null
+2026-01-25T12:05:38.484Z - [Progression] Draw detected. MatchId:018a33f3-17a5-4351-b62d-4e935a00c293. H:0 A:0
+2026-01-25T12:05:38.485Z - [Progression] Winner via penalty: null
+2026-01-25T12:10:44.652Z - [Progression] Draw detected. MatchId:eda1cb2d-3dfc-447e-a1c1-e7d2c5ac34c9. H:0 A:0
+2026-01-25T12:10:44.653Z - [Progression] Winner via penalty: null
+2026-01-25T12:11:19.079Z - [Progression] Draw detected. MatchId:eda1cb2d-3dfc-447e-a1c1-e7d2c5ac34c9. H:3 A:1
+2026-01-25T12:11:19.080Z - [Progression] Winner via penalty: 19aeb5d0-68f8-4d2c-b5f9-72dae78fcde3
+2026-01-25T12:33:47.316Z - [Progression] Draw detected. MatchId:018a33f3-17a5-4351-b62d-4e935a00c293. H:0 A:0
+2026-01-25T12:33:47.317Z - [Progression] Winner via penalty: null
+2026-01-25T12:34:10.387Z - [Progression] Draw detected. MatchId:018a33f3-17a5-4351-b62d-4e935a00c293. H:1 A:3
+2026-01-25T12:34:10.387Z - [Progression] Winner via penalty: 83d6952c-3d7b-4107-a613-1198dd24819c
+2026-01-25T15:18:08.463Z - [Progression] Processing Match ecc35161-1321-4ad8-9a54-a3514e8123d5. Format: home_away, Status: live, Period: fulltime
+2026-01-25T15:18:08.464Z - [Progression] Home/Away Format. Leg: 2, Details: {"leg":2,"groupId":"059d41fa-47c3-4bd2-9e62-737a8682c7bf","matchIndex":1,"period":"fulltime"}
+2026-01-25T15:18:08.469Z - [Progression] Leg 1 Found: bd18e3d2-7b0a-467b-a791-be4010856293
+2026-01-25T15:18:08.470Z - [Progression] Winner determined: 437d74aa-794f-4d0c-9da2-0db8ef2e78df
+2026-01-25T15:18:11.582Z - [Progression] Processing Match ecc35161-1321-4ad8-9a54-a3514e8123d5. Format: home_away, Status: completed, Period: undefined
+2026-01-25T15:18:11.583Z - [Progression] Home/Away Format. Leg: 2, Details: {"leg":2,"groupId":"059d41fa-47c3-4bd2-9e62-737a8682c7bf","matchIndex":1,"period":"fulltime"}
+2026-01-25T15:18:11.588Z - [Progression] Leg 1 Found: bd18e3d2-7b0a-467b-a791-be4010856293
+2026-01-25T15:18:11.589Z - [Progression] Winner determined: 437d74aa-794f-4d0c-9da2-0db8ef2e78df
+2026-01-25T15:41:54.032Z - [Progression] Processing Match 15c5e8a9-1261-4478-8592-fe66ed9d9a15. Format: home_away, Status: live, Period: fulltime
+2026-01-25T15:41:54.032Z - [Progression] Home/Away Format. Leg: 1, Details: {"leg":1,"groupId":"f6092de4-db55-4db2-94d8-9de3786cfb65","matchIndex":0,"period":"fulltime"}
+2026-01-25T15:41:54.033Z - [Progression] Winner determined: null
+2026-01-25T15:41:56.968Z - [Progression] Processing Match 15c5e8a9-1261-4478-8592-fe66ed9d9a15. Format: home_away, Status: completed, Period: undefined
+2026-01-25T15:41:56.969Z - [Progression] Home/Away Format. Leg: 1, Details: {"leg":1,"groupId":"f6092de4-db55-4db2-94d8-9de3786cfb65","matchIndex":0,"period":"fulltime"}
+2026-01-25T15:41:56.969Z - [Progression] Winner determined: null
+2026-01-25T15:57:36.906Z - [Progression] Processing Match 6a623603-8b6b-4cfa-afba-18de276b5736. Format: home_away, Status: live, Period: fulltime
+2026-01-25T15:57:36.906Z - [Progression] Home/Away Format. Leg: 2, Details: {"leg":2,"groupId":"f6092de4-db55-4db2-94d8-9de3786cfb65","matchIndex":0,"period":"fulltime"}
+2026-01-25T15:57:36.911Z - [Progression] Leg 1 Found: 15c5e8a9-1261-4478-8592-fe66ed9d9a15
+2026-01-25T15:57:36.912Z - [Progression] Draw detected. Checking penalties.
+2026-01-25T15:57:36.912Z - [Progression] Winner determined: null
+2026-01-25T15:57:53.813Z - [Progression] Processing Match 6a623603-8b6b-4cfa-afba-18de276b5736. Format: home_away, Status: completed, Period: undefined
+2026-01-25T15:57:53.815Z - [Progression] Home/Away Format. Leg: 2, Details: {"leg":2,"groupId":"f6092de4-db55-4db2-94d8-9de3786cfb65","matchIndex":0,"period":"fulltime"}
+2026-01-25T15:57:53.821Z - [Progression] Leg 1 Found: 15c5e8a9-1261-4478-8592-fe66ed9d9a15
+2026-01-25T15:57:53.822Z - [Progression] Draw detected. Checking penalties.
+2026-01-25T15:57:53.822Z - [Progression] Winner determined: 29ff2572-68d9-4f37-a649-67b6820a5b11
+2026-01-25T15:59:15.178Z - [Progression] Processing Match cb6918df-3a62-4991-93bd-8b435b098a39. Format: home_away, Status: live, Period: fulltime
+2026-01-25T15:59:15.179Z - [Progression] Home/Away Format. Leg: 1, Details: {"groupId":"10d96437-0144-4826-973e-500311702e7b","matchIndex":0,"period":"fulltime"}
+2026-01-25T15:59:15.179Z - [Progression] Winner determined: null
+2026-01-25T15:59:36.135Z - [Progression] Processing Match cb6918df-3a62-4991-93bd-8b435b098a39. Format: home_away, Status: completed, Period: undefined
+2026-01-25T15:59:36.136Z - [Progression] Home/Away Format. Leg: 1, Details: {"groupId":"10d96437-0144-4826-973e-500311702e7b","matchIndex":0,"period":"fulltime"}
+2026-01-25T15:59:36.137Z - [Progression] Winner determined: null
+2026-01-25T16:00:54.181Z - [Progression] Processing Match 3127b1ab-41ef-481d-838d-76866d1f7ff4. Format: single, Status: live, Period: fulltime
+2026-01-25T16:00:54.182Z - [Progression] Winner determined: 3244f2f6-b2a5-4533-9d0d-94df73eb564f
+2026-01-25T16:00:56.067Z - [Progression] Processing Match 3127b1ab-41ef-481d-838d-76866d1f7ff4. Format: single, Status: completed, Period: undefined
+2026-01-25T16:00:56.068Z - [Progression] Winner determined: 3244f2f6-b2a5-4533-9d0d-94df73eb564f
+2026-01-26T13:43:16.227Z - [Progression] Processing Match 8595cd71-e0fa-434c-b0f4-9ca7d083dd4a. Format: home_away, Status: live, Period: fulltime
+2026-01-26T13:43:16.228Z - [Progression] Home/Away Format. Leg: 1, Details: {"leg":1,"groupId":"a104a53a-e6ac-4e88-90a5-69de2dc1302d","matchIndex":1,"period":"fulltime"}
+2026-01-26T13:43:16.228Z - [Progression] Winner determined: null
+2026-01-26T13:43:19.320Z - [Progression] Processing Match 8595cd71-e0fa-434c-b0f4-9ca7d083dd4a. Format: home_away, Status: completed, Period: undefined
+2026-01-26T13:43:19.321Z - [Progression] Home/Away Format. Leg: 1, Details: {"leg":1,"groupId":"a104a53a-e6ac-4e88-90a5-69de2dc1302d","matchIndex":1,"period":"fulltime"}
+2026-01-26T13:43:19.321Z - [Progression] Winner determined: null
+2026-01-26T13:47:05.958Z - [Progression] Processing Match f31f9a65-2789-4edb-842d-5aae3ac34388. Format: home_away, Status: live, Period: fulltime
+2026-01-26T13:47:05.959Z - [Progression] Home/Away Format. Leg: 1, Details: {"leg":1,"groupId":"80eee0a2-6c31-4211-81a3-ce71d8ad43df","matchIndex":0,"period":"fulltime"}
+2026-01-26T13:47:05.960Z - [Progression] Winner determined: null
+2026-01-26T13:47:07.928Z - [Progression] Processing Match f31f9a65-2789-4edb-842d-5aae3ac34388. Format: home_away, Status: completed, Period: undefined
+2026-01-26T13:47:07.928Z - [Progression] Home/Away Format. Leg: 1, Details: {"leg":1,"groupId":"80eee0a2-6c31-4211-81a3-ce71d8ad43df","matchIndex":0,"period":"fulltime"}
+2026-01-26T13:47:07.929Z - [Progression] Winner determined: null
+2026-01-26T13:49:39.730Z - [Progression] Processing Match 235350b3-b4c9-4586-b950-6ff6a7b58cd7. Format: home_away, Status: live, Period: fulltime
+2026-01-26T13:49:39.731Z - [Progression] Home/Away Format. Leg: 2, Details: {"leg":2,"groupId":"a104a53a-e6ac-4e88-90a5-69de2dc1302d","matchIndex":1,"period":"fulltime"}
+2026-01-26T13:49:39.736Z - [Progression] Leg 1 Found: 8595cd71-e0fa-434c-b0f4-9ca7d083dd4a
+2026-01-26T13:49:39.737Z - [Progression] Winner determined: 07ce1949-ac03-4c25-96e6-65acca29aec1
+2026-01-26T13:49:42.015Z - [Progression] Processing Match 235350b3-b4c9-4586-b950-6ff6a7b58cd7. Format: home_away, Status: completed, Period: undefined
+2026-01-26T13:49:42.016Z - [Progression] Home/Away Format. Leg: 2, Details: {"leg":2,"groupId":"a104a53a-e6ac-4e88-90a5-69de2dc1302d","matchIndex":1,"period":"fulltime"}
+2026-01-26T13:49:42.021Z - [Progression] Leg 1 Found: 8595cd71-e0fa-434c-b0f4-9ca7d083dd4a
+2026-01-26T13:49:42.022Z - [Progression] Winner determined: 07ce1949-ac03-4c25-96e6-65acca29aec1
+2026-01-26T13:50:28.508Z - [Progression] Processing Match 4fc916a9-72cc-4de8-b2f7-d0246cc02f03. Format: home_away, Status: live, Period: fulltime
+2026-01-26T13:50:28.509Z - [Progression] Home/Away Format. Leg: 2, Details: {"leg":2,"groupId":"80eee0a2-6c31-4211-81a3-ce71d8ad43df","matchIndex":0,"period":"fulltime"}
+2026-01-26T13:50:28.514Z - [Progression] Leg 1 Found: f31f9a65-2789-4edb-842d-5aae3ac34388
+2026-01-26T13:50:28.515Z - [Progression] Winner determined: 1b284107-1d51-40e8-90bd-d94f1b1ff738
+2026-01-26T13:50:31.689Z - [Progression] Processing Match 4fc916a9-72cc-4de8-b2f7-d0246cc02f03. Format: home_away, Status: completed, Period: undefined
+2026-01-26T13:50:31.690Z - [Progression] Home/Away Format. Leg: 2, Details: {"leg":2,"groupId":"80eee0a2-6c31-4211-81a3-ce71d8ad43df","matchIndex":0,"period":"fulltime"}
+2026-01-26T13:50:31.695Z - [Progression] Leg 1 Found: f31f9a65-2789-4edb-842d-5aae3ac34388
+2026-01-26T13:50:31.696Z - [Progression] Winner determined: 1b284107-1d51-40e8-90bd-d94f1b1ff738
+2026-01-26T13:51:21.843Z - [Progression] Processing Match 3ba1831e-bb62-42e7-813d-0dc9ddff97bf. Format: home_away, Status: live, Period: fulltime
+2026-01-26T13:51:21.843Z - [Progression] Home/Away Format. Leg: 1, Details: {"groupId":"7ccc8b91-9d08-40b6-a59a-8bacee3e1f07","matchIndex":0,"period":"fulltime"}
+2026-01-26T13:51:21.844Z - [Progression] Winner determined: null
+2026-01-26T13:51:25.153Z - [Progression] Processing Match 3ba1831e-bb62-42e7-813d-0dc9ddff97bf. Format: home_away, Status: completed, Period: undefined
+2026-01-26T13:51:25.154Z - [Progression] Home/Away Format. Leg: 1, Details: {"groupId":"7ccc8b91-9d08-40b6-a59a-8bacee3e1f07","matchIndex":0,"period":"fulltime"}
+2026-01-26T13:51:25.155Z - [Progression] Winner determined: null
+2026-01-27T14:16:56.143Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-27T14:16:56.148Z - [Advancement] Found 6 matches in Group A
+2026-01-27T14:16:56.148Z - [Advancement] All completed? false
+2026-01-27T14:16:58.234Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-27T14:16:58.241Z - [Advancement] Found 6 matches in Group A
+2026-01-27T14:16:58.241Z - [Advancement] All completed? false
+2026-01-27T14:17:48.271Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-27T14:17:48.275Z - [Advancement] Found 6 matches in Group A
+2026-01-27T14:17:48.276Z - [Advancement] All completed? false
+2026-01-27T14:17:51.249Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-27T14:17:51.254Z - [Advancement] Found 6 matches in Group A
+2026-01-27T14:17:51.255Z - [Advancement] All completed? true
+2026-01-27T14:17:51.255Z - [Progression] Group Group A Finished. Advancing winners.
+2026-01-27T14:17:51.261Z - [Advancement] Standings for Group A: [{"participant_id":"3037c214-d355-4c4a-9832-e3bfcf333c4e"},{"participant_id":"f0252f2f-3c23-4ce8-8ef8-57c9e7a97f8a"}]
+2026-01-27T14:17:51.267Z - [Advancement] Found 5 scheduled bracket matches to check
+2026-01-27T14:17:51.267Z - [Advancement] Match a4b8b893-9792-456d-b209-00f7534e3cb4 HOME slot filled with pos 1 from Group A
+2026-01-27T14:17:51.272Z - [Advancement] Updated match a4b8b893-9792-456d-b209-00f7534e3cb4 with home=3037c214-d355-4c4a-9832-e3bfcf333c4e, away=null
+2026-01-27T14:17:51.273Z - [Advancement] Match a7364256-095d-4e2c-9f9b-731065eb452a AWAY slot filled with pos 2 from Group A
+2026-01-27T14:17:51.278Z - [Advancement] Updated match a7364256-095d-4e2c-9f9b-731065eb452a with home=null, away=f0252f2f-3c23-4ce8-8ef8-57c9e7a97f8a
+2026-01-27T14:19:46.127Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-27T14:19:46.132Z - [Advancement] Found 6 matches in Group B
+2026-01-27T14:19:46.132Z - [Advancement] All completed? false
+2026-01-27T14:19:47.984Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-27T14:19:47.989Z - [Advancement] Found 6 matches in Group B
+2026-01-27T14:19:47.990Z - [Advancement] All completed? false
+2026-01-27T14:22:54.787Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-27T14:22:54.792Z - [Advancement] Found 6 matches in Group B
+2026-01-27T14:22:54.793Z - [Advancement] All completed? false
+2026-01-27T14:22:56.827Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-27T14:22:56.832Z - [Advancement] Found 6 matches in Group B
+2026-01-27T14:22:56.832Z - [Advancement] All completed? true
+2026-01-27T14:22:56.833Z - [Progression] Group Group B Finished. Advancing winners.
+2026-01-27T14:22:56.838Z - [Advancement] Standings for Group B: [{"participant_id":"5e7dca88-0e15-4cb2-ab5c-57e043866ab6"},{"participant_id":"d62c2a00-b1ca-49a1-a83f-b20367e5c2b2"}]
+2026-01-27T14:22:56.843Z - [Advancement] Found 3 scheduled bracket matches to check
+2026-01-27T14:22:56.844Z - [Advancement] Match a4b8b893-9792-456d-b209-00f7534e3cb4 AWAY slot filled with pos 2 from Group B
+2026-01-27T14:22:56.849Z - [Advancement] Updated match a4b8b893-9792-456d-b209-00f7534e3cb4 with home=3037c214-d355-4c4a-9832-e3bfcf333c4e, away=d62c2a00-b1ca-49a1-a83f-b20367e5c2b2
+2026-01-27T14:22:56.850Z - [Advancement] Match a7364256-095d-4e2c-9f9b-731065eb452a HOME slot filled with pos 1 from Group B
+2026-01-27T14:22:56.855Z - [Advancement] Updated match a7364256-095d-4e2c-9f9b-731065eb452a with home=5e7dca88-0e15-4cb2-ab5c-57e043866ab6, away=f0252f2f-3c23-4ce8-8ef8-57c9e7a97f8a
+2026-01-27T14:27:14.979Z - [Progression] Processing Match a4b8b893-9792-456d-b209-00f7534e3cb4. Format: single, Status: live, Period: fulltime
+2026-01-27T14:27:14.980Z - [Progression] Winner determined: null
+2026-01-27T14:27:43.212Z - [Progression] Processing Match a4b8b893-9792-456d-b209-00f7534e3cb4. Format: single, Status: completed, Period: undefined
+2026-01-27T14:27:43.212Z - [Progression] Winner determined: d62c2a00-b1ca-49a1-a83f-b20367e5c2b2
+2026-01-27T14:28:54.517Z - [Progression] Processing Match a7364256-095d-4e2c-9f9b-731065eb452a. Format: single, Status: live, Period: fulltime
+2026-01-27T14:28:54.517Z - [Progression] Winner determined: f0252f2f-3c23-4ce8-8ef8-57c9e7a97f8a
+2026-01-27T14:28:58.930Z - [Progression] Processing Match a7364256-095d-4e2c-9f9b-731065eb452a. Format: single, Status: completed, Period: undefined
+2026-01-27T14:28:58.931Z - [Progression] Winner determined: f0252f2f-3c23-4ce8-8ef8-57c9e7a97f8a
+2026-01-27T14:29:51.332Z - [Progression] Processing Match 045b275b-2483-4062-a5ba-2e8c880f5877. Format: single, Status: live, Period: fulltime
+2026-01-27T14:29:51.332Z - [Progression] Winner determined: null
+2026-01-27T14:30:29.200Z - [Progression] Processing Match 045b275b-2483-4062-a5ba-2e8c880f5877. Format: single, Status: completed, Period: undefined
+2026-01-27T14:30:29.201Z - [Progression] Winner determined: d62c2a00-b1ca-49a1-a83f-b20367e5c2b2
+2026-01-28T15:19:09.534Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-28T15:19:09.540Z - [Advancement] Found 6 matches in Group A
+2026-01-28T15:19:09.540Z - [Advancement] All completed? false
+2026-01-28T15:19:11.864Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-28T15:19:11.869Z - [Advancement] Found 6 matches in Group A
+2026-01-28T15:19:11.870Z - [Advancement] All completed? false
+2026-01-28T15:30:38.617Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-28T15:30:38.623Z - [Advancement] Found 6 matches in Group B
+2026-01-28T15:30:38.623Z - [Advancement] All completed? false
+2026-01-28T15:30:44.914Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-28T15:30:44.919Z - [Advancement] Found 6 matches in Group B
+2026-01-28T15:30:44.920Z - [Advancement] All completed? false
+2026-01-28T15:31:33.041Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-28T15:31:33.048Z - [Advancement] Found 6 matches in Group B
+2026-01-28T15:31:33.049Z - [Advancement] All completed? false
+2026-01-28T15:31:35.328Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-28T15:31:35.334Z - [Advancement] Found 6 matches in Group B
+2026-01-28T15:31:35.334Z - [Advancement] All completed? false
+2026-01-28T15:32:23.734Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-28T15:32:23.741Z - [Advancement] Found 6 matches in Group A
+2026-01-28T15:32:23.742Z - [Advancement] All completed? false
+2026-01-28T15:32:25.472Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-28T15:32:25.478Z - [Advancement] Found 6 matches in Group A
+2026-01-28T15:32:25.478Z - [Advancement] All completed? false
+2026-01-28T15:33:26.400Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-28T15:33:26.405Z - [Advancement] Found 6 matches in Group A
+2026-01-28T15:33:26.406Z - [Advancement] All completed? false
+2026-01-28T15:33:28.342Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-28T15:33:28.349Z - [Advancement] Found 6 matches in Group A
+2026-01-28T15:33:28.350Z - [Advancement] All completed? false
+2026-01-28T15:36:40.363Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-28T15:36:40.368Z - [Advancement] Found 6 matches in Group B
+2026-01-28T15:36:40.369Z - [Advancement] All completed? false
+2026-01-28T15:36:45.079Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-28T15:36:45.083Z - [Advancement] Found 6 matches in Group B
+2026-01-28T15:36:45.084Z - [Advancement] All completed? false
+2026-01-28T15:37:37.213Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-28T15:37:37.219Z - [Advancement] Found 6 matches in Group A
+2026-01-28T15:37:37.219Z - [Advancement] All completed? false
+2026-01-28T15:37:39.345Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-28T15:37:39.350Z - [Advancement] Found 6 matches in Group A
+2026-01-28T15:37:39.351Z - [Advancement] All completed? false
+2026-01-28T15:38:11.147Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-28T15:38:11.152Z - [Advancement] Found 6 matches in Group B
+2026-01-28T15:38:11.152Z - [Advancement] All completed? false
+2026-01-28T15:38:14.337Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-28T15:38:14.342Z - [Advancement] Found 6 matches in Group B
+2026-01-28T15:38:14.342Z - [Advancement] All completed? false
+2026-01-28T15:40:20.218Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-28T15:40:20.223Z - [Advancement] Found 6 matches in Group B
+2026-01-28T15:40:20.223Z - [Advancement] All completed? false
+2026-01-28T15:40:22.728Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-28T15:40:22.734Z - [Advancement] Found 6 matches in Group B
+2026-01-28T15:40:22.734Z - [Advancement] All completed? false
+2026-01-28T15:41:11.793Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-28T15:41:11.799Z - [Advancement] Found 6 matches in Group A
+2026-01-28T15:41:11.799Z - [Advancement] All completed? false
+2026-01-28T15:41:13.936Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-28T15:41:13.941Z - [Advancement] Found 6 matches in Group A
+2026-01-28T15:41:13.942Z - [Advancement] All completed? false
+2026-01-28T15:42:31.876Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-28T15:42:31.882Z - [Advancement] Found 6 matches in Group B
+2026-01-28T15:42:31.883Z - [Advancement] All completed? false
+2026-01-28T15:42:34.919Z - [Advancement] Group match completed. Checking if all group Group B matches are done...
+2026-01-28T15:42:34.924Z - [Advancement] Found 6 matches in Group B
+2026-01-28T15:42:34.925Z - [Advancement] All completed? true
+2026-01-28T15:42:34.925Z - [Progression] Group Group B Finished. Advancing winners.
+2026-01-28T15:42:34.930Z - [Advancement] Standings for Group B: [{"participant_id":"51c164b4-4c33-4dfe-b473-54cb5ea84a75"},{"participant_id":"feda4039-9d2c-4868-9163-0e0b089b2088"}]
+2026-01-28T15:42:34.936Z - [Advancement] Found 6 scheduled bracket matches to check
+2026-01-28T15:42:34.937Z - [Advancement] Match 25d64457-e1b9-4e49-a85c-697d6c29acd0 HOME slot filled with pos 2 from Group B
+2026-01-28T15:42:34.942Z - [Advancement] Updated match 25d64457-e1b9-4e49-a85c-697d6c29acd0 with home=feda4039-9d2c-4868-9163-0e0b089b2088, away=null
+2026-01-28T15:42:34.942Z - [Advancement] Match 744879b4-0411-4432-b6b6-4db7ca1395c4 AWAY slot filled with pos 1 from Group B
+2026-01-28T15:42:34.948Z - [Advancement] Updated match 744879b4-0411-4432-b6b6-4db7ca1395c4 with home=null, away=51c164b4-4c33-4dfe-b473-54cb5ea84a75
+2026-01-28T15:42:34.948Z - [Advancement] Match 996a1c73-9c7f-49f4-915a-1eadb0f614bc HOME slot filled with pos 1 from Group B
+2026-01-28T15:42:34.953Z - [Advancement] Updated match 996a1c73-9c7f-49f4-915a-1eadb0f614bc with home=51c164b4-4c33-4dfe-b473-54cb5ea84a75, away=null
+2026-01-28T15:42:34.953Z - [Advancement] Match a3ed41e0-02a7-4145-88df-e4eb8a307b01 AWAY slot filled with pos 2 from Group B
+2026-01-28T15:42:34.958Z - [Advancement] Updated match a3ed41e0-02a7-4145-88df-e4eb8a307b01 with home=null, away=feda4039-9d2c-4868-9163-0e0b089b2088
+2026-01-28T15:43:58.824Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-28T15:43:58.829Z - [Advancement] Found 6 matches in Group A
+2026-01-28T15:43:58.830Z - [Advancement] All completed? false
+2026-01-28T15:44:02.246Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-01-28T15:44:02.251Z - [Advancement] Found 6 matches in Group A
+2026-01-28T15:44:02.252Z - [Advancement] All completed? true
+2026-01-28T15:44:02.253Z - [Progression] Group Group A Finished. Advancing winners.
+2026-01-28T15:44:02.257Z - [Advancement] Standings for Group A: [{"participant_id":"40dee6ad-8761-4845-8410-1cbb39eefeee"},{"participant_id":"99f2a084-56da-46be-9175-4b1b0642cf88"}]
+2026-01-28T15:44:02.263Z - [Advancement] Found 5 scheduled bracket matches to check
+2026-01-28T15:44:02.263Z - [Advancement] Match 25d64457-e1b9-4e49-a85c-697d6c29acd0 AWAY slot filled with pos 1 from Group A
+2026-01-28T15:44:02.267Z - [Advancement] Updated match 25d64457-e1b9-4e49-a85c-697d6c29acd0 with home=feda4039-9d2c-4868-9163-0e0b089b2088, away=40dee6ad-8761-4845-8410-1cbb39eefeee
+2026-01-28T15:44:02.268Z - [Advancement] Match 744879b4-0411-4432-b6b6-4db7ca1395c4 HOME slot filled with pos 2 from Group A
+2026-01-28T15:44:02.273Z - [Advancement] Updated match 744879b4-0411-4432-b6b6-4db7ca1395c4 with home=99f2a084-56da-46be-9175-4b1b0642cf88, away=51c164b4-4c33-4dfe-b473-54cb5ea84a75
+2026-01-28T15:44:02.273Z - [Advancement] Match 996a1c73-9c7f-49f4-915a-1eadb0f614bc AWAY slot filled with pos 2 from Group A
+2026-01-28T15:44:02.278Z - [Advancement] Updated match 996a1c73-9c7f-49f4-915a-1eadb0f614bc with home=51c164b4-4c33-4dfe-b473-54cb5ea84a75, away=99f2a084-56da-46be-9175-4b1b0642cf88
+2026-01-28T15:44:02.279Z - [Advancement] Match a3ed41e0-02a7-4145-88df-e4eb8a307b01 HOME slot filled with pos 1 from Group A
+2026-01-28T15:44:02.283Z - [Advancement] Updated match a3ed41e0-02a7-4145-88df-e4eb8a307b01 with home=40dee6ad-8761-4845-8410-1cbb39eefeee, away=feda4039-9d2c-4868-9163-0e0b089b2088
+2026-01-28T15:45:08.218Z - [Progression] Processing Match 996a1c73-9c7f-49f4-915a-1eadb0f614bc. Format: home_away, Status: live, Period: fulltime
+2026-01-28T15:45:08.218Z - [Progression] Home/Away Format. Leg: 1, Details: {"stage":"knockout","roundName":"Semi Final","matchIndex":1,"leg":1,"groupId":"4072e747-4fb2-4370-9357-8112f667e55d","resolve_home":{"type":"group_result","group":"Group B","pos":1},"resolve_away":{"type":"group_result","group":"Group A","pos":2},"period":"fulltime"}
+2026-01-28T15:45:08.219Z - [Progression] Winner determined: null
+2026-01-28T15:45:10.383Z - [Progression] Processing Match 996a1c73-9c7f-49f4-915a-1eadb0f614bc. Format: home_away, Status: completed, Period: undefined
+2026-01-28T15:45:10.383Z - [Progression] Home/Away Format. Leg: 1, Details: {"stage":"knockout","roundName":"Semi Final","matchIndex":1,"leg":1,"groupId":"4072e747-4fb2-4370-9357-8112f667e55d","resolve_home":{"type":"group_result","group":"Group B","pos":1},"resolve_away":{"type":"group_result","group":"Group A","pos":2},"period":"fulltime"}
+2026-01-28T15:45:10.384Z - [Progression] Winner determined: null
+2026-01-28T15:46:12.962Z - [Progression] Processing Match a3ed41e0-02a7-4145-88df-e4eb8a307b01. Format: home_away, Status: live, Period: fulltime
+2026-01-28T15:46:12.962Z - [Progression] Home/Away Format. Leg: 1, Details: {"stage":"knockout","roundName":"Semi Final","matchIndex":0,"leg":1,"groupId":"ab2b57ad-b864-445e-8a31-f85865a5969f","resolve_home":{"type":"group_result","group":"Group A","pos":1},"resolve_away":{"type":"group_result","group":"Group B","pos":2},"period":"fulltime"}
+2026-01-28T15:46:12.963Z - [Progression] Winner determined: null
+2026-01-28T15:46:15.047Z - [Progression] Processing Match a3ed41e0-02a7-4145-88df-e4eb8a307b01. Format: home_away, Status: completed, Period: undefined
+2026-01-28T15:46:15.048Z - [Progression] Home/Away Format. Leg: 1, Details: {"stage":"knockout","roundName":"Semi Final","matchIndex":0,"leg":1,"groupId":"ab2b57ad-b864-445e-8a31-f85865a5969f","resolve_home":{"type":"group_result","group":"Group A","pos":1},"resolve_away":{"type":"group_result","group":"Group B","pos":2},"period":"fulltime"}
+2026-01-28T15:46:15.048Z - [Progression] Winner determined: null
+2026-01-28T15:46:57.957Z - [Progression] Processing Match 25d64457-e1b9-4e49-a85c-697d6c29acd0. Format: home_away, Status: live, Period: fulltime
+2026-01-28T15:46:57.958Z - [Progression] Home/Away Format. Leg: 2, Details: {"stage":"knockout","roundName":"Semi Final","matchIndex":0,"leg":2,"groupId":"ab2b57ad-b864-445e-8a31-f85865a5969f","resolve_home":{"type":"group_result","group":"Group B","pos":2},"resolve_away":{"type":"group_result","group":"Group A","pos":1},"period":"fulltime"}
+2026-01-28T15:46:57.963Z - [Progression] Leg 1 Found: a3ed41e0-02a7-4145-88df-e4eb8a307b01
+2026-01-28T15:46:57.964Z - [Progression] Draw detected. Checking penalties.
+2026-01-28T15:46:57.964Z - [Progression] Winner determined: null
+2026-01-28T15:50:45.477Z - [Progression] Processing Match 25d64457-e1b9-4e49-a85c-697d6c29acd0. Format: home_away, Status: completed, Period: undefined
+2026-01-28T15:50:45.478Z - [Progression] Home/Away Format. Leg: 2, Details: {"stage":"knockout","roundName":"Semi Final","matchIndex":0,"leg":2,"groupId":"ab2b57ad-b864-445e-8a31-f85865a5969f","resolve_home":{"type":"group_result","group":"Group B","pos":2},"resolve_away":{"type":"group_result","group":"Group A","pos":1},"period":"fulltime"}
+2026-01-28T15:50:45.483Z - [Progression] Leg 1 Found: a3ed41e0-02a7-4145-88df-e4eb8a307b01
+2026-01-28T15:50:45.483Z - [Progression] Draw detected. Checking penalties.
+2026-01-28T15:50:45.484Z - [Progression] Winner determined: feda4039-9d2c-4868-9163-0e0b089b2088
+2026-01-28T15:53:04.665Z - [Progression] Processing Match 744879b4-0411-4432-b6b6-4db7ca1395c4. Format: home_away, Status: live, Period: fulltime
+2026-01-28T15:53:04.666Z - [Progression] Home/Away Format. Leg: 2, Details: {"stage":"knockout","roundName":"Semi Final","matchIndex":1,"leg":2,"groupId":"4072e747-4fb2-4370-9357-8112f667e55d","resolve_home":{"type":"group_result","group":"Group A","pos":2},"resolve_away":{"type":"group_result","group":"Group B","pos":1},"period":"fulltime"}
+2026-01-28T15:53:04.672Z - [Progression] Leg 1 Found: 996a1c73-9c7f-49f4-915a-1eadb0f614bc
+2026-01-28T15:53:04.673Z - [Progression] Winner determined: 99f2a084-56da-46be-9175-4b1b0642cf88
+2026-01-28T15:53:06.824Z - [Progression] Processing Match 744879b4-0411-4432-b6b6-4db7ca1395c4. Format: home_away, Status: completed, Period: undefined
+2026-01-28T15:53:06.824Z - [Progression] Home/Away Format. Leg: 2, Details: {"stage":"knockout","roundName":"Semi Final","matchIndex":1,"leg":2,"groupId":"4072e747-4fb2-4370-9357-8112f667e55d","resolve_home":{"type":"group_result","group":"Group A","pos":2},"resolve_away":{"type":"group_result","group":"Group B","pos":1},"period":"fulltime"}
+2026-01-28T15:53:06.830Z - [Progression] Leg 1 Found: 996a1c73-9c7f-49f4-915a-1eadb0f614bc
+2026-01-28T15:53:06.831Z - [Progression] Winner determined: 99f2a084-56da-46be-9175-4b1b0642cf88
+2026-01-28T15:54:04.514Z - [Progression] Processing Match e148ce31-f03e-4ef4-93fa-10b8882271a7. Format: home_away, Status: live, Period: fulltime
+2026-01-28T15:54:04.515Z - [Progression] Home/Away Format. Leg: 1, Details: {"stage":"knockout","roundName":"Final","matchIndex":0,"groupId":"0c5ab5a1-aa1e-4502-ae51-c5eb44bf96a4","period":"fulltime"}
+2026-01-28T15:54:04.516Z - [Progression] Winner determined: null
+2026-01-28T15:54:42.359Z - [Progression] Processing Match e148ce31-f03e-4ef4-93fa-10b8882271a7. Format: home_away, Status: completed, Period: undefined
+2026-01-28T15:54:42.360Z - [Progression] Home/Away Format. Leg: 1, Details: {"stage":"knockout","roundName":"Final","matchIndex":0,"groupId":"0c5ab5a1-aa1e-4502-ae51-c5eb44bf96a4","period":"fulltime"}
+2026-01-28T15:54:42.361Z - [Progression] Winner determined: null
+2026-01-31T10:46:59.942Z - [Progression] Processing Match fadccdc8-ef94-4ae7-82da-7ffa49c71a4d. Format: single, Status: live, Period: fulltime
+2026-01-31T10:46:59.943Z - [Progression] Winner determined: 79d53f36-09f8-4e7b-b245-5fee5841b484
+2026-01-31T10:47:02.299Z - [Progression] Processing Match fadccdc8-ef94-4ae7-82da-7ffa49c71a4d. Format: single, Status: completed, Period: undefined
+2026-01-31T10:47:02.300Z - [Progression] Winner determined: 79d53f36-09f8-4e7b-b245-5fee5841b484
+2026-01-31T10:49:22.255Z - [Progression] Processing Match 751c1bc3-36fe-4a62-bc35-cf213f8b03d4. Format: single, Status: live, Period: fulltime
+2026-01-31T10:49:22.256Z - [Progression] Winner determined: null
+2026-01-31T10:49:41.970Z - [Progression] Processing Match 751c1bc3-36fe-4a62-bc35-cf213f8b03d4. Format: single, Status: completed, Period: undefined
+2026-01-31T10:49:41.971Z - [Progression] Winner determined: 86a19850-0d1b-48c8-b560-ecfd8dd94cf1
+2026-01-31T11:02:26.339Z - [Progression] Processing Match c934d468-daee-4e2d-b264-caa707f3df45. Format: single, Status: live, Period: fulltime
+2026-01-31T11:02:26.340Z - [Progression] Winner determined: f4c1fa33-7082-4ba0-b251-0ca78e43473d
+2026-01-31T11:02:29.078Z - [Progression] Processing Match c934d468-daee-4e2d-b264-caa707f3df45. Format: single, Status: completed, Period: undefined
+2026-01-31T11:02:29.078Z - [Progression] Winner determined: f4c1fa33-7082-4ba0-b251-0ca78e43473d
+2026-01-31T11:03:21.336Z - [Progression] Processing Match 48df15f1-5c05-4277-b4bd-94265f0501ae. Format: single, Status: live, Period: fulltime
+2026-01-31T11:03:21.336Z - [Progression] Winner determined: 79d53f36-09f8-4e7b-b245-5fee5841b484
+2026-01-31T11:03:23.316Z - [Progression] Processing Match 48df15f1-5c05-4277-b4bd-94265f0501ae. Format: single, Status: completed, Period: undefined
+2026-01-31T11:03:23.316Z - [Progression] Winner determined: 79d53f36-09f8-4e7b-b245-5fee5841b484
+2026-02-01T09:51:20.828Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-02-01T09:51:20.835Z - [Advancement] Found 3 matches in Group A
+2026-02-01T09:51:20.835Z - [Advancement] All completed? false
+2026-02-01T09:51:22.908Z - [Advancement] Group match completed. Checking if all group Group A matches are done...
+2026-02-01T09:51:22.914Z - [Advancement] Found 3 matches in Group A
+2026-02-01T09:51:22.915Z - [Advancement] All completed? false

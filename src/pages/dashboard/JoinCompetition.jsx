@@ -1,68 +1,17 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
+import { authFetch } from '../../utils/api'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
-import { ArrowLeft, Loader2, User, Phone, Shield, Trophy, Users, Calendar, Sparkles, ShieldCheck, Newspaper, ClipboardList } from 'lucide-react'
+import { ArrowLeft, Loader2, User, Phone, Shield, Trophy, Users, Calendar, Sparkles, ShieldCheck, Newspaper, ClipboardList, MessageSquare, MessageCircle, ChevronDown, Send, CheckCircle, XCircle, Clock, Trash2, Edit } from 'lucide-react'
 import Card, { CardHeader, CardContent } from '../../components/ui/Card'
+import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import SearchableSelect from '../../components/ui/SearchableSelect'
 import AdSlot from '../../components/ui/AdSlot'
 import Navbar from '../../components/landing/Navbar'
 import { useToast } from '../../contexts/ToastContext'
-
-// Mock Data for Public Competitions (Duplicated from Competitions.jsx for independence)
-const getCompetitionData = (id) => {
-    const competitions = [
-        {
-            id: 101,
-            name: 'Open Liga Nusantara',
-            type: 'Liga',
-            players: 16,
-            currentPlayers: 12,
-            startDate: '2024-05-01',
-            registrationDeadline: '2024-04-28',
-            description: 'Liga terbuka untuk umum, semua skill level welcome!',
-            isPublic: true,
-            creator: { name: 'Official IndoLeague', isTrusted: true }
-        },
-        {
-            id: 102,
-            name: 'Amateur Cup 2024',
-            type: 'Knockout',
-            players: 8,
-            currentPlayers: 2,
-            startDate: '2024-06-15',
-            registrationDeadline: '2024-06-10',
-            description: 'Turnamen santai akhir pekan.',
-            isPublic: true,
-            creator: { name: 'Komunitas Santai', isTrusted: false }
-        },
-        {
-            id: 103,
-            name: 'Pro Valorant Scrim',
-            type: 'Liga',
-            players: 6,
-            currentPlayers: 6,
-            startDate: '2024-05-10',
-            registrationDeadline: '2024-05-08',
-            description: 'Scrim mingguan untuk tim semi-pro.',
-            isPublic: true,
-            creator: { name: 'ProScouts ID', isTrusted: true }
-        },
-        {
-            id: 104,
-            name: 'Badminton Fun Match',
-            type: 'Group',
-            players: 16,
-            currentPlayers: 10,
-            startDate: '2024-05-20',
-            registrationDeadline: '2024-05-18',
-            description: 'Cari lawan sparing badminton.',
-            isPublic: true,
-            creator: { name: 'Gor Asoy', isTrusted: false }
-        },
-    ]
-    return competitions.find(c => c.id === parseInt(id)) || competitions[0]
-}
+import { useAuth } from '../../contexts/AuthContext'
+import UserBadge from '../../components/ui/UserBadge'
 
 // League options from eFootball DB API (2025 Update)
 const leagueOptions = [
@@ -102,41 +51,112 @@ const leagueOptions = [
 ]
 
 export default function JoinCompetition() {
-    const { success } = useToast()
+    const { user } = useAuth()
+    const { success: showSuccess, error: showError, warning: showWarning } = useToast()
     const { id } = useParams()
     const navigate = useNavigate()
     const location = useLocation()
     const isPublic = location.pathname.startsWith('/join')
-    const competitionData = getCompetitionData(id)
+
+    const [competitionData, setCompetitionData] = useState(null)
+    const [participants, setParticipants] = useState([])
+    const [loadingData, setLoadingData] = useState(true)
 
     const [formData, setFormData] = useState({
         league: '',
         team: '',
         teamId: '',
         teamLogo: '',
-        playerName: '',
-        contact: ''
     })
     const [activeTab, setActiveTab] = useState('register')
 
-    // Mock Data for Participants
-    const participants = [
-        { id: 1, name: 'Budi Santoso', team: 'Persija Esports', status: 'Verified', date: '2024-04-20' },
-        { id: 2, name: 'Kevin Sanjaya', team: 'RRQ Hoshi', status: 'Pending', date: '2024-04-21' },
-        { id: 3, name: 'Rahmat Hidayat', team: 'EVOS Legends', status: 'Verified', date: '2024-04-22' },
-        { id: 4, name: 'Dedy Corbuzier', team: 'Alter Ego', status: 'Verified', date: '2024-04-23' },
-    ]
+    const isJoined = participants.some(p => p.user_id === user?.id)
 
-    // Mock Data for League News
-    const leagueNews = [
-        { id: 1, title: 'Jadwal Pertandingan Babak Grup Resmi Dirilis', date: '2024-04-25', summary: 'Cek jadwal lengkap tim kamu di sini. Jangan sampai terlewat!' },
-        { id: 2, title: 'Update Peraturan Teknis Musim 2024', date: '2024-04-24', summary: 'Ada beberapa perubahan minor pada aturan substitusi pemain. Simak detailnya.' },
-        { id: 3, title: 'Wawancara Eksklusif dengan Juara Bertahan', date: '2024-04-23', summary: 'Tips dan trik dari juara musim lalu untuk menghadapi meta baru.' },
-    ]
+    // Redirect logic if user is joined and status is NOT pending (e.g. approved)
+    useEffect(() => {
+        if (isJoined) {
+            const myParticipant = participants.find(p => p.user_id === user?.id)
+            // If status is not pending (e.g. approved), redirect to user view
+            if (myParticipant && myParticipant.status !== 'pending') {
+                navigate(`/dashboard/competitions/${id}/view`)
+                return
+            }
+
+            // If status is pending, show participants tab but stay here (to allow edit)
+            if (activeTab === 'register') {
+                setActiveTab('participants')
+            }
+        }
+    }, [isJoined, activeTab, participants, user?.id, id, navigate])
+
+    const [newsList, setNewsList] = useState([])
+    const [isNewsLoading, setIsNewsLoading] = useState(false)
+    const [commentsMap, setCommentsMap] = useState({})
+    const [newComment, setNewComment] = useState('')
+    const [openThreadNewsId, setOpenThreadNewsId] = useState(null)
     const [teams, setTeams] = useState([])
     const [loadingTeams, setLoadingTeams] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+
     const [error, setError] = useState('')
+
+    // Edit Modal State
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+    const [editingParticipant, setEditingParticipant] = useState(null)
+
+    const handleEditClick = (player) => {
+        setEditingParticipant(player)
+        setIsEditModalOpen(true)
+    }
+
+    const handleSaveParticipant = async (participantId, updateData) => {
+        try {
+            const res = await authFetch(`/api/tournaments/${id}/participants/${participantId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updateData)
+            })
+            const data = await res.json()
+            if (data.success) {
+                showSuccess('Data tim berhasil diperbarui')
+                setIsEditModalOpen(false)
+                // Refresh data
+                const resList = await authFetch(`/api/tournaments/${id}`)
+                const dataList = await resList.json()
+                if (dataList.success) {
+                    setParticipants(dataList.data.participants || [])
+                }
+            } else {
+                showError(data.message || 'Gagal memperbarui data')
+            }
+        } catch (err) {
+            console.error(err)
+            showError('Terjadi kesalahan saat menyimpan data')
+        }
+    }
+
+    // Fetch Competition and Participants data
+    useEffect(() => {
+        const fetchCompetition = async () => {
+            try {
+                setLoadingData(true)
+                const res = await authFetch(`/api/tournaments/${id}`)
+                const data = await res.json()
+                if (data.success) {
+                    setCompetitionData(data.data)
+                    setParticipants(data.data.participants || [])
+                } else {
+                    setError('Gagal memuat data kompetisi.')
+                }
+            } catch (error) {
+                console.error('Error fetching competition:', error)
+                navigate('/dashboard/competitions')
+            } finally {
+                setLoadingData(false)
+            }
+        }
+        if (id) fetchCompetition()
+    }, [id, navigate])
 
     // Fetch teams when league changes
     useEffect(() => {
@@ -153,7 +173,7 @@ export default function JoinCompetition() {
 
             try {
                 // Use proxy API to avoid CORS issues on Vercel
-                const response = await fetch('/api/teams')
+                const response = await authFetch('/api/teams')
                 const data = await response.json()
 
                 if (data?.data) {
@@ -169,7 +189,7 @@ export default function JoinCompetition() {
 
                                 if (ligaName === formData.league) {
                                     const formattedTeamID = String(teamID).padStart(6, '0')
-                                    const logoUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedTeamID}_r_l.png.webp`
+                                    const logoUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedTeamID}_r_w_l.png.webp`
 
                                     filteredTeams.push({
                                         id: teamID,
@@ -215,8 +235,8 @@ export default function JoinCompetition() {
     const handleSubmit = async (e) => {
         e.preventDefault()
 
-        if (!formData.team || !formData.playerName) {
-            setError('Harap pilih tim dan isi nama pemain.')
+        if (!formData.team) {
+            setError('Harap pilih tim.')
             return
         }
 
@@ -225,17 +245,33 @@ export default function JoinCompetition() {
 
         try {
             console.log('Registering for competition:', { competitionId: id, ...formData })
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1500))
 
-            success(`Berhasil mendaftar ke "${competitionData.name}"!\nSemoga beruntung!`)
+            const payload = {
+                user_id: user.id,
+                name: user.name,
+                team: formData.team,
+                logo_url: formData.teamLogo,
+                status: 'pending',
+                stats: { contact: user.phone || user.whatsapp || '-' } // Fallback if phone is not in user object
+            }
+
+            const res = await authFetch(`/api/tournaments/${id}/participants`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+
+            const data = await res.json()
+            if (!data.success) throw new Error(data.message)
+
+            showSuccess(`Berhasil mendaftar ke "${competitionData.name}"!\nSemoga beruntung!`)
             if (isPublic) {
                 navigate('/')
             } else {
                 navigate('/dashboard/competitions')
             }
         } catch (err) {
-            setError('Gagal mendaftar. Silakan coba lagi.')
+            setError(err.message || 'Gagal mendaftar. Silakan coba lagi.')
         } finally {
             setIsSubmitting(false)
         }
@@ -248,6 +284,96 @@ export default function JoinCompetition() {
             label: team.name
         }))
     ]
+
+    const formatDate = (dateString) => {
+        if (!dateString) return '-'
+        const date = new Date(dateString)
+        const day = String(date.getDate()).padStart(2, '0')
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        const month = months[date.getMonth()]
+        const year = date.getFullYear()
+        const hours = String(date.getHours()).padStart(2, '0')
+        const minutes = String(date.getMinutes()).padStart(2, '0')
+        return `${day} ${month} ${year}, ${hours}:${minutes}`
+    }
+
+    const getStatusColor = (status) => {
+        switch (String(status).toLowerCase()) {
+            case 'approved': return 'bg-green-500/20 text-green-400 border border-green-500/30'
+            case 'pending': return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+            case 'rejected': return 'bg-red-500/20 text-red-400 border border-red-500/30'
+            case 'disqualified': return 'bg-red-500/20 text-red-400 border border-red-500/30'
+            default: return 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+        }
+    }
+
+    // News handlers
+    const toggleComments = async (newsId) => {
+        if (openThreadNewsId === newsId) {
+            setOpenThreadNewsId(null)
+            return
+        }
+
+        setOpenThreadNewsId(newsId)
+        try {
+            const response = await authFetch(`/api/tournaments/${id}/news/${newsId}/comments`)
+            const data = await response.json()
+            if (data.success) {
+                setCommentsMap(prev => ({ ...prev, [newsId]: data.data }))
+            }
+        } catch (err) { console.error(err) }
+    }
+
+    const handlePostComment = async (e, newsId) => {
+        e.preventDefault()
+        if (!newComment.trim()) return
+
+        try {
+            const response = await authFetch(`/api/tournaments/${id}/news/${newsId}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: newComment })
+            })
+            const data = await response.json()
+
+            if (data.success) {
+                setNewComment('')
+                const res = await authFetch(`/api/tournaments/${id}/news/${newsId}/comments`)
+                const d = await res.json()
+                if (d.success) {
+                    setCommentsMap(prev => ({ ...prev, [newsId]: d.data }))
+                }
+            } else {
+                showError(data.message || 'Gagal mengirim komentar')
+            }
+        } catch (err) {
+            console.error('Post comment error:', err)
+            showError('Gagal mengirim komentar')
+        }
+    }
+
+    useEffect(() => {
+        if (activeTab === 'news' && id) {
+            const fetchNews = async () => {
+                setIsNewsLoading(true)
+                try {
+                    const response = await authFetch(`/api/tournaments/${id}/news`)
+                    const data = await response.json()
+                    if (data.success) {
+                        setNewsList(data.data)
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch news:', err)
+                } finally {
+                    setIsNewsLoading(false)
+                }
+            }
+            fetchNews()
+        }
+    }, [activeTab, id])
+
+    const isMemberOfTournament = participants.some(p => String(p.user_id) === String(user?.id))
+    const isOrganizer = competitionData && user && String(competitionData.organizer_id) === String(user.id)
 
     return (
         <>
@@ -264,250 +390,452 @@ export default function JoinCompetition() {
                         </button>
                     )}
 
-                    <h1 className="text-2xl md:text-3xl font-display font-bold mb-2">Registrasi Kompetisi</h1>
+                    {loadingData ? (
+                        <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-neonGreen" /></div>
+                    ) : competitionData ? (
+                        <>
+                            <h1 className="text-2xl md:text-3xl font-display font-bold mb-2">Registrasi Kompetisi</h1>
 
-                    {/* Competition Detail Summary */}
-                    <div className="bg-gradient-to-br from-blue-900/40 to-purple-900/40 border border-white/10 rounded-xl p-6 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-10">
-                            <Trophy className="w-32 h-32 rotate-12" />
-                        </div>
-
-                        <div className="relative z-10 flex flex-col gap-4">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2 py-1 rounded-full">{competitionData.type}</span>
-                                        {competitionData.creator?.isTrusted && (
-                                            <span className="bg-green-500/20 text-green-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
-                                                <ShieldCheck className="w-3 h-3" /> OFFICIAL
-                                            </span>
-                                        )}
-                                    </div>
-                                    <h2 className="text-2xl font-display font-bold text-white">{competitionData.name}</h2>
-                                    <p className="text-gray-400 text-sm mt-1">{competitionData.description}</p>
+                            {/* Competition Detail Summary */}
+                            <div className="bg-gradient-to-br from-blue-900/40 to-purple-900/40 border border-white/10 rounded-xl p-6 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-10">
+                                    <Trophy className="w-32 h-32 rotate-12" />
                                 </div>
-                            </div>
 
-                            <div className="flex flex-wrap gap-4 text-sm mt-2">
-                                <div className="flex items-center gap-2 text-gray-300 bg-black/20 px-3 py-1.5 rounded-lg">
-                                    <Calendar className="w-4 h-4 text-neonGreen" />
-                                    <span>Mulai: {competitionData.startDate}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-gray-300 bg-black/20 px-3 py-1.5 rounded-lg">
-                                    <Users className="w-4 h-4 text-blue-400" />
-                                    <span>Slot: {competitionData.players - competitionData.currentPlayers} Tersisa</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Tab Navigation */}
-                <div className="flex items-center gap-2 border-b border-white/10 overflow-x-auto">
-                    <button
-                        onClick={() => setActiveTab('register')}
-                        className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === 'register' ? 'border-neonGreen text-neonGreen' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
-                    >
-                        <User className="w-4 h-4" />
-                        Form Pendaftaran
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('participants')}
-                        className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === 'participants' ? 'border-neonGreen text-neonGreen' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
-                    >
-                        <ClipboardList className="w-4 h-4" />
-                        Peserta ({participants.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('news')}
-                        className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === 'news' ? 'border-neonGreen text-neonGreen' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
-                    >
-                        <Newspaper className="w-4 h-4" />
-                        League News
-                    </button>
-                </div>
-
-                {/* Tab Content */}
-                <div className="min-h-[400px]">
-                    {activeTab === 'register' && (
-                        <Card hover={false}>
-                            <CardHeader>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
-                                        <User className="w-5 h-5 text-neonGreen" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-display font-bold">Data Pendaftar</h3>
-                                        <p className="text-sm text-gray-400">Lengkapi data diri dan tim untuk mendaftar</p>
-                                    </div>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <form onSubmit={handleSubmit} className="space-y-5">
-                                    {error && (
-                                        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
-                                            {error}
+                                <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
+                                    {competitionData.logo ? (
+                                        <img
+                                            src={competitionData.logo}
+                                            alt={competitionData.name}
+                                            className="w-24 h-24 rounded-2xl object-cover border-2 border-white/10 shadow-lg"
+                                        />
+                                    ) : (
+                                        <div className="w-24 h-24 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                            <Trophy className="w-10 h-10 text-white/20" />
                                         </div>
                                     )}
 
-                                    {/* League Select */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <Trophy className="w-4 h-4 text-neonGreen" />
-                                                Pilih Liga
+                                    <div className="flex-1 space-y-3">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-3 py-1 rounded-full border border-blue-500/30 uppercase">
+                                                {competitionData.type?.replace('_', ' ')}
+                                            </span>
+                                            {competitionData.match_format && (
+                                                <span className="bg-purple-500/20 text-purple-400 text-xs font-bold px-3 py-1 rounded-full border border-purple-500/30 uppercase">
+                                                    {competitionData.match_format?.replace('_', ' ')}
+                                                </span>
+                                            )}
+                                            {competitionData.creator?.tier && (
+                                                <UserBadge
+                                                    tier={competitionData.creator.tier.toLowerCase().replace(' ', '_')}
+                                                    size="sm"
+                                                    className="origin-left"
+                                                />
+                                            )}
+                                        </div>
+
+                                        <div>
+                                            <h2 className="text-2xl md:text-3xl font-display font-bold text-white mb-1">{competitionData.name}</h2>
+                                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                                                <span>Diselenggarakan oleh</span>
+                                                <span className="text-white font-medium">{competitionData.creator?.name}</span>
                                             </div>
-                                        </label>
-                                        <SearchableSelect
-                                            options={leagueOptions}
-                                            value={formData.league}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, league: e.target.value }))}
-                                            placeholder="Pilih Liga Asal Tim..."
-                                        />
+                                        </div>
+                                        <p className="text-gray-400 text-sm leading-relaxed max-w-2xl">{competitionData.description}</p>
                                     </div>
 
-                                    {/* Team Select */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <Shield className="w-4 h-4 text-neonPink" />
-                                                Pilih Tim
-                                                {loadingTeams && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+                                    <div className="flex flex-wrap gap-4 text-sm mt-2">
+                                        <div className="flex items-center gap-2 text-gray-300 bg-black/20 px-3 py-1.5 rounded-lg">
+                                            <Calendar className="w-4 h-4 text-neonGreen" />
+                                            <span>Mulai: {competitionData.startDate}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-gray-300 bg-black/20 px-3 py-1.5 rounded-lg">
+                                            <Users className="w-4 h-4 text-blue-400" />
+                                            <span>Slot: {competitionData.max_participants - (competitionData.current_participants || 0)} Tersisa</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Tab Navigation */}
+                            <div className="flex items-center gap-2 border-b border-white/10 overflow-x-auto mt-6">
+                                {!isJoined && (
+                                    <button
+                                        onClick={() => setActiveTab('register')}
+                                        className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === 'register' ? 'border-neonGreen text-neonGreen' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
+                                    >
+                                        <User className="w-4 h-4" />
+                                        Form Pendaftaran
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => setActiveTab('participants')}
+                                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === 'participants' ? 'border-neonGreen text-neonGreen' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
+                                >
+                                    <ClipboardList className="w-4 h-4" />
+                                    Peserta ({participants.length})
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('news')}
+                                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === 'news' ? 'border-neonGreen text-neonGreen' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
+                                >
+                                    <Newspaper className="w-4 h-4" />
+                                    League News
+                                </button>
+                            </div>
+
+                            {/* Tab Content */}
+                            <div className="min-h-[400px] mt-6">
+                                {activeTab === 'register' && (
+                                    <Card hover={false}>
+                                        <CardHeader>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
+                                                    <User className="w-5 h-5 text-neonGreen" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-display font-bold">Data Pendaftar</h3>
+                                                    <p className="text-sm text-gray-400">Lengkapi data diri dan tim untuk mendaftar</p>
+                                                </div>
                                             </div>
-                                        </label>
-                                        <SearchableSelect
-                                            options={teamOptions}
-                                            value={formData.teamId}
-                                            onChange={handleTeamChange}
-                                            placeholder={loadingTeams ? 'Memuat tim...' : 'Pilih Tim...'}
-                                            disabled={!formData.league || loadingTeams}
-                                        />
-                                        {/* Show selected team logo */}
-                                        {formData.teamLogo && formData.team && (
-                                            <div className="mt-3 flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
-                                                <img
-                                                    src={formData.teamLogo}
-                                                    alt={formData.team}
-                                                    className="w-10 h-10 object-contain"
-                                                    onError={(e) => {
-                                                        const formattedId = String(formData.teamId).padStart(6, '0')
-                                                        if (e.target.src.includes('_r_l')) {
-                                                            e.target.src = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_f_l.png.webp`
-                                                        } else if (e.target.src.includes('_f_l')) {
-                                                            e.target.src = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_r_w_l.png.webp`
-                                                        }
-                                                    }}
-                                                />
-                                                <span className="font-medium">{formData.team}</span>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <form onSubmit={handleSubmit} className="space-y-5">
+                                                {/* User Info Header */}
+                                                <div className="bg-white/5 border border-white/10 rounded-lg p-4 mb-4">
+                                                    <div className="flex items-center gap-3 mb-3 pb-3 border-b border-white/5">
+                                                        <div className="w-8 h-8 rounded-full bg-neonGreen/20 flex items-center justify-center text-neonGreen font-bold">
+                                                            {user?.name?.charAt(0)}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-bold text-white">{user?.name}</p>
+                                                            <p className="text-xs text-gray-500">@{user?.username || 'user'}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-xs text-gray-400 space-y-1">
+                                                        <div className="flex justify-between">
+                                                            <span>WhatsApp:</span>
+                                                            <span className="text-white">{user?.phone || user?.whatsapp || '-'}</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span>Email:</span>
+                                                            <span className="text-white">{user?.email}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {error && (
+                                                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+                                                        {error}
+                                                    </div>
+                                                )}
+
+                                                {/* League Select */}
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Trophy className="w-4 h-4 text-neonGreen" />
+                                                            Pilih Liga
+                                                        </div>
+                                                    </label>
+                                                    <SearchableSelect
+                                                        options={leagueOptions}
+                                                        value={formData.league}
+                                                        onChange={(e) => setFormData(prev => ({ ...prev, league: e.target.value }))}
+                                                        placeholder="Pilih Liga Asal Tim..."
+                                                    />
+                                                </div>
+
+                                                {/* Team Select */}
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Shield className="w-4 h-4 text-neonPink" />
+                                                            Pilih Tim
+                                                            {loadingTeams && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+                                                        </div>
+                                                    </label>
+                                                    <SearchableSelect
+                                                        options={teamOptions}
+                                                        value={formData.teamId}
+                                                        onChange={handleTeamChange}
+                                                        placeholder={loadingTeams ? 'Memuat tim...' : 'Pilih Tim...'}
+                                                        disabled={!formData.league || loadingTeams}
+                                                    />
+
+                                                    {/* Editable Team Name */}
+                                                    <div className="mt-3">
+                                                        <Input
+                                                            label={
+                                                                <div className="flex items-center gap-2">
+                                                                    <Shield className="w-4 h-4 text-neonPink" />
+                                                                    Nama Tim
+                                                                </div>
+                                                            }
+                                                            placeholder="Nama tim akan muncul di sini..."
+                                                            value={formData.team}
+                                                            onChange={(e) => setFormData(prev => ({
+                                                                ...prev,
+                                                                team: e.target.value.replace(/\b\w/g, char => char.toUpperCase())
+                                                            }))}
+                                                        />
+                                                    </div>
+                                                    {/* Show selected team logo */}
+                                                    {formData.teamLogo && formData.team && (
+                                                        <div className="mt-3 flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                                                            <img
+                                                                src={formData.teamLogo}
+                                                                alt={formData.team}
+                                                                className="w-10 h-10 object-contain"
+                                                                onError={(e) => {
+                                                                    // Try alternate logo format on error
+                                                                    const formattedId = String(formData.teamId).padStart(6, '0')
+                                                                    let newUrl = ''
+
+                                                                    // Fallback chain: _r_w_l -> _f_l -> _r_l
+                                                                    if (e.target.src.includes('_r_w_l')) {
+                                                                        newUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_f_l.png.webp`
+                                                                    } else if (e.target.src.includes('_f_l')) {
+                                                                        newUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_r_l.png.webp`
+                                                                    }
+
+                                                                    if (newUrl) {
+                                                                        e.target.src = newUrl
+                                                                        // IMPORTANT: Update state so the valid URL is saved!
+                                                                        setFormData(prev => ({ ...prev, teamLogo: newUrl }))
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <span className="font-medium">{formData.team}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Submit Buttons */}
+
+                                                {/* Submit Buttons */}
+                                                <div className="flex gap-3 pt-4">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        className="flex-1"
+                                                        onClick={() => isPublic ? navigate('/') : navigate('/dashboard/competitions')}
+                                                    >
+                                                        Batal
+                                                    </Button>
+                                                    <Button
+                                                        type="submit"
+                                                        className="flex-1"
+                                                        disabled={isSubmitting || loadingTeams}
+                                                        icon={Sparkles}
+                                                    >
+                                                        {isSubmitting ? (
+                                                            <>
+                                                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                                                Mendaftar...
+                                                            </>
+                                                        ) : (
+                                                            'Daftar Sekarang'
+                                                        )}
+                                                    </Button>
+                                                </div>
+                                            </form>
+                                        </CardContent>
+                                    </Card>
+                                )}
+
+                                {activeTab === 'participants' && (
+                                    <div className="space-y-4 animate-fadeIn">
+                                        {participants.map((player) => (
+                                            <div key={player.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+
+                                                <div className="flex items-center gap-4">
+                                                    {player.logo_url ? (
+                                                        <img src={player.logo_url} alt={player.team_name} className="w-10 h-10 object-contain" />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 font-bold">
+                                                            {player.team_name?.charAt(0) || player.name?.charAt(0)}
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <h4 className="font-bold text-white">{player.team_name || player.team}</h4>
+                                                        <div className="flex items-center gap-1">
+                                                            <p className="text-sm text-gray-400">{player.name}</p>
+                                                            {player.tier_name && (
+                                                                <UserBadge
+                                                                    tier={player.tier_name.toLowerCase().replace(' ', '_')}
+                                                                    size="sm"
+                                                                    className="scale-75 origin-left"
+                                                                />
+                                                            )}
+                                                        </div>
+                                                        {player.username && (
+                                                            <p className="text-xs text-neonGreen mt-0.5">@{player.username}</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="text-right">
+                                                    <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(player.status)}`}>
+                                                        {player.status}
+                                                    </span>
+
+                                                    <p className="text-xs text-gray-500 mt-2">{formatDate(player.created_at)}</p>
+
+                                                    {/* Edit Button for pending user */}
+                                                    {user && String(player.user_id) === String(user.id) && player.status === 'pending' && (
+                                                        <div className="mt-2 flex justify-end">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="text-neonGreen hover:bg-neonGreen/10 h-7 text-xs"
+                                                                onClick={() => handleEditClick(player)}
+                                                            >
+                                                                <Sparkles className="w-3 h-3 mr-1" />
+                                                                Edit Tim
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <div className="text-center p-4">
+                                            <p className="text-sm text-gray-500">Menampilkan {participants.length} peserta terdaftar.</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTab === 'news' && (
+                                    <div className="space-y-4 animate-fadeIn">
+                                        {/* Welcome Message Card */}
+                                        {newsList.filter(n => n.is_welcome).map(news => (
+                                            <div key={news.id} className="bg-gradient-to-br from-neonGreen/20 to-blue-600/20 border border-neonGreen/30 rounded-xl p-6 relative overflow-hidden">
+                                                <div className="absolute top-0 right-0 p-4 opacity-10">
+                                                    <MessageSquare className="w-24 h-24 text-neonGreen" />
+                                                </div>
+                                                <div className="relative z-10">
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="bg-neonGreen text-black text-[10px] font-bold px-2 py-0.5 rounded uppercase">Pinned</span>
+                                                            <h3 className="font-bold text-xl text-white">{news.title}</h3>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-gray-200 mb-6 whitespace-pre-wrap">{news.content}</p>
+
+                                                    <div className="flex flex-wrap gap-3">
+                                                        {news.contact_info && (
+                                                            <a href={`https://wa.me/${news.contact_info.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
+                                                                className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition">
+                                                                <Phone className="w-4 h-4" />
+                                                                Hubungi Admin
+                                                            </a>
+                                                        )}
+                                                        {news.group_link && (
+                                                            <a href={news.group_link} target="_blank" rel="noreferrer"
+                                                                className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition">
+                                                                <Users className="w-4 h-4" />
+                                                                Gabung Grup
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        {isNewsLoading ? (
+                                            <div className="text-center py-12"><Loader2 className="w-8 h-8 animate-spin mx-auto text-neonGreen" /></div>
+                                        ) : newsList.length === 0 ? (
+                                            <div className="text-center py-12 text-gray-500 bg-white/5 rounded-xl border border-white/10">
+                                                <Newspaper className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                                <p>Belum ada berita yang dipublish.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                {newsList.filter(n => !n.is_welcome).map((news) => (
+                                                    <div key={news.id} className="bg-white/5 border border-white/10 rounded-xl p-6 hover:bg-white/10 transition group relative">
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <h3 className="font-bold text-lg text-white">{news.title}</h3>
+                                                            <span className="text-xs text-gray-500 bg-black/20 px-2 py-1 rounded">
+                                                                {new Date(news.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-gray-300 text-sm whitespace-pre-wrap mb-4">{news.content}</p>
+
+                                                        {/* Interaction Bar */}
+                                                        {news.open_thread && (
+                                                            <div className="border-t border-white/10 pt-3">
+                                                                <button
+                                                                    onClick={() => toggleComments(news.id)}
+                                                                    className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition"
+                                                                >
+                                                                    <MessageCircle className="w-4 h-4" />
+                                                                    {news.comment_count || 0} Komentar
+                                                                    <ChevronDown className={`w-3 h-3 transition-transform ${openThreadNewsId === news.id ? 'rotate-180' : ''}`} />
+                                                                </button>
+
+                                                                {/* Comments Section */}
+                                                                {openThreadNewsId === news.id && (
+                                                                    <div className="mt-4 space-y-4 pl-4 border-l-2 border-white/10">
+                                                                        {/* Comment List */}
+                                                                        {commentsMap[news.id]?.length > 0 ? (
+                                                                            <div className="space-y-3">
+                                                                                {commentsMap[news.id].map(comment => (
+                                                                                    <div key={comment.id} className="flex gap-3">
+                                                                                        <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden flex-shrink-0">
+                                                                                            {comment.participant_logo || comment.user_avatar ? (
+                                                                                                <img src={comment.participant_logo || comment.user_avatar} alt="" className="w-full h-full object-cover" />
+                                                                                            ) : (
+                                                                                                <Users className="w-4 h-4 m-auto text-gray-400 h-full" />
+                                                                                            )}
+                                                                                        </div>
+                                                                                        <div className="flex-1">
+                                                                                            <div className="flex items-center gap-2 mb-1">
+                                                                                                <span className="text-sm font-bold text-white">{comment.team_name || comment.participant_name || comment.user_name || 'User'}</span>
+                                                                                                <span className="text-[10px] text-gray-500">{new Date(comment.created_at).toLocaleString()}</span>
+                                                                                            </div>
+                                                                                            <p className="text-sm text-gray-300">{comment.content}</p>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <p className="text-sm text-gray-500 italic">Belum ada komentar.</p>
+                                                                        )}
+
+                                                                        {/* Comment Input */}
+                                                                        {(isOrganizer || isMemberOfTournament) ? (
+                                                                            <form onSubmit={(e) => handlePostComment(e, news.id)} className="flex gap-2 mt-4">
+                                                                                <Input
+                                                                                    value={newComment}
+                                                                                    onChange={(e) => setNewComment(e.target.value)}
+                                                                                    placeholder="Tulis komentar..."
+                                                                                    className="flex-1 bg-black/20"
+                                                                                />
+                                                                                <Button type="submit" size="sm" icon={Send}>
+                                                                                    Kirim
+                                                                                </Button>
+                                                                            </form>
+                                                                        ) : (
+                                                                            <p className="text-xs text-gray-500 mt-2">Hanya peserta yang dapat berkomentar.</p>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
-
-                                    {/* Player Name */}
-                                    <Input
-                                        label={
-                                            <div className="flex items-center gap-2">
-                                                <User className="w-4 h-4 text-neonGreen" />
-                                                Nama Manager / Pemain
-                                            </div>
-                                        }
-                                        placeholder="Masukkan nama anda"
-                                        value={formData.playerName}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, playerName: e.target.value }))}
-                                    />
-
-                                    {/* Contact */}
-                                    <Input
-                                        label={
-                                            <div className="flex items-center gap-2">
-                                                <Phone className="w-4 h-4 text-neonPink" />
-                                                Nomor WhatsApp
-                                            </div>
-                                        }
-                                        placeholder="08xxxxxxxxxx"
-                                        value={formData.contact}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, contact: e.target.value }))}
-                                    />
-
-                                    {/* Submit Buttons */}
-                                    <div className="flex gap-3 pt-4">
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            className="flex-1"
-                                            onClick={() => isPublic ? navigate('/') : navigate('/dashboard/competitions')}
-                                        >
-                                            Batal
-                                        </Button>
-                                        <Button
-                                            type="submit"
-                                            className="flex-1"
-                                            disabled={isSubmitting || loadingTeams}
-                                            icon={Sparkles}
-                                        >
-                                            {isSubmitting ? (
-                                                <>
-                                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                                    Mendaftar...
-                                                </>
-                                            ) : (
-                                                'Daftar Sekarang'
-                                            )}
-                                        </Button>
-                                    </div>
-                                </form>
-                            </CardContent>
-                        </Card>
-                    )}
-
-                    {activeTab === 'participants' && (
-                        <div className="space-y-4 animate-fadeIn">
-                            {participants.map((player) => (
-                                <div key={player.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 font-bold">
-                                            {player.name.charAt(0)}
-                                        </div>
-                                        <div>
-                                            <h4 className="font-bold text-white">{player.name}</h4>
-                                            <p className="text-sm text-gray-400">{player.team}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className={`text-xs px-2 py-1 rounded-full ${player.status === 'Verified' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                                            {player.status}
-                                        </span>
-                                        <p className="text-xs text-gray-500 mt-1">{player.date}</p>
-                                    </div>
-                                </div>
-                            ))}
-                            <div className="text-center p-4">
-                                <p className="text-sm text-gray-500">Menampilkan {participants.length} peserta terdaftar.</p>
+                                )}
                             </div>
-                        </div>
-                    )}
 
-                    {activeTab === 'news' && (
-                        <div className="space-y-4 animate-fadeIn">
-                            {leagueNews.map((news) => (
-                                <div key={news.id} className="bg-white/5 border border-white/10 rounded-xl p-6 hover:bg-white/10 transition cursor-pointer group">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h3 className="font-bold text-lg text-white group-hover:text-neonGreen transition">{news.title}</h3>
-                                        <span className="text-xs text-gray-500 bg-black/20 px-2 py-1 rounded">{news.date}</span>
-                                    </div>
-                                    <p className="text-gray-400 text-sm">{news.summary}</p>
-                                    <div className="mt-4 flex items-center gap-2 text-xs text-blue-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                                        Baca Selengkapnya
-                                        <ArrowLeft className="w-3 h-3 rotate-180" />
-                                    </div>
-                                </div>
-                            ))}
-                            {leagueNews.length === 0 && (
-                                <div className="text-center py-12 text-gray-500">
-                                    <Newspaper className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                    <p>Belum ada berita untuk liga ini.</p>
-                                </div>
-                            )}
+                        </>
+                    ) : (
+                        <div className="text-center py-12 text-gray-500">
+                            <Trophy className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                            <h3 className="text-xl font-bold">Kompetisi Tidak Ditemukan</h3>
+                            <button onClick={() => navigate('/dashboard/competitions')} className="text-neonGreen hover:underline mt-2">Kembali ke Daftar Kompetisi</button>
                         </div>
                     )}
                 </div>
@@ -515,7 +843,212 @@ export default function JoinCompetition() {
                 <div className="mt-6">
                     <AdSlot variant="banner" adId="join-comp-form" />
                 </div>
-            </div>
+            </div >
+            <EditParticipantModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                participant={editingParticipant}
+                onSave={handleSaveParticipant}
+            />
         </>
+    )
+}
+
+// Edit Participant Modal Component
+function EditParticipantModal({ isOpen, onClose, participant, onSave }) {
+    const [formData, setFormData] = useState({
+        team_name: '',
+        logo_url: '',
+        league: ''
+    })
+    const [teams, setTeams] = useState([])
+    const [loadingTeams, setLoadingTeams] = useState(false)
+    const [loading, setLoading] = useState(false)
+
+    // Initialize data
+    useEffect(() => {
+        if (participant) {
+            const stats = participant.stats ? (typeof participant.stats === 'string' ? JSON.parse(participant.stats) : participant.stats) : {}
+            setFormData({
+                team_name: participant.team_name || participant.team || '',
+                logo_url: participant.logo_url || '',
+                league: stats.league || ''
+            })
+        }
+    }, [participant])
+
+    // Fetch teams when league changes
+    useEffect(() => {
+        if (!formData.league) {
+            setTeams([])
+            return
+        }
+
+        const fetchTeams = async () => {
+            setLoadingTeams(true)
+            setTeams([])
+
+            try {
+                const response = await authFetch('/api/teams')
+                const data = await response.json()
+
+                if (data?.data) {
+                    const filteredTeams = []
+
+                    data.data.forEach(entry => {
+                        entry.entries?.forEach(teamEntry => {
+                            const teamID = teamEntry.team?.pes_id
+                            const teamName = teamEntry.team?.english_name
+
+                            teamEntry.team?.competitions?.forEach(competition => {
+                                const ligaName = competition.competition?.competition_name
+
+                                if (ligaName === formData.league) {
+                                    const formattedTeamID = String(teamID).padStart(6, '0')
+                                    const logoUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedTeamID}_r_w_l.png.webp`
+
+                                    filteredTeams.push({
+                                        id: teamID,
+                                        name: teamName,
+                                        logo: logoUrl,
+                                        formattedId: formattedTeamID
+                                    })
+                                }
+                            })
+                        })
+                    })
+
+                    const uniqueTeams = filteredTeams.filter((team, index, self) =>
+                        index === self.findIndex(t => t.id === team.id)
+                    )
+
+                    setTeams(uniqueTeams)
+                }
+            } catch (err) {
+                console.error('Error fetching teams:', err)
+            } finally {
+                setLoadingTeams(false)
+            }
+        }
+
+        fetchTeams()
+    }, [formData.league])
+
+    const handleTeamChange = (e) => {
+        const selectedTeamId = e.target.value
+        const selectedTeam = teams.find(t => String(t.id) === selectedTeamId)
+
+        if (selectedTeam) {
+            setFormData(prev => ({
+                ...prev,
+                team_name: selectedTeam.name,
+                logo_url: selectedTeam.logo
+            }))
+        }
+    }
+
+    const handleSubmit = async (e) => {
+        e.preventDefault()
+        setLoading(true)
+        // Only send updated team/logo data
+        const updateData = {
+            team: formData.team_name, // Backend expects 'team' usually, need to check if it maps to team_name
+            // Wait, standard update usually updates 'team' or 'team_name'. 
+            // In TournamentDetail, it sends 'team_name'. 
+            // JoinCompetition submit uses 'team'. 
+            // I'll send both to be safe or check backend. 
+            // Let's assume backend handles 'team_name' or 'team'.
+            team_name: formData.team_name,
+            team: formData.team_name,
+            logo_url: formData.logo_url,
+            // Preserve other fields? Usually PUT merges or overwrites. 
+            // The logic in TournamentDetail sends explicit fields.
+            // I should only send what I want to update.
+        }
+        await onSave(participant.id, updateData)
+        setLoading(false)
+    }
+
+    if (!isOpen) return null
+
+    const teamOptions = [
+        { value: '', label: loadingTeams ? 'Memuat tim...' : 'Pilih Tim Baru (Opsional)...' },
+        ...teams.map(team => ({
+            value: String(team.id),
+            label: team.name
+        }))
+    ]
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Edit Tim Saya">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-4">
+                    <p className="text-xs text-yellow-200">
+                        Anda hanya dapat mengubah data tim selama status pendaftaran masih <strong>Pending</strong>.
+                    </p>
+                </div>
+
+                <div className="space-y-3">
+                    <label className="block text-xs font-semibold text-gray-400 uppercase">Ganti Tim & Logo (Opsional)</label>
+
+                    <SearchableSelect
+                        options={leagueOptions}
+                        value={formData.league}
+                        onChange={(e) => setFormData(prev => ({ ...prev, league: e.target.value }))}
+                        placeholder="Pilih Liga..."
+                    />
+
+                    <SearchableSelect
+                        options={teamOptions}
+                        value=""
+                        onChange={handleTeamChange}
+                        placeholder={loadingTeams ? 'Memuat...' : 'Pilih Tim...'}
+                        disabled={!formData.league || loadingTeams}
+                    />
+                </div>
+
+                <Input
+                    label="Nama Tim"
+                    value={formData.team_name}
+                    onChange={(e) => setFormData({ ...formData, team_name: e.target.value })}
+                    placeholder="Nama Tim"
+                />
+
+                {formData.logo_url && (
+                    <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
+                        <img
+                            src={formData.logo_url}
+                            alt="Team Logo"
+                            className="w-10 h-10 object-contain"
+                            onError={(e) => {
+                                const formattedId = String(formData.teamId || '').padStart(6, '0') // teamId might not be available directly if just string url
+                                // Better fallback logic based on URL pattern
+                                const currentSrc = e.target.src
+                                let newUrl = ''
+                                if (currentSrc.includes('_r_w_l')) {
+                                    newUrl = currentSrc.replace('_r_w_l', '_f_l')
+                                } else if (currentSrc.includes('_f_l')) {
+                                    newUrl = currentSrc.replace('_f_l', '_r_l')
+                                }
+                                if (newUrl) {
+                                    e.target.src = newUrl
+                                    setFormData(prev => ({ ...prev, logo_url: newUrl }))
+                                }
+                            }}
+                        />
+                        <span className="text-sm text-gray-400">Logo Preview</span>
+                    </div>
+                )}
+
+                <div className="flex gap-3 pt-4 border-t border-white/10 mt-6 md:justify-end">
+                    <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+                        Batal
+                    </Button>
+                    <Button type="submit" disabled={loading} icon={Sparkles}>
+                        {loading ? 'Menyimpan...' : 'Simpan Perubahan'}
+                    </Button>
+                </div>
+            </form>
+        </Modal>
     )
 }

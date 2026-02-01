@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react'
-import { Crown, Zap, History, PlayCircle, Plus, AlertCircle, ArrowRightLeft, Loader2, CheckCircle2 } from 'lucide-react'
+﻿import React, { useState, useEffect } from 'react'
+import { authFetch } from '../../utils/api'
+import { Crown, Zap, History, PlayCircle, Plus, AlertCircle, ArrowRightLeft, Loader2, CheckCircle2, Star } from 'lucide-react'
 import { useAds } from '../../contexts/AdContext'
+import { useAuth } from '../../contexts/AuthContext'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
@@ -24,17 +26,51 @@ const MOCK_TRANSACTIONS = [
 ]
 
 const COIN_RATE = 150 // 1 Coin = Rp 150
+const SUBSCRIPTION_PLANS = [
+    {
+        id: 'captain',
+        name: 'Captain',
+        db_id: 2,
+        price: 'Rp 49.000',
+        period: '/ 30 Hari',
+        features: [
+            'Max 5 Tournaments',
+            'Max 32 Participants',
+            'Advanced Bracket',
+            'Team Management',
+            'Custom Rules',
+            'Export Data'
+        ]
+    },
+    {
+        id: 'pro_league',
+        name: 'Pro League',
+        db_id: 3,
+        price: 'Rp 149.000',
+        period: '/ 30 Hari',
+        features: [
+            'Unlimited Tournaments',
+            'Max 64 Participants',
+            'All Features',
+            'Priority Support',
+            'API Access',
+            'White Label'
+        ]
+    }
+]
 const MIN_IDR_TOPUP = 10000
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 
 export default function TopUp() {
     const { subscriptionTier, isFree, isPremium } = useAds()
+    const { wallet, subscription, refreshWallet, user } = useAuth()
     const [amountCoins, setAmountCoins] = useState('')
     const [amountIdr, setAmountIdr] = useState('')
     const [error, setError] = useState('')
 
     // State for interactive features
-    const [balance, setBalance] = useState(1250)
-    const [transactions, setTransactions] = useState(MOCK_TRANSACTIONS)
+    const [transactions, setTransactions] = useState([])
+    const [isLoadingTx, setIsLoadingTx] = useState(true)
 
     // Ad Watching State
     const [isAdModalOpen, setIsAdModalOpen] = useState(false)
@@ -44,6 +80,94 @@ export default function TopUp() {
 
     const adRef = React.useRef(null)
     const { success } = useToast()
+
+    // Get subscription tier styling
+    const getSubscriptionStyle = (plan) => {
+        switch (plan?.toLowerCase()) {
+            case 'pro_league':
+                return {
+                    bg: 'bg-purple-500/20',
+                    text: 'text-purple-400',
+                    border: 'border-purple-500/50',
+                    name: 'Pro League',
+                    Icon: Crown,
+                    gradient: 'from-purple-600/20 via-pink-500/20 to-purple-600/20',
+                    cardBorder: 'border-purple-500/30',
+                    crownColor: 'text-purple-400',
+                    validity: 'Pro League Access'
+                }
+            case 'captain':
+                return {
+                    bg: 'bg-yellow-500/20',
+                    text: 'text-yellow-400',
+                    border: 'border-yellow-500/50',
+                    name: 'Captain',
+                    Icon: Star,
+                    gradient: 'from-yellow-500/20 via-amber-500/20 to-yellow-500/20',
+                    cardBorder: 'border-yellow-500/30',
+                    crownColor: 'text-yellow-400',
+                    validity: 'Captain Access'
+                }
+            default:
+                return {
+                    bg: 'bg-gray-600/30',
+                    text: 'text-gray-300',
+                    border: 'border-gray-600',
+                    name: 'Free',
+                    Icon: Zap,
+                    gradient: 'from-cardBg to-cardBg/50',
+                    cardBorder: 'border-neonGreen/20',
+                    crownColor: 'text-gray-400',
+                    validity: 'Forever Free'
+                }
+        }
+    }
+
+    const subStyle = getSubscriptionStyle(subscription?.plan)
+    const isPremiumPlan = subscription?.plan && subscription.plan !== 'free'
+
+    // Fetch transactions from API
+    useEffect(() => {
+        const fetchTransactions = async () => {
+            try {
+                const token = localStorage.getItem('token')
+                if (!token) {
+                    setIsLoadingTx(false)
+                    return
+                }
+
+                const response = await authFetch(`${API_URL}/user/transactions?limit=20`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    credentials: 'include'
+                })
+
+                const data = await response.json()
+                if (data.success) {
+                    // Map API data to display format
+                    const mapped = data.data.map(tx => ({
+                        id: tx.id,
+                        type: tx.type,
+                        category: tx.category || tx.type,
+                        amount: tx.type === 'spend' ? -Math.abs(tx.amount) : tx.amount,
+                        date: new Date(tx.created_at).toLocaleString('en-GB', {
+                            day: 'numeric', month: 'short', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit'
+                        }),
+                        status: tx.status,
+                        desc: tx.description,
+                        method: tx.reference_id || 'Wallet'
+                    }))
+                    setTransactions(mapped)
+                }
+            } catch (error) {
+                console.error('Fetch transactions error:', error)
+            } finally {
+                setIsLoadingTx(false)
+            }
+        }
+
+        fetchTransactions()
+    }, [])
 
     // Ad Warning Modal
     const [adWarningModal, setAdWarningModal] = useState(false)
@@ -259,52 +383,62 @@ export default function TopUp() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Left Column: Subscription & Packages (spans 8) */}
                 <div className="lg:col-span-8 space-y-6">
-                    <Card className="bg-gradient-to-br from-cardBg to-cardBg/50 border-neonGreen/20">
-                        <div className="p-6 sm:p-8">
+                    <Card className={`bg-gradient-to-br ${subStyle.gradient} ${subStyle.cardBorder} relative overflow-hidden`}>
+                        {/* Decorative glow for premium tiers */}
+                        {isPremiumPlan && (
+                            <div className={`absolute -top-20 -right-20 w-40 h-40 ${subStyle.bg} rounded-full blur-3xl opacity-40`}></div>
+                        )}
+                        <div className="p-6 sm:p-8 relative">
                             <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-8 gap-4">
                                 <div>
                                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                        <Crown className={`w-6 h-6 ${isPremium ? 'text-yellow-400' : 'text-gray-400'}`} />
+                                        <Crown className={`w-6 h-6 ${subStyle.crownColor}`} />
                                         Subscription Status
                                     </h2>
                                     <p className="text-gray-400 mt-1">Manage your plan and billing details</p>
                                 </div>
-                                <div className={`self-start px-4 py-1.5 rounded-full text-sm font-bold capitalize ${isPremium
-                                    ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50'
-                                    : 'bg-gray-600/30 text-gray-300 border border-gray-600'
-                                    }`}>
-                                    {subscriptionTier} Plan
+                                <div className={`self-start px-4 py-1.5 rounded-full text-sm font-bold capitalize ${subStyle.border} ${subStyle.bg} ${subStyle.text} flex items-center gap-1.5`}>
+                                    <subStyle.Icon className="w-4 h-4" />
+                                    {subStyle.name} Plan
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                                <div className="bg-black/20 rounded-xl p-4 border border-white/5">
+                                <div className={`bg-black/20 rounded-xl p-4 border ${isPremiumPlan ? subStyle.border : 'border-white/5'}`}>
                                     <div className="text-sm text-gray-400 mb-1">Current Balance</div>
                                     <div className="text-3xl font-display font-bold text-white flex items-center gap-2">
                                         <img src="/coin.png" alt="Coin" className="w-8 h-8" />
-                                        {balance.toLocaleString()}
+                                        {Math.floor(wallet?.balance || 0).toLocaleString()}
                                     </div>
                                 </div>
-                                <div className="bg-black/20 rounded-xl p-4 border border-white/5">
+                                <div className={`bg-black/20 rounded-xl p-4 border ${isPremiumPlan ? subStyle.border : 'border-white/5'}`}>
                                     <div className="text-sm text-gray-400 mb-1">Status Validity</div>
-                                    <div className="text-xl font-display font-bold text-white mt-1">
-                                        {isPremium ? 'Unlimited Access' : 'Forever Free'}
+                                    <div className={`text-xl font-display font-bold mt-1 ${isPremiumPlan ? subStyle.text : 'text-white'}`}>
+                                        {isPremiumPlan && subscription?.end_date
+                                            ? new Date(subscription.end_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                                            : subStyle.validity}
                                     </div>
                                 </div>
                             </div>
 
-                            {!isPremium && (
+                            {(!isPremiumPlan || subscription?.plan?.toLowerCase() === 'captain') && (
                                 <div className="flex flex-col sm:flex-row items-center gap-4 bg-gradient-to-r from-yellow-500/10 to-transparent p-4 rounded-xl border border-yellow-500/20">
                                     <div className="flex-1">
-                                        <h4 className="font-bold text-yellow-500">Upgrade to Premium</h4>
-                                        <p className="text-sm text-gray-400">Unlock exclusive features, remove ads, and get monthly coin bonuses.</p>
+                                        <h4 className="font-bold text-yellow-500">
+                                            {subscription?.plan?.toLowerCase() === 'captain' ? 'Upgrade to Pro League' : 'Upgrade to Premium'}
+                                        </h4>
+                                        <p className="text-sm text-gray-400">
+                                            {subscription?.plan?.toLowerCase() === 'captain'
+                                                ? 'Unlock unlimited tournaments, max 64 participants, and white label features.'
+                                                : 'Unlock exclusive features, remove ads, and get monthly coin bonuses.'}
+                                        </p>
                                     </div>
                                     <Button
                                         onClick={() => setShowPremiumModal(true)}
                                         variant="primary"
                                         className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-400 text-black border-none whitespace-nowrap"
                                     >
-                                        Upgrade Now
+                                        {subscription?.plan?.toLowerCase() === 'captain' ? 'Upgrade to Pro' : 'Upgrade Now'}
                                     </Button>
                                 </div>
                             )}
@@ -678,47 +812,56 @@ export default function TopUp() {
                 onClose={() => setShowPremiumModal(false)}
                 title="Upgrade to Premium"
             >
-                <div className="p-4">
-                    <div className="text-center mb-6">
-                        <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-yellow-500/20">
-                            <Crown className="w-8 h-8 text-black" />
-                        </div>
-                        <h4 className="text-xl font-bold text-white">Unlock Full Potential</h4>
-                        <p className="text-sm text-gray-400 mt-2">Get exclusive access to premium features and rewards.</p>
+                <div className="p-6">
+                    <div className="text-center mb-8">
+                        <h4 className="text-2xl font-bold text-white mb-2">Pilih Paket Premium</h4>
+                        <p className="text-gray-400">Tingkatkan pengalaman Anda dengan fitur eksklusif</p>
                     </div>
 
-                    <div className="bg-white/5 rounded-xl p-4 mb-6 border border-white/5">
-                        <h5 className="text-sm font-bold text-gray-300 mb-3 uppercase tracking-wider">Premium Benefits</h5>
-                        <ul className="space-y-3">
-                            {[
-                                { icon: '🚫', text: 'Remove All Ads' },
-                                { icon: '👑', text: 'Exclusive Premium Badge' },
-                                { icon: '💎', text: 'Monthly +50 Coins Bonus' },
-                                { icon: '⚡', text: 'Priority Support' }
-                            ].map((item, idx) => (
-                                <li key={idx} className="flex items-center gap-3 text-sm text-gray-200">
-                                    <span className="text-base">{item.icon}</span>
-                                    {item.text}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                    <div className={`grid grid-cols-1 ${subscription?.plan?.toLowerCase() === 'captain' ? 'md:grid-cols-1 justify-items-center' : 'md:grid-cols-2'} gap-4`}>
+                        {SUBSCRIPTION_PLANS.filter(plan => {
+                            if (subscription?.plan?.toLowerCase() === 'captain') {
+                                return plan.id === 'pro_league'
+                            }
+                            return true
+                        }).map((plan) => {
+                            const style = getSubscriptionStyle(plan.id)
+                            return (
+                                <div key={plan.id} className={`relative p-5 rounded-xl border ${style.cardBorder} bg-gradient-to-br ${style.gradient} flex flex-col w-full max-w-md`}>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-black/20 ${style.text}`}>
+                                            <style.Icon className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <div className={`font-bold ${style.text}`}>{plan.name}</div>
+                                            <div className="text-xs text-gray-400">Subscription</div>
+                                        </div>
+                                    </div>
 
-                    <div className="flex items-center justify-between p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20 mb-6">
-                        <span className="text-sm text-yellow-200">Upgrade Cost</span>
-                        <span className="text-lg font-bold text-yellow-400">2,500 Coins <span className="text-xs font-normal text-gray-400">/ year</span></span>
-                    </div>
+                                    <ul className="space-y-2 mb-6 flex-1">
+                                        {plan.features.map((feature, idx) => (
+                                            <li key={idx} className="flex items-start gap-2 text-xs text-gray-300">
+                                                <CheckCircle2 className={`w-3.5 h-3.5 mt-0.5 ${style.text}`} />
+                                                <span className="leading-tight">{feature}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <Button variant="outline" onClick={() => setShowPremiumModal(false)}>
-                            Cancel
-                        </Button>
-                        <Button
-                            className="bg-gradient-to-r from-yellow-500 to-yellow-600 border-none text-black font-bold hover:shadow-lg hover:shadow-yellow-500/20"
-                            onClick={handlePremiumConfirm}
-                        >
-                            Confirm Upgrade
-                        </Button>
+                                    <div className="mt-auto">
+                                        <div className="mb-4">
+                                            <span className="text-xl font-bold text-white">{plan.price}</span>
+                                            <span className="text-xs text-gray-500"> {plan.period}</span>
+                                        </div>
+                                        <Button
+                                            onClick={() => handlePremiumConfirm(plan)}
+                                            className={`w-full bg-gradient-to-r ${style.buttonGradient || style.gradient} text-black font-bold border-none`}
+                                        >
+                                            Pilih {plan.name}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )
+                        })}
                     </div>
                 </div>
             </Modal>

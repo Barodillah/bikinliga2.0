@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { User, Lock, Users, Plus, Shield, Check } from 'lucide-react'
+import { User, Lock, Users, Plus, Shield, Check, Loader2, X } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
+import { useToast } from '../../contexts/ToastContext'
+import { authFetch } from '../../utils/api'
+import { useAuth } from '../../contexts/AuthContext'
 
 // Mock Data for Communities
 const MOCK_ADMIN_COMMUNITIES = [
@@ -22,10 +25,9 @@ const MOCK_ADMIN_COMMUNITIES = [
     }
 ]
 
-import { useToast } from '../../contexts/ToastContext'
-
 export default function Settings() {
-    const { success } = useToast()
+    const { success, error } = useToast()
+    const { user, checkUsername } = useAuth()
     const [searchParams, setSearchParams] = useSearchParams()
     const [activeTab, setActiveTabState] = useState(searchParams.get('tab') || 'profile')
     const [isLoading, setIsLoading] = useState(false)
@@ -44,11 +46,66 @@ export default function Settings() {
 
     // Form States
     const [profileForm, setProfileForm] = useState({
-        name: 'Admin User',
-        email: 'admin@bikinliga.com',
-        phone: '+62 812 3456 7890',
-        bio: 'Just a regular admin loving esports.'
+        name: '',
+        username: '',
+        email: '',
+        phone: '',
+        bio: ''
     })
+
+    // Username Validation State
+    const [usernameAvailability, setUsernameAvailability] = useState(null) // null, 'available', 'taken', 'invalid'
+    const [isCheckingUsername, setIsCheckingUsername] = useState(false)
+
+    useEffect(() => {
+        if (user) {
+            setProfileForm(prev => ({
+                ...prev,
+                name: user.name || '',
+                username: user.username || '',
+                email: user.email || '',
+                phone: user.phone || '',
+                bio: user.bio || ''
+            }))
+        }
+    }, [user])
+
+    // Live Username Check
+    useEffect(() => {
+        const check = async () => {
+            const username = profileForm.username;
+
+            // If empty or short
+            if (!username || username.length < 5) {
+                setUsernameAvailability(null);
+                return;
+            }
+
+            // If same as current user's username, it's valid
+            if (user && username === user.username) {
+                setUsernameAvailability('available');
+                return;
+            }
+
+            setIsCheckingUsername(true);
+            try {
+                const result = await checkUsername(username);
+                if (!result.success && !result.available) {
+                    setUsernameAvailability('invalid');
+                } else {
+                    setUsernameAvailability(result.available ? 'available' : 'taken');
+                }
+            } catch (err) {
+                console.error('Check username error:', err);
+                setUsernameAvailability('invalid');
+            } finally {
+                setIsCheckingUsername(false);
+            }
+        };
+
+        const timer = setTimeout(check, 500);
+        return () => clearTimeout(timer);
+    }, [profileForm.username, user, checkUsername]);
 
     const [passwordForm, setPasswordForm] = useState({
         current: '',
@@ -64,19 +121,93 @@ export default function Settings() {
         description: ''
     })
 
-    const handleProfileUpdate = (e) => {
+    const handleProfileUpdate = async (e) => {
         e.preventDefault()
+
+        if (profileForm.username.length < 5) {
+            return error('Username minimal 5 karakter')
+        }
+
+        if (usernameAvailability === 'taken') {
+            return error('Username sudah digunakan')
+        }
+
+        if (usernameAvailability === 'invalid') {
+            return error('Username tidak valid')
+        }
+
         setIsLoading(true)
-        setTimeout(() => setIsLoading(false), 1000)
+        try {
+            const res = await authFetch('/api/auth/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: profileForm.name,
+                    username: profileForm.username,
+                    phone: profileForm.phone,
+                    bio: profileForm.bio
+                })
+            })
+            const data = await res.json()
+
+            if (data.success) {
+                success(data.message)
+                // Optionally update local user context here if method available
+                // window.location.reload() // Brute force update useful for now to reflect changes everywhere
+            } else {
+                error(data.message)
+            }
+        } catch (err) {
+            console.error('Update profile error:', err)
+            error('Gagal memperbarui profil')
+        } finally {
+            setIsLoading(false)
+        }
     }
 
-    const handlePasswordUpdate = (e) => {
+    // ... (rest of component) ...
+
+    const handlePasswordUpdate = async (e) => {
         e.preventDefault()
+
+        if (passwordForm.new !== passwordForm.confirm) {
+            return error('Konfirmasi password tidak cocok')
+        }
+
+        // Allow any character as long as it meets complexity requirements
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*.,\-_]).{8,}$/;
+        if (!passwordRegex.test(passwordForm.new)) {
+            return error('Password harus minimal 8 karakter, mengandung huruf besar, huruf kecil, angka, dan simbol (!@#$%^&*.,-_)')
+        }
+
         setIsLoading(true)
-        setTimeout(() => {
+        try {
+            const payload = {
+                currentPassword: passwordForm.current,
+                newPassword: passwordForm.new
+            };
+
+            const res = await authFetch('/api/auth/password', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            const data = await res.json()
+
+            if (data.success) {
+                success(data.message)
+                setPasswordForm({ current: '', new: '', confirm: '' })
+            } else {
+                error(data.message)
+            }
+        } catch (err) {
+            console.error('Password update error:', err)
+            error('Gagal memperbarui password')
+        } finally {
             setIsLoading(false)
-            setPasswordForm({ current: '', new: '', confirm: '' })
-        }, 1000)
+        }
     }
 
     const handleCreateClub = (e) => {
@@ -102,11 +233,8 @@ export default function Settings() {
                         <form onSubmit={handleProfileUpdate} className="space-y-4 max-w-2xl">
                             <div className="flex items-center gap-4 mb-6">
                                 <div className="w-20 h-20 rounded-full bg-gradient-to-r from-neonGreen to-neonPink flex items-center justify-center text-black font-bold text-3xl">
-                                    A
+                                    {(user?.name || 'A').charAt(0).toUpperCase()}
                                 </div>
-                                <button type="button" className="text-sm text-neonGreen hover:text-white transition">
-                                    Ubah Foto
-                                </button>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
@@ -119,12 +247,63 @@ export default function Settings() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm text-gray-400 mb-1">Email</label>
+                                    <label className="block text-sm text-gray-400 mb-1">Username</label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                            @
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={profileForm.username}
+                                            onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, '') })}
+                                            className={`w-full bg-darkBg border rounded-lg pl-8 pr-12 py-2 text-white focus:outline-none transition-colors ${usernameAvailability === 'available' ? 'border-neonGreen focus:border-neonGreen' :
+                                                (usernameAvailability === 'taken' || usernameAvailability === 'invalid' || (profileForm.username.length > 0 && profileForm.username.length < 5)) ? 'border-red-500 focus:border-red-500' :
+                                                    'border-white/10 focus:border-neonGreen'
+                                                }`}
+                                            placeholder="username"
+                                            maxLength={20}
+                                        />
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                            {isCheckingUsername ? (
+                                                <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                                            ) : usernameAvailability === 'available' ? (
+                                                <Check className="w-4 h-4 text-neonGreen" />
+                                            ) : usernameAvailability === 'taken' || usernameAvailability === 'invalid' || (profileForm.username.length > 0 && profileForm.username.length < 5) ? (
+                                                <X className="w-4 h-4 text-red-500" />
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                    <div className="mt-1 min-h-[16px]">
+                                        {profileForm.username.length > 0 && profileForm.username.length < 5 && (
+                                            <p className="text-xs text-red-500">Minimal 5 karakter</p>
+                                        )}
+                                        {usernameAvailability === 'available' && (
+                                            <p className="text-xs text-neonGreen flex items-center gap-1">
+                                                Username tersedia
+                                            </p>
+                                        )}
+                                        {usernameAvailability === 'taken' && (
+                                            <p className="text-xs text-red-500 flex items-center gap-1">
+                                                Username sudah digunakan
+                                            </p>
+                                        )}
+                                        {usernameAvailability === 'invalid' && (
+                                            <p className="text-xs text-red-500 flex items-center gap-1">
+                                                Hanya huruf, angka, titik, dan underscore
+                                            </p>
+                                        )}
+                                        {!usernameAvailability && profileForm.username.length >= 5 && (
+                                            <p className="text-xs text-gray-500">Minimal 5 karakter, unik.</p>
+                                        )}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">Email (Tidak dapat diubah)</label>
                                     <input
                                         type="email"
                                         value={profileForm.email}
-                                        onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                                        className="w-full bg-darkBg border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neonGreen"
+                                        readOnly
+                                        className="w-full bg-darkBg/50 border border-white/5 rounded-lg px-4 py-2 text-gray-400 cursor-not-allowed focus:outline-none"
                                     />
                                 </div>
                                 <div>
@@ -164,18 +343,21 @@ export default function Settings() {
                     <div className="bg-cardBg border border-white/10 rounded-xl p-6">
                         <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
                             <Lock className="w-5 h-5 text-neonGreen" />
-                            Ganti Password
+                            {user?.hasPassword ? 'Ganti Password' : 'Atur Password'}
                         </h2>
                         <form onSubmit={handlePasswordUpdate} className="space-y-4 max-w-lg">
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-1">Password Saat Ini</label>
-                                <input
-                                    type="password"
-                                    value={passwordForm.current}
-                                    onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
-                                    className="w-full bg-darkBg border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neonGreen"
-                                />
-                            </div>
+                            {/* Only show current password if user has one */}
+                            {user?.hasPassword && (
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">Password Saat Ini</label>
+                                    <input
+                                        type="password"
+                                        value={passwordForm.current}
+                                        onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
+                                        className="w-full bg-darkBg border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neonGreen"
+                                    />
+                                </div>
+                            )}
                             <div>
                                 <label className="block text-sm text-gray-400 mb-1">Password Baru</label>
                                 <input
@@ -194,13 +376,45 @@ export default function Settings() {
                                     className="w-full bg-darkBg border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neonGreen"
                                 />
                             </div>
+                            <div className="pt-2 space-y-2">
+                                <p className="text-xs text-gray-400 mb-2">Syarat Password:</p>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div className={`flex items-center gap-2 ${passwordForm.new.length >= 8 ? 'text-neonGreen' : 'text-gray-500'}`}>
+                                        <Check className="w-3 h-3" /> Minimal 8 karakter
+                                    </div>
+                                    <div className={`flex items-center gap-2 ${/[A-Z]/.test(passwordForm.new) ? 'text-neonGreen' : 'text-gray-500'}`}>
+                                        <Check className="w-3 h-3" /> Huruf kapital
+                                    </div>
+                                    <div className={`flex items-center gap-2 ${/[a-z]/.test(passwordForm.new) ? 'text-neonGreen' : 'text-gray-500'}`}>
+                                        <Check className="w-3 h-3" /> Huruf kecil
+                                    </div>
+                                    <div className={`flex items-center gap-2 ${/\d/.test(passwordForm.new) ? 'text-neonGreen' : 'text-gray-500'}`}>
+                                        <Check className="w-3 h-3" /> Angka (0-9)
+                                    </div>
+                                    <div className={`flex items-center gap-2 ${/[!@#$%^&*.,\-_]/.test(passwordForm.new) ? 'text-neonGreen' : 'text-gray-500'}`}>
+                                        <Check className="w-3 h-3" /> Simbol (!@#$%^&*.,-_)
+                                    </div>
+                                    <div className={`flex items-center gap-2 ${passwordForm.new && passwordForm.new === passwordForm.confirm ? 'text-neonGreen' : 'text-gray-500'}`}>
+                                        <Check className="w-3 h-3" /> Password cocok
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="pt-4">
                                 <button
                                     type="submit"
-                                    disabled={isLoading}
-                                    className="bg-gradient-to-r from-neonGreen to-neonPink text-black font-bold px-6 py-2 rounded-lg hover:opacity-90 transition disabled:opacity-50"
+                                    disabled={isLoading || !(
+                                        passwordForm.new.length >= 8 &&
+                                        /[A-Z]/.test(passwordForm.new) &&
+                                        /[a-z]/.test(passwordForm.new) &&
+                                        /\d/.test(passwordForm.new) &&
+                                        /[!@#$%^&*.,\-_]/.test(passwordForm.new) &&
+                                        passwordForm.new === passwordForm.confirm &&
+                                        (!user?.hasPassword || passwordForm.current)
+                                    )}
+                                    className="bg-gradient-to-r from-neonGreen to-neonPink text-black font-bold px-6 py-2 rounded-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {isLoading ? 'Memproses...' : 'Update Password'}
+                                    {isLoading ? 'Memproses...' : (user?.hasPassword ? 'Update Password' : 'Simpan Password')}
                                 </button>
                             </div>
                         </form>

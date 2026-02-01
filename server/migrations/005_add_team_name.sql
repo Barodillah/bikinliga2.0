@@ -1,0 +1,2 @@
+-- ALTER TABLE participants
+-- ADD COLUMN team_name VARCHAR(255) AFTER phone;

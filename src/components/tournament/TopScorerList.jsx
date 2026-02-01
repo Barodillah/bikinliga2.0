@@ -18,13 +18,13 @@ const topScorersData = [
     { id: 10, name: 'Phil Foden', team: 'Manchester City', goals: 4, assists: 3, matches: 7 },
 ]
 
-export default function TopScorerList({ compact = false }) {
-    const data = compact ? topScorersData.slice(0, 5) : topScorersData
-    const topScorer = data[0] // Assuming sorted
+export default function TopScorerList({ compact = false, scorers = [], highlightParticipantId }) {
+    const data = compact ? scorers.slice(0, 5) : scorers
+    const topScorer = data[0]
 
     return (
         <div className="space-y-6">
-            {!compact && (
+            {!compact && topScorer && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Top 1 Highlight Card */}
                     <div className="md:col-span-3">
@@ -41,7 +41,7 @@ export default function TopScorerList({ compact = false }) {
                                         <span className="px-3 py-1 rounded-full bg-neonGreen text-black font-bold text-xs uppercase tracking-wider">
                                             Top Scorer
                                         </span>
-                                        <span className="text-gray-400 text-sm">{topScorer.team}</span>
+                                        <span className="text-gray-400 text-sm">{topScorer.team_name || topScorer.team}</span>
                                     </div>
                                     <h2 className="text-3xl md:text-4xl font-display font-bold text-white mb-2">
                                         {topScorer.name}
@@ -54,7 +54,7 @@ export default function TopScorerList({ compact = false }) {
 
                                         <div className="w-px h-10 bg-white/10"></div>
                                         <div>
-                                            <div className="text-2xl font-bold text-white leading-none">{(topScorer.goals / topScorer.matches).toFixed(2)}</div>
+                                            <div className="text-2xl font-bold text-white leading-none">{topScorer.matches ? (topScorer.goals / topScorer.matches).toFixed(2) : '-'}</div>
                                             <div className="text-xs text-gray-400 mt-1">RATIO</div>
                                         </div>
                                     </div>
@@ -83,38 +83,39 @@ export default function TopScorerList({ compact = false }) {
                                     <th className="p-4">Player</th>
                                     <th className="p-4 text-center">Matches</th>
                                     <th className="p-4 text-center">Goals</th>
-                                    <th className="p-4 text-center hidden sm:table-cell">Assists</th>
                                     <th className="p-4 text-center hidden sm:table-cell">Ratio</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
-                                {data.map((player, index) => (
-                                    <tr key={player.id} className={`hover:bg-white/5 transition ${index === 0 && !compact ? 'bg-neonGreen/5' : ''}`}>
-                                        <td className="p-4 text-center">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mx-auto
+                                {data.map((player, index) => {
+                                    const isUserTeam = String(player.participant_id) === String(highlightParticipantId);
+                                    return (
+                                        <tr key={player.id} className={`hover:bg-white/5 transition ${isUserTeam ? 'bg-neonGreen/10' : (index === 0 && !compact ? 'bg-neonGreen/5' : '')}`}>
+                                            <td className="p-4 text-center">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mx-auto
                                                ${index === 0 ? 'bg-neonGreen text-black ring-4 ring-neonGreen/20' :
-                                                    index === 1 ? 'bg-white/20 text-white' :
-                                                        index === 2 ? 'bg-orange-500/20 text-orange-400' :
-                                                            'text-gray-500'}`}>
-                                                {index + 1}
-                                            </div>
-                                        </td>
-                                        <td className="p-4">
-                                            <div className="font-bold text-white">{player.name}</div>
-                                            <div className="text-xs text-gray-400">{player.team}</div>
-                                        </td>
-                                        <td className="p-4 text-center text-gray-400">{player.matches}</td>
-                                        <td className="p-4 text-center">
-                                            <span className={`font-bold text-lg ${index === 0 ? 'text-neonGreen' : 'text-white'}`}>
-                                                {player.goals}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-center text-gray-400 hidden sm:table-cell">{player.assists}</td>
-                                        <td className="p-4 text-center text-gray-400 hidden sm:table-cell">
-                                            {(player.goals / player.matches).toFixed(2)}
-                                        </td>
-                                    </tr>
-                                ))}
+                                                        index === 1 ? 'bg-white/20 text-white' :
+                                                            index === 2 ? 'bg-orange-500/20 text-orange-400' :
+                                                                'text-gray-500'}`}>
+                                                    {index + 1}
+                                                </div>
+                                            </td>
+                                            <td className="p-4">
+                                                <div className={`font-bold ${isUserTeam ? 'text-neonGreen' : 'text-white'}`}>{player.name}</div>
+                                                <div className="text-xs text-gray-400">{player.team_name || player.team}</div>
+                                            </td>
+                                            <td className="p-4 text-center text-gray-400">{player.matches || '-'}</td>
+                                            <td className="p-4 text-center">
+                                                <span className={`font-bold text-lg ${index === 0 || isUserTeam ? 'text-neonGreen' : 'text-white'}`}>
+                                                    {player.goals}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-center text-gray-400 hidden sm:table-cell">
+                                                {player.matches ? (player.goals / player.matches).toFixed(2) : '-'}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

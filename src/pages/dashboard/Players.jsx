@@ -147,19 +147,30 @@ export default function Players() {
                         label="Nama Tim"
                         placeholder="contoh: Barcelona FC"
                         value={newPlayer.name}
-                        onChange={(e) => setNewPlayer({ ...newPlayer, name: e.target.value })}
+                        onChange={(e) => setNewPlayer({
+                            ...newPlayer,
+                            name: e.target.value.replace(/\b\w/g, char => char.toUpperCase())
+                        })}
                     />
                     <Input
                         label="Nama Pemain"
                         placeholder="contoh: Andi"
                         value={newPlayer.playerName}
-                        onChange={(e) => setNewPlayer({ ...newPlayer, playerName: e.target.value })}
+                        onChange={(e) => setNewPlayer({
+                            ...newPlayer,
+                            playerName: e.target.value.replace(/\b\w/g, char => char.toUpperCase())
+                        })}
                     />
                     <Input
                         label="Kontak (WhatsApp)"
+                        type="text"
+                        inputMode="numeric"
                         placeholder="contoh: 081234567890"
                         value={newPlayer.contact}
-                        onChange={(e) => setNewPlayer({ ...newPlayer, contact: e.target.value })}
+                        onChange={(e) => setNewPlayer({
+                            ...newPlayer,
+                            contact: e.target.value.replace(/[^0-9]/g, '')
+                        })}
                     />
                     <div className="flex gap-3 pt-4">
                         <Button variant="ghost" className="flex-1" onClick={() => setShowAddModal(false)}>

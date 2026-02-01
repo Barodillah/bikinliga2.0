@@ -11,8 +11,15 @@ const standingsData = [
     { pos: 8, team: 'Bayern Munich', played: 8, won: 1, drawn: 2, lost: 5, gf: 7, ga: 16, gd: -9, pts: 5 },
 ]
 
-export default function StandingsTable({ compact = false, limit = 5 }) {
-    const data = compact ? standingsData.slice(0, limit) : standingsData
+export default function StandingsTable({ compact = false, limit = 5, standings = [], highlightParticipantId }) {
+    // Standings are passed as prop. If empty, use mock or empty array?
+    // Let's use empty array or passed data.
+    // If mock data is needed for preview, we can keep it as fallback but better to rely on real data if possible or passed prop.
+    const data = compact ? standings.slice(0, limit) : standings
+
+    if (!standings || standings.length === 0) {
+        return <div className="p-4 text-center text-gray-500">Belum ada data klasemen</div>
+    }
 
     const getPositionStyle = (pos) => {
         if (pos === 1) return 'bg-neonGreen text-black'
@@ -44,44 +51,51 @@ export default function StandingsTable({ compact = false, limit = 5 }) {
                     </tr>
                 </thead>
                 <tbody>
-                    {data.map((row) => (
-                        <tr
-                            key={row.pos}
-                            className="border-b border-white/5 hover:bg-white/5 transition"
-                        >
-                            <td className="py-3 px-1 sticky left-0 z-10 bg-[#0a0a0a]">
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${getPositionStyle(row.pos)}`}>
-                                    {row.pos}
-                                </div>
-                            </td>
-                            <td className="py-3 px-1 sticky left-8 z-10 bg-[#0a0a0a] border-r border-white/5 shadow-xl w-12 md:w-32">
-                                <div className="flex items-center gap-1">
-                                    <div className="w-5 h-5 shrink-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-[8px] font-bold">
-                                        {row.team.substring(0, 2).toUpperCase()}
+                    {data.map((row, index) => {
+                        const isUserTeam = String(row.participant_id) === String(highlightParticipantId);
+                        return (
+                            <tr
+                                key={row.id || index}
+                                className={`border-b border-white/5 transition ${isUserTeam ? 'bg-neonGreen/10' : 'hover:bg-white/5'}`}
+                            >
+                                <td className="py-3 px-1 sticky left-0 z-10 bg-[#0a0a0a]">
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${getPositionStyle(index + 1)}`}>
+                                        {index + 1}
                                     </div>
-                                    <span className="font-medium text-[10px] md:text-sm whitespace-normal leading-tight flex-1 min-w-0 break-words">{row.team}</span>
-                                </div>
-                            </td>
-                            <td className="py-3 px-3 text-center text-gray-400">{row.played}</td>
-                            {!compact && (
-                                <>
-                                    <td className="py-3 px-3 text-center text-neonGreen">{row.won}</td>
-                                    <td className="py-3 px-3 text-center text-yellow-400">{row.drawn}</td>
-                                    <td className="py-3 px-3 text-center text-red-400">{row.lost}</td>
-                                    <td className="py-3 px-3 text-center text-gray-400 hidden md:table-cell">{row.gf}</td>
-                                    <td className="py-3 px-3 text-center text-gray-400 hidden md:table-cell">{row.ga}</td>
-                                </>
-                            )}
-                            <td className="py-3 px-3 text-center">
-                                <span className={row.gd > 0 ? 'text-neonGreen' : row.gd < 0 ? 'text-red-400' : 'text-gray-400'}>
-                                    {row.gd > 0 ? '+' : ''}{row.gd}
-                                </span>
-                            </td>
-                            <td className="py-3 px-3 text-center">
-                                <span className="font-display font-bold text-lg">{row.pts}</span>
-                            </td>
-                        </tr>
-                    ))}
+                                </td>
+                                <td className="py-3 px-1 sticky left-8 z-10 bg-[#0a0a0a] border-r border-white/5 shadow-xl w-12 md:w-32">
+                                    <div className="flex items-center gap-1">
+                                        <div className="w-6 h-6 shrink-0 flex items-center justify-center text-[10px] font-bold text-white">
+                                            {row.team_logo ? (
+                                                <img src={row.team_logo} alt={row.team_name} className="w-full h-full object-contain" />
+                                            ) : (
+                                                (row.team_name || '??').substring(0, 2).toUpperCase()
+                                            )}
+                                        </div>
+                                        <span className={`font-medium text-[10px] md:text-sm whitespace-normal leading-tight flex-1 min-w-0 break-words ${isUserTeam ? 'text-neonGreen font-bold' : ''}`}>{row.team_name}</span>
+                                    </div>
+                                </td>
+                                <td className="py-3 px-3 text-center text-gray-400">{row.played}</td>
+                                {!compact && (
+                                    <>
+                                        <td className="py-3 px-3 text-center text-neonGreen">{row.won}</td>
+                                        <td className="py-3 px-3 text-center text-yellow-400">{row.drawn}</td>
+                                        <td className="py-3 px-3 text-center text-red-400">{row.lost}</td>
+                                        <td className="py-3 px-3 text-center text-gray-400 hidden md:table-cell">{row.goals_for}</td>
+                                        <td className="py-3 px-3 text-center text-gray-400 hidden md:table-cell">{row.goals_against}</td>
+                                    </>
+                                )}
+                                <td className="py-3 px-3 text-center">
+                                    <span className={(row.goal_difference) > 0 ? 'text-neonGreen' : (row.goal_difference) < 0 ? 'text-red-400' : 'text-gray-400'}>
+                                        {(row.goal_difference) > 0 ? '+' : ''}{row.goal_difference}
+                                    </span>
+                                </td>
+                                <td className="py-3 px-3 text-center">
+                                    <span className="font-display font-bold text-lg">{row.points}</span>
+                                </td>
+                            </tr>
+                        );
+                    })}
                 </tbody>
             </table>
         </div>
