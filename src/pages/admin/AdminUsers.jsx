@@ -33,7 +33,7 @@ export default function AdminUsers() {
 
     const fetchUsers = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/admin/users')
+            const response = await fetch('/api/admin/users')
             const result = await response.json()
             if (result.success) {
                 setUsers(result.data)
@@ -50,7 +50,7 @@ export default function AdminUsers() {
 
     const handleUpdateUser = async (userId, data) => {
         try {
-            const response = await fetch(`http://localhost:3001/api/admin/users/${userId}`, {
+            const response = await fetch(`/api/admin/users/${userId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -70,7 +70,7 @@ export default function AdminUsers() {
 
     const handleAdjustWallet = async (userId, data) => {
         try {
-            const response = await fetch(`http://localhost:3001/api/admin/users/${userId}/wallet`, {
+            const response = await fetch(`/api/admin/users/${userId}/wallet`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -92,7 +92,7 @@ export default function AdminUsers() {
         if (!selectedUser) return
         setActionLoading(true)
         try {
-            const response = await fetch(`http://localhost:3001/api/admin/users/${selectedUser.id}`, {
+            const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
                 method: 'DELETE'
             })
             const result = await response.json()
