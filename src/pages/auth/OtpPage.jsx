@@ -207,8 +207,8 @@ export default function OtpPage() {
                             onClick={handleResend}
                             disabled={countdown > 0 || isResending}
                             className={`inline-flex items-center gap-2 font-semibold transition-colors ${countdown > 0
-                                    ? 'text-gray-500 cursor-not-allowed'
-                                    : 'text-neonPink hover:text-neonPink/80'
+                                ? 'text-gray-500 cursor-not-allowed'
+                                : 'text-neonPink hover:text-neonPink/80'
                                 }`}
                         >
                             {isResending ? (
@@ -223,7 +223,7 @@ export default function OtpPage() {
 
                 {/* Footer */}
                 <p className="text-center mt-6 text-gray-500 text-sm">
-                    &copy; 2024 BikinLiga. All rights reserved.
+                    &copy; {new Date().getFullYear()} BikinLiga. All rights reserved.
                 </p>
             </div>
         </div>

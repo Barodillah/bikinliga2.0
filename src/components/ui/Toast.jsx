@@ -9,14 +9,25 @@ const icons = {
 }
 
 const styles = {
-    success: 'border-neonGreen/20 bg-neonGreen/5 text-white',
-    error: 'border-red-500/20 bg-red-500/5 text-white',
-    info: 'border-blue-400/20 bg-blue-400/5 text-white',
-    warning: 'border-yellow-400/20 bg-yellow-400/5 text-white'
+    dark: {
+        success: 'border-neonGreen/20 bg-neonGreen/5 text-white',
+        error: 'border-red-500/20 bg-red-500/5 text-white',
+        info: 'border-blue-400/20 bg-blue-400/5 text-white',
+        warning: 'border-yellow-400/20 bg-yellow-400/5 text-white',
+        close: 'text-gray-400 hover:text-white'
+    },
+    light: {
+        success: 'border-green-200 bg-white text-gray-900 shadow-lg',
+        error: 'border-red-200 bg-white text-gray-900 shadow-lg',
+        info: 'border-blue-200 bg-white text-gray-900 shadow-lg',
+        warning: 'border-yellow-200 bg-white text-gray-900 shadow-lg',
+        close: 'text-gray-400 hover:text-gray-600'
+    }
 }
 
-export default function Toast({ toast, onDismiss }) {
+export default function Toast({ toast, onDismiss, theme = 'dark' }) {
     const [isVisible, setIsVisible] = useState(false)
+    const activeTheme = styles[theme] || styles.dark
 
     useEffect(() => {
         // Trigger enter animation
@@ -34,8 +45,8 @@ export default function Toast({ toast, onDismiss }) {
     return (
         <div
             className={`
-                flex items-start gap-3 p-4 rounded-xl border backdrop-blur-md shadow-lg transition-all duration-300 transform
-                ${styles[toast.type] || styles.info}
+                flex items-start gap-3 p-4 rounded-xl border backdrop-blur-md transition-all duration-300 transform
+                ${activeTheme[toast.type] || activeTheme.info}
                 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-[100%] opacity-0'}
             `}
             role="alert"
@@ -51,7 +62,7 @@ export default function Toast({ toast, onDismiss }) {
                     setIsVisible(false)
                     setTimeout(() => onDismiss(toast.id), 300)
                 }}
-                className="flex-shrink-0 text-gray-400 hover:text-white transition"
+                className={`flex-shrink-0 transition ${activeTheme.close}`}
             >
                 <X className="w-4 h-4" />
             </button>
@@ -59,12 +70,12 @@ export default function Toast({ toast, onDismiss }) {
     )
 }
 
-export function ToastContainer({ toasts, onDismiss }) {
+export function ToastContainer({ toasts, onDismiss, theme = 'dark' }) {
     return (
         <div className="fixed top-4 left-4 right-4 sm:left-auto sm:right-4 z-[100] flex flex-col gap-2 w-auto sm:w-full sm:max-w-sm pointer-events-none">
             <div className="flex flex-col gap-2 pointer-events-auto">
                 {toasts.map((toast) => (
-                    <Toast key={toast.id} toast={toast} onDismiss={onDismiss} />
+                    <Toast key={toast.id} toast={toast} onDismiss={onDismiss} theme={theme} />
                 ))}
             </div>
         </div>

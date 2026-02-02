@@ -376,7 +376,7 @@ export default function RegisterPage() {
 
                 {/* Footer */}
                 <p className="text-center mt-6 text-gray-500 text-sm">
-                    &copy; 2024 BikinLiga. All rights reserved.
+                    &copy; {new Date().getFullYear()} BikinLiga. All rights reserved.
                 </p>
             </div>
         </div>

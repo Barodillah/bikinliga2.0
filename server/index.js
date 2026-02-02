@@ -9,6 +9,7 @@ import teamsRoutes from './routes/teams.js';
 import matchesRoutes from './routes/matches.js';
 import externalRoutes from './routes/external.js';
 import dashboardRoutes from './routes/dashboard.js';
+import adminRoutes from './routes/admin.js';
 import { initDatabase } from './config/db.js';
 
 const app = express();
@@ -31,6 +32,7 @@ app.use('/api/teams', teamsRoutes);
 app.use('/api/matches', matchesRoutes);
 app.use('/api/external', externalRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

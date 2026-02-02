@@ -3,7 +3,7 @@ import { ToastContainer } from '../components/ui/Toast'
 
 const ToastContext = createContext(null)
 
-export function ToastProvider({ children }) {
+export function ToastProvider({ children, theme = 'dark' }) {
     const [toasts, setToasts] = useState([])
 
     const addToast = useCallback((type, message, duration = 3000) => {
@@ -27,7 +27,7 @@ export function ToastProvider({ children }) {
     return (
         <ToastContext.Provider value={toast}>
             {children}
-            <ToastContainer toasts={toasts} onDismiss={removeToast} />
+            <ToastContainer toasts={toasts} onDismiss={removeToast} theme={theme} />
         </ToastContext.Provider>
     )
 }

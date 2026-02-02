@@ -41,6 +41,7 @@ import AdminComplaint from './pages/admin/AdminComplaint'
 import AdminTransaction from './pages/admin/AdminTransaction'
 import AdminAIAnalysis from './pages/admin/AdminAIAnalysis'
 import AdminHistory from './pages/admin/AdminHistory'
+import NotFound from './pages/NotFound'
 import UsernameModal from './components/modals/UsernameModal'
 import CoinClaimModal from './components/modals/CoinClaimModal'
 
@@ -124,7 +125,11 @@ function App() {
                             <Route path="profile/:username" element={<Profile />} />
                             <Route path="my-profile" element={<MyProfile />} />
 
+                            <Route path="my-profile" element={<MyProfile />} />
                         </Route>
+
+                        {/* 404 Catch-all */}
+                        <Route path="*" element={<NotFound />} />
                     </Routes>
 
                     {/* Global Modals */}

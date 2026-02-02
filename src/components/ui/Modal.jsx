@@ -1,13 +1,30 @@
 import React, { useEffect } from 'react'
 import { X } from 'lucide-react'
 
-export default function Modal({ isOpen, onClose, title, children, size = 'md' }) {
+export default function Modal({ isOpen, onClose, title, children, size = 'md', variant = 'dark' }) {
     const sizes = {
         sm: 'max-w-md',
         md: 'max-w-lg',
         lg: 'max-w-2xl',
         xl: 'max-w-4xl',
     }
+
+    const variants = {
+        dark: {
+            panel: 'glass-panel text-white',
+            header: 'border-white/10',
+            close: 'text-gray-400 hover:text-white hover:bg-white/10',
+            title: ''
+        },
+        light: {
+            panel: 'bg-white text-gray-900 border border-gray-200',
+            header: 'border-gray-200',
+            close: 'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
+            title: 'text-gray-900'
+        }
+    }
+
+    const theme = variants[variant] || variants.dark
 
     // Close on escape key
     useEffect(() => {
@@ -38,13 +55,13 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
 
             {/* Modal */}
             <div className="min-h-full flex items-center justify-center p-4">
-                <div className={`relative ${sizes[size]} w-full glass-panel rounded-2xl shadow-2xl transform transition-all`}>
+                <div className={`relative ${sizes[size]} w-full rounded-2xl shadow-2xl transform transition-all ${theme.panel}`}>
                     {/* Header */}
-                    <div className="flex items-center justify-between p-6 border-b border-white/10">
-                        <h3 className="text-xl font-display font-bold">{title}</h3>
+                    <div className={`flex items-center justify-between p-6 border-b ${theme.header}`}>
+                        <h3 className={`text-xl font-display font-bold ${theme.title}`}>{title}</h3>
                         <button
                             onClick={onClose}
-                            className="p-2 rounded-lg hover:bg-white/10 transition text-gray-400 hover:text-white"
+                            className={`p-2 rounded-lg transition ${theme.close}`}
                         >
                             <X className="w-5 h-5" />
                         </button>
