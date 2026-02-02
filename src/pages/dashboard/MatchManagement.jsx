@@ -40,7 +40,6 @@ export default function MatchManagement() {
     const [showPreviousRoundModal, setShowPreviousRoundModal] = useState(false)
     const [previousRoundNumber, setPreviousRoundNumber] = useState(null)
 
-    const [isSubmitting, setIsSubmitting] = useState(false)
 
     // Fetch Match Data Function
     const fetchMatchData = async () => {
@@ -306,13 +305,18 @@ export default function MatchManagement() {
             if (localUpdates.hasOwnProperty('homePenaltyScore')) dbUpdates.homePenaltyScore = localUpdates.homePenaltyScore
             if (localUpdates.hasOwnProperty('awayPenaltyScore')) dbUpdates.awayPenaltyScore = localUpdates.awayPenaltyScore
 
-            await authFetch(`/api/matches/${matchId}`, {
+            const res = await authFetch(`/api/matches/${matchId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dbUpdates)
             })
+
+            if (!res.ok) throw new Error('Failed to update match')
+
+            return true
         } catch (err) {
             console.error("Update match error", err)
+            return false
         }
     }
 
@@ -321,6 +325,7 @@ export default function MatchManagement() {
 
     // Modal State for adding events
     const [showEventModal, setShowEventModal] = useState(false)
+    const [isSubmitting, setIsSubmitting] = useState(false)
     const [eventType, setEventType] = useState('goal') // goal, card
     const [selectedTeam, setSelectedTeam] = useState(null) // 'home' or 'away'
     const [selectedPlayer, setSelectedPlayer] = useState('')
@@ -480,30 +485,45 @@ export default function MatchManagement() {
         setShowConfirmModal(true)
     }
 
-    const confirmMatchFinal = () => {
-        // No saveState here because we don't want to rollback from Completed
-        saveState()
-        setMatch(prev => ({ ...prev, status: 'completed' }))
-        const isLeg1 = match.details?.leg === 1
+    const confirmMatchFinal = async () => {
+        if (isSubmitting) return
+        setIsSubmitting(true)
 
-        // Only save penalties if they were actually part of the match
-        const hasPenalties = showPenalties && !isLeg1
+        try {
+            // No saveState here because we don't want to rollback from Completed
+            saveState()
 
-        updateMatchServer({
-            status: 'completed',
-            homePenaltyScore: hasPenalties ? penaltyScore.home : null,
-            awayPenaltyScore: hasPenalties ? penaltyScore.away : null
-        })
+            const isLeg1 = match.details?.leg === 1
+            // Only save penalties if they were actually part of the match
+            const hasPenalties = showPenalties && !isLeg1
 
-        // Determine Winner (Regular Time)
-        if (match.homeScore > match.awayScore) {
-            setWinner(match.homeTeam.name)
-        } else if (match.awayScore > match.homeScore) {
-            setWinner(match.awayTeam.name)
-        } else {
-            setWinner('Draw')
+            const success = await updateMatchServer({
+                status: 'completed',
+                homePenaltyScore: hasPenalties ? penaltyScore.home : null,
+                awayPenaltyScore: hasPenalties ? penaltyScore.away : null
+            })
+
+            if (success) {
+                setMatch(prev => ({ ...prev, status: 'completed' }))
+
+                // Determine Winner (Regular Time)
+                if (match.homeScore > match.awayScore) {
+                    setWinner(match.homeTeam.name)
+                } else if (match.awayScore > match.homeScore) {
+                    setWinner(match.awayTeam.name)
+                } else {
+                    setWinner('Draw')
+                }
+                setShowConfirmModal(false)
+            } else {
+                toast.error('Gagal mengupdate status pertandingan')
+            }
+        } catch (error) {
+            console.error('Error confirming match:', error)
+            toast.error('Terjadi kesalahan saat konfirmasi')
+        } finally {
+            setIsSubmitting(false)
         }
-        setShowConfirmModal(false)
     }
 
     const handleAddEvent = (type, team) => {
@@ -1422,8 +1442,8 @@ export default function MatchManagement() {
                                     <Button variant="outline" className="flex-1" onClick={() => setShowConfirmModal(false)}>
                                         Batal
                                     </Button>
-                                    <Button className="flex-1 bg-neonGreen text-black hover:bg-neonGreen/90" onClick={confirmMatchFinal}>
-                                        Ya, Selesai
+                                    <Button className="flex-1 bg-neonGreen text-black hover:bg-neonGreen/90" onClick={confirmMatchFinal} disabled={isSubmitting}>
+                                        {isSubmitting ? 'Memproses...' : 'Ya, Selesai'}
                                     </Button>
                                 </div>
                             </CardContent>

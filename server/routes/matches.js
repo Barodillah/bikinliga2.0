@@ -4,8 +4,8 @@ import db from '../config/db.js';
 import { authMiddleware as authenticateToken, optionalAuth } from '../middleware/auth.js';
 
 const router = express.Router();
-import fs from 'fs';
-const log = (msg) => fs.appendFileSync('debug.txt', `${new Date().toISOString()} - ${msg}\n`);
+// const log = (msg) => fs.appendFileSync('debug.txt', `${new Date().toISOString()} - ${msg}\n`);
+const log = (msg) => console.log(`[DEBUG] ${new Date().toISOString()} - ${msg}`);
 
 // Get Live Matches (for Stream page)
 router.get('/live', optionalAuth, async (req, res) => {

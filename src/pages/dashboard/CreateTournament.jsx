@@ -52,6 +52,7 @@ export default function CreateTournament() {
     const [showAIModal, setShowAIModal] = useState(false)
     const [isGeneratingAI, setIsGeneratingAI] = useState(false)
     const [aiPrompt, setAiPrompt] = useState('')
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
     const handleGenerateAI = async () => {
         setIsGeneratingAI(true)
@@ -187,6 +188,8 @@ export default function CreateTournament() {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        if (isSubmitting) return
+        setIsSubmitting(true)
 
         try {
             const response = await authFetch('/api/tournaments', {
@@ -208,6 +211,7 @@ export default function CreateTournament() {
         } catch (err) {
             console.error('Failed to create tournament:', err)
             error(err.message || 'Gagal membuat turnamen')
+            setIsSubmitting(false)
         }
     }
 
@@ -724,8 +728,16 @@ export default function CreateTournament() {
                             <Button type="button" variant="ghost" onClick={() => setStep(2)}>
                                 <ArrowLeft className="w-4 h-4 mr-2" /> Kembali
                             </Button>
-                            <Button type="submit">
-                                <Trophy className="w-4 h-4 mr-2" /> Buat Turnamen
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memproses...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trophy className="w-4 h-4 mr-2" /> Buat Turnamen
+                                    </>
+                                )}
                             </Button>
                         </div>
                     </Card>
@@ -786,4 +798,3 @@ export default function CreateTournament() {
         </div >
     )
 }
-
