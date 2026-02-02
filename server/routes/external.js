@@ -1,5 +1,7 @@
 import express from 'express';
-// Native fetch is available in Node 18+
+import fetch from 'node-fetch'; // Standard available in node 18+ or needs import depending on setup. Native fetch is available in Node 18+. I will assume native fetch or use fallback. 
+// Actually 'node-fetch' might not be installed. Node 18+ has global fetch.
+// I'll try using global fetch first.
 
 const router = express.Router();
 
