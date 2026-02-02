@@ -46,20 +46,22 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Initialize database and start server
-async function startServer() {
-    try {
-        await initDatabase();
-        console.log('✅ Database connected');
+// Initialize database
+initDatabase().then(() => {
+    console.log('✅ Database connected');
+}).catch(error => {
+    console.error('❌ Failed to connect to database:', error);
+});
 
-        app.listen(PORT, '0.0.0.0', () => {
-            console.log(`🚀 Server running on http://localhost:${PORT}`);
-            console.log(`➜  Network: http://${process.env.HOST_IP || '0.0.0.0'}:${PORT}/`);
-        });
-    } catch (error) {
-        console.error('❌ Failed to start server:', error);
-        process.exit(1);
-    }
+// Export app for Vercel
+export default app;
+
+// Start server if run directly
+import { fileURLToPath } from 'url';
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    const PORT = process.env.PORT || 3001;
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`🚀 Server running on http://localhost:${PORT}`);
+        console.log(`➜  Network: http://${process.env.HOST_IP || '0.0.0.0'}:${PORT}/`);
+    });
 }
-
-startServer();

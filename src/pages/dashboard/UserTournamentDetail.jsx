@@ -1360,7 +1360,7 @@ export default function UserTournamentDetail() {
                                                 </div>
                                                 <div className="flex items-center justify-center gap-4 sm:gap-6 py-2">
                                                     <div className="text-center">
-                                                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-blue-500 flex items-center justify-center text-sm sm:text-base font-bold mx-auto mb-1 overflow-hidden">
+                                                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-blue-500/20 text-blue-400 ring-4 ring-blue-500/10 flex items-center justify-center text-sm sm:text-base font-bold mx-auto mb-1 overflow-hidden">
                                                             {nextMatch.home_logo ? (
                                                                 <img src={nextMatch.home_logo} alt={nextMatch.home_team_name || nextMatch.home_player_name} className="w-full h-full object-cover" />
                                                             ) : (
@@ -1371,7 +1371,7 @@ export default function UserTournamentDetail() {
                                                     </div>
                                                     <div className="text-lg sm:text-xl font-bold text-gray-500">VS</div>
                                                     <div className="text-center">
-                                                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-red-500 flex items-center justify-center text-sm sm:text-base font-bold mx-auto mb-1 overflow-hidden">
+                                                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-red-500/20 text-red-400 ring-4 ring-red-500/10 flex items-center justify-center text-sm sm:text-base font-bold mx-auto mb-1 overflow-hidden">
                                                             {nextMatch.away_logo ? (
                                                                 <img src={nextMatch.away_logo} alt={nextMatch.away_team_name || nextMatch.away_player_name} className="w-full h-full object-cover" />
                                                             ) : (
