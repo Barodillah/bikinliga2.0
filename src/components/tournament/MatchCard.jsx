@@ -1,5 +1,5 @@
 import React from 'react'
-import { Edit } from 'lucide-react'
+import { Edit, Radio } from 'lucide-react'
 
 export default function MatchCard({
     home,
@@ -20,6 +20,7 @@ export default function MatchCard({
     logoShape = 'circle' // 'circle' or 'square'
 }) {
     const isCompleted = status === 'completed' || status === 'finished'
+    const isLive = status === 'live'
 
     // Determine winner mostly logic
     let homeWin = false
@@ -97,13 +98,28 @@ export default function MatchCard({
                                 </div>
                             )}
                         </>
+                    ) : isLive ? (
+                        <>
+                            <div className="flex flex-col items-center">
+                                {/* Live Badge */}
+                                <div className="mb-1 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-500/20 text-red-500 text-[10px] font-bold border border-red-500/30 animate-pulse">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+                                    LIVE
+                                </div>
+                                <div className={`${compact ? 'text-lg' : 'text-2xl'} font-display font-bold text-white animate-pulse`}>
+                                    {homeScore} <span className="text-gray-500 mx-1">-</span> {awayScore}
+                                </div>
+                            </div>
+                        </>
                     ) : (
                         <div>
                             <div className={`${compact ? 'text-sm' : 'text-xl'} font-display font-bold text-gray-400`}>VS</div>
                         </div>
                     )}
                     <div className={`text-xs text-gray-500 ${compact ? 'mt-0 scale-90' : 'mt-1'}`}>
-                        {isCompleted ? (homePenalty != null ? 'PEN' : 'FT') : (
+                        {isCompleted ? (homePenalty != null ? 'PEN' : 'FT') : isLive ? (
+                            <span className="text-neonGreen">In Progress</span>
+                        ) : (
                             <>
                                 {time}
                                 {leg && !compact && <div className="text-[10px] text-neonPink font-mono mt-0.5">Leg {leg}</div>}
@@ -144,6 +160,6 @@ export default function MatchCard({
                     )
                 }
             </div>
-        </div>
+        </div >
     )
 }

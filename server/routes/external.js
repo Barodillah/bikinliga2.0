@@ -9,7 +9,7 @@ router.get('/players', async (req, res) => {
     try {
         const { q } = req.query;
         // Construct target URL
-        let targetUrl = 'https://bikinliga.online/api_pemain.php';
+        let targetUrl = 'https://cuma.click/support_bikinliga/api_pemain.php';
         if (q) {
             targetUrl += `?q=${encodeURIComponent(q)}`;
         }
