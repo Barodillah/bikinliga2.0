@@ -46,6 +46,29 @@ router.get('/users', async (req, res) => {
     }
 });
 
+// Get all tournaments (Admin)
+router.get('/tournaments', async (req, res) => {
+    try {
+        const sql = `
+            SELECT 
+                t.*,
+                u.name as creator_name,
+                u.username as creator_username,
+                u.avatar_url as creator_avatar,
+                (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id) as match_count
+            FROM tournaments t
+            LEFT JOIN users u ON t.organizer_id = u.id
+            ORDER BY t.created_at DESC
+        `;
+
+        const tournaments = await query(sql);
+        res.json({ success: true, data: tournaments });
+    } catch (error) {
+        console.error('Error fetching tournaments:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch tournaments' });
+    }
+});
+
 // Update user role and subscription
 router.put('/users/:id', async (req, res) => {
     const userId = req.params.id;

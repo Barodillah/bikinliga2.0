@@ -258,14 +258,16 @@ export default function DashboardLayout() {
                 {/* Mobile Fixed Footer Actions */}
                 <div className="flex-shrink-0">
                     <div className="p-4 border-t border-white/10 space-y-2">
-                        <Link
-                            to="/admin"
-                            onClick={() => setSidebarOpen(false)}
-                            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white transition"
-                        >
-                            <Shield className="w-5 h-5" />
-                            Admin Panel
-                        </Link>
+                        {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                            <Link
+                                to="/admin"
+                                onClick={() => setSidebarOpen(false)}
+                                className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white transition"
+                            >
+                                <Shield className="w-5 h-5" />
+                                Admin Panel
+                            </Link>
+                        )}
                         <Link
                             to="/dashboard/settings"
                             onClick={() => setSidebarOpen(false)}

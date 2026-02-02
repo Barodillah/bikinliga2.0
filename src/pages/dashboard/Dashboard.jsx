@@ -4,6 +4,7 @@ import { Plus, Trophy, Calendar, Users, TrendingUp, ArrowRight, BarChart2, Searc
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import AdSlot from '../../components/ui/AdSlot'
+import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
 import { useToast } from '../../contexts/ToastContext'
 import { authFetch } from '../../utils/api'
 
@@ -162,22 +163,12 @@ export default function Dashboard() {
                                         className="flex items-center justify-between p-3 sm:p-4 hover:bg-white/5 transition"
                                     >
                                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                                            <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-neonGreen/20 to-neonPink/20 flex-shrink-0 flex items-center justify-center overflow-hidden">
-                                                {tournament.logo_url ? (
-                                                    <img
-                                                        src={tournament.logo_url}
-                                                        alt={tournament.name}
-                                                        className="w-full h-full object-cover"
-                                                        onError={(e) => {
-                                                            e.target.style.display = 'none';
-                                                            e.target.parentElement.classList.add('flex', 'items-center', 'justify-center');
-                                                            e.target.parentElement.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-neonGreen"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>';
-                                                        }}
-                                                    />
-                                                ) : (
-                                                    <Trophy className="w-5 h-5 text-neonGreen" />
-                                                )}
-                                            </div>
+                                            <AdaptiveLogo
+                                                src={tournament.logo_url}
+                                                alt={tournament.name}
+                                                className="w-10 h-10 flex-shrink-0"
+                                                fallbackSize="w-5 h-5"
+                                            />
                                             <div className="min-w-0 flex-1">
                                                 <div className="font-medium truncate text-sm sm:text-base">{tournament.name}</div>
                                                 <div className="text-xs text-gray-500 capitalize truncate">{tournament.type} • {tournament.players || 0} Pemain</div>
@@ -338,17 +329,12 @@ export default function Dashboard() {
                             >
                                 <Card className="h-full hover:border-neonGreen/30 transition-all p-4 relative overflow-hidden">
                                     <div className="flex items-start justify-between mb-4">
-                                        <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center overflow-hidden">
-                                            {tournament.logo_url ? (
-                                                <img
-                                                    src={tournament.logo_url}
-                                                    alt={tournament.name}
-                                                    className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
-                                                />
-                                            ) : (
-                                                <Trophy className="w-6 h-6 text-blue-400" />
-                                            )}
-                                        </div>
+                                        <AdaptiveLogo
+                                            src={tournament.logo_url}
+                                            alt={tournament.name}
+                                            className="w-12 h-12"
+                                            fallbackSize="w-6 h-6"
+                                        />
                                         <span className={`text-[10px] px-2 py-1 rounded-full whitespace-nowrap ${tournament.user_status === 'approved' ? 'bg-neonGreen/20 text-neonGreen' :
                                             tournament.user_status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
                                                 'bg-red-500/20 text-red-400'

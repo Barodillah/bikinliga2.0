@@ -41,6 +41,7 @@ import AdminComplaint from './pages/admin/AdminComplaint'
 import AdminTransaction from './pages/admin/AdminTransaction'
 import AdminAIAnalysis from './pages/admin/AdminAIAnalysis'
 import AdminHistory from './pages/admin/AdminHistory'
+import AdminTournaments from './pages/admin/AdminTournaments'
 import NotFound from './pages/NotFound'
 import UsernameModal from './components/modals/UsernameModal'
 import CoinClaimModal from './components/modals/CoinClaimModal'
@@ -85,6 +86,7 @@ function App() {
                             </RequireAdmin>
                         }>
                             <Route index element={<AdminDashboard />} />
+                            <Route path="tournaments" element={<AdminTournaments />} />
                             <Route path="users" element={<AdminUsers />} />
                             <Route path="complaint" element={<AdminComplaint />} />
                             <Route path="transaction" element={<AdminTransaction />} />

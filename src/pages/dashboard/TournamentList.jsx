@@ -5,6 +5,7 @@ import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import AdSlot from '../../components/ui/AdSlot'
+import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
 import { authFetch } from '../../utils/api'
 
 // Sample data
@@ -131,22 +132,12 @@ export default function TournamentList() {
                         <Link key={tournament.id} to={`/dashboard/tournaments/${tournament.slug}`}>
                             <Card className="p-6 hover:border-neonGreen/30 transition-all group">
                                 <div className="flex items-start justify-between mb-4">
-                                    <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-neonGreen/20 to-neonPink/20 flex items-center justify-center group-hover:scale-110 transition overflow-hidden">
-                                        {tournament.logo ? (
-                                            <img
-                                                src={tournament.logo}
-                                                alt={tournament.name}
-                                                className="w-full h-full object-cover"
-                                                onError={(e) => {
-                                                    e.target.style.display = 'none';
-                                                    e.target.parentElement.classList.add('flex', 'items-center', 'justify-center');
-                                                }}
-                                            />
-                                        ) : (
-                                            <Trophy className="w-6 h-6 text-neonGreen" />
-                                        )}
-                                        {tournament.logo && <Trophy className="w-6 h-6 text-neonGreen hidden" />}
-                                    </div>
+                                    <AdaptiveLogo
+                                        src={tournament.logo}
+                                        alt={tournament.name}
+                                        className="w-12 h-12"
+                                        fallbackSize="w-6 h-6"
+                                    />
                                     <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(tournament.status)}`}>
                                         {getStatusLabel(tournament.status)}
                                     </span>
@@ -185,22 +176,12 @@ export default function TournamentList() {
                                 className="flex items-center justify-between p-4 hover:bg-white/5 transition"
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-neonGreen/20 to-neonPink/20 flex items-center justify-center overflow-hidden">
-                                        {tournament.logo ? (
-                                            <img
-                                                src={tournament.logo}
-                                                alt={tournament.name}
-                                                className="w-full h-full object-cover"
-                                                onError={(e) => {
-                                                    e.target.style.display = 'none';
-                                                    e.target.parentElement.classList.add('flex', 'items-center', 'justify-center');
-                                                }}
-                                            />
-                                        ) : (
-                                            <Trophy className="w-5 h-5 text-neonGreen" />
-                                        )}
-                                        {tournament.logo && <Trophy className="w-5 h-5 text-neonGreen hidden" />}
-                                    </div>
+                                    <AdaptiveLogo
+                                        src={tournament.logo}
+                                        alt={tournament.name}
+                                        className="w-10 h-10"
+                                        fallbackSize="w-5 h-5"
+                                    />
                                     <div>
                                         <div className="font-medium">{tournament.name}</div>
                                         <div className="text-xs text-gray-500">{tournament.type} • {tournament.players} Pemain • {tournament.matches} Match</div>

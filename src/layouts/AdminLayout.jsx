@@ -3,7 +3,7 @@ import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-do
 import {
     LayoutDashboard, Users, MessageSquare,
     BarChart2, History, Menu, X,
-    ChevronRight, Wallet, LogOut, ArrowLeft
+    ChevronRight, Wallet, LogOut, ArrowLeft, Trophy
 } from 'lucide-react'
 import ChatWidget from '../components/ChatWidget'
 import { useAuth } from '../contexts/AuthContext'
@@ -11,6 +11,7 @@ import { ToastProvider } from '../contexts/ToastContext'
 
 const sidebarLinks = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard, exact: true },
+    { name: 'Tournaments', href: '/admin/tournaments', icon: Trophy },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Complaint', href: '/admin/complaint', icon: MessageSquare },
     { name: 'Transaction', href: '/admin/transaction', icon: Wallet },

@@ -19,6 +19,7 @@ import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../../contexts/AuthContext'
 import SearchableSelect from '../../components/ui/SearchableSelect'
 import UserBadge from '../../components/ui/UserBadge'
+import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
 
 // Helper function for authenticated fetch
 const authFetch = (url, options = {}) => {
@@ -1965,22 +1966,12 @@ export default function TournamentDetail() {
 
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-12 h-12 sm:w-14 h-14 rounded-lg bg-gradient-to-r from-neonGreen/20 to-neonPink/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                            {tournamentData.logo ? (
-                                <img
-                                    src={tournamentData.logo}
-                                    alt={tournamentData.name}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        e.target.parentElement.classList.add('flex', 'items-center', 'justify-center');
-                                    }}
-                                />
-                            ) : (
-                                <Trophy className="w-6 h-6 sm:w-7 sm:h-7 text-neonGreen" />
-                            )}
-                            {tournamentData.logo && <Trophy className="w-6 h-6 sm:w-7 sm:h-7 text-neonGreen hidden" />}
-                        </div>
+                        <AdaptiveLogo
+                            src={tournamentData.logo}
+                            alt={tournamentData.name}
+                            className="w-12 h-12 sm:w-14 h-14 flex-shrink-0"
+                            fallbackSize="w-6 h-6 sm:w-7 sm:h-7"
+                        />
                         <div className="min-w-0">
                             <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold truncate">{tournamentData.name}</h1>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
