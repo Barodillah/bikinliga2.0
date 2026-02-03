@@ -11,6 +11,8 @@ import externalRoutes from './routes/external.js';
 import dashboardRoutes from './routes/dashboard.js';
 import adminRoutes from './routes/admin.js';
 import rankingsRoutes from './routes/rankings.js';
+import communityRoutes from './routes/communities.js';
+import postRoutes from './routes/posts.js';
 import { initDatabase } from './config/db.js';
 
 const app = express();
@@ -35,6 +37,8 @@ app.use('/api/external', externalRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/rankings', rankingsRoutes);
+app.use('/api/communities', communityRoutes);
+app.use('/api/posts', postRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

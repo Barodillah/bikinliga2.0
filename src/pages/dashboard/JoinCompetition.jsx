@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react'
 import { authFetch } from '../../utils/api'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
-import { ArrowLeft, Loader2, User, Phone, Shield, Trophy, Users, Calendar, Sparkles, ShieldCheck, Newspaper, ClipboardList, MessageSquare, MessageCircle, ChevronDown, Send, CheckCircle, XCircle, Clock, Trash2, Edit } from 'lucide-react'
+import { ArrowLeft, Loader2, User, Phone, Shield, Trophy, Users, Calendar, Sparkles, ShieldCheck, Newspaper, ClipboardList, MessageSquare, MessageCircle, ChevronDown, Send, CheckCircle, XCircle, Clock, Trash2, Edit, Share2 } from 'lucide-react'
 import Card, { CardHeader, CardContent } from '../../components/ui/Card'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
@@ -12,6 +12,8 @@ import Navbar from '../../components/landing/Navbar'
 import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../../contexts/AuthContext'
 import UserBadge from '../../components/ui/UserBadge'
+import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
+import ShareDestinationModal from '../../components/ui/ShareDestinationModal'
 
 // League options from eFootball DB API (2025 Update)
 const leagueOptions = [
@@ -73,11 +75,14 @@ export default function JoinCompetition() {
     const isJoined = participants.some(p => p.user_id === user?.id)
 
     // Redirect logic if user is joined and status is NOT pending (e.g. approved)
+    // Redirect logic if user is joined and status is NOT pending (e.g. approved)
     useEffect(() => {
-        if (isJoined) {
+        if (isJoined && competitionData) {
             const myParticipant = participants.find(p => p.user_id === user?.id)
-            // If status is not pending (e.g. approved), redirect to user view
-            if (myParticipant && myParticipant.status !== 'pending') {
+
+            // Only redirect to view if tournament is NOT in draft mode
+            // If draft, stay here (so they see the "Waiting for start" or similar state implicitly by being in Join page)
+            if (myParticipant && myParticipant.status !== 'pending' && competitionData.status !== 'draft') {
                 navigate(`/dashboard/competitions/${id}/view`)
                 return
             }
@@ -87,13 +92,14 @@ export default function JoinCompetition() {
                 setActiveTab('participants')
             }
         }
-    }, [isJoined, activeTab, participants, user?.id, id, navigate])
+    }, [isJoined, activeTab, participants, user?.id, id, navigate, competitionData])
 
     const [newsList, setNewsList] = useState([])
     const [isNewsLoading, setIsNewsLoading] = useState(false)
     const [commentsMap, setCommentsMap] = useState({})
     const [newComment, setNewComment] = useState('')
     const [openThreadNewsId, setOpenThreadNewsId] = useState(null)
+    const [shareModalOpen, setShareModalOpen] = useState(false)
     const [teams, setTeams] = useState([])
     const [loadingTeams, setLoadingTeams] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -246,12 +252,14 @@ export default function JoinCompetition() {
         try {
             console.log('Registering for competition:', { competitionId: id, ...formData })
 
+            const isOrganizer = competitionData && String(competitionData.organizer_id) === String(user.id);
+
             const payload = {
                 user_id: user.id,
                 name: user.name,
                 team: formData.team,
                 logo_url: formData.teamLogo,
-                status: 'pending',
+                status: isOrganizer ? 'approved' : 'pending',
                 stats: { contact: user.phone || user.whatsapp || '-' } // Fallback if phone is not in user object
             }
 
@@ -375,6 +383,25 @@ export default function JoinCompetition() {
     const isMemberOfTournament = participants.some(p => String(p.user_id) === String(user?.id))
     const isOrganizer = competitionData && user && String(competitionData.organizer_id) === String(user.id)
 
+    // Share functionality
+    const handleShare = () => {
+        if (!competitionData) return;
+        setShareModalOpen(true);
+    };
+
+    const sharedContent = competitionData ? {
+        type: 'tournament',
+        id: competitionData.id,
+        metadata: {
+            name: competitionData.name,
+            type: competitionData.type?.replace('_', ' '),
+            participants: participants.length || 0,
+            visibility: competitionData.visibility || 'public',
+            status: competitionData.status,
+            progress: 'Open Registration'
+        }
+    } : null;
+
     return (
         <>
             {isPublic && <Navbar />}
@@ -404,10 +431,11 @@ export default function JoinCompetition() {
 
                                 <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
                                     {competitionData.logo ? (
-                                        <img
+                                        <AdaptiveLogo
                                             src={competitionData.logo}
                                             alt={competitionData.name}
-                                            className="w-24 h-24 rounded-2xl object-cover border-2 border-white/10 shadow-lg"
+                                            className="w-24 h-24 rounded-2xl object-cover shadow-lg"
+                                            fallbackSize="w-10 h-10"
                                         />
                                     ) : (
                                         <div className="w-24 h-24 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
@@ -453,6 +481,16 @@ export default function JoinCompetition() {
                                             <Users className="w-4 h-4 text-blue-400" />
                                             <span>Slot: {competitionData.max_participants - (competitionData.current_participants || 0)} Tersisa</span>
                                         </div>
+                                        {!isPublic && (
+                                            <button
+                                                onClick={handleShare}
+                                                className="flex items-center gap-2 text-gray-300 bg-black/20 hover:bg-neonGreen/20 hover:text-neonGreen px-3 py-1.5 rounded-lg transition"
+                                                title="Bagikan ke E-Club"
+                                            >
+                                                <Share2 className="w-4 h-4" />
+                                                <span>Bagikan</span>
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -849,6 +887,11 @@ export default function JoinCompetition() {
                 onClose={() => setIsEditModalOpen(false)}
                 participant={editingParticipant}
                 onSave={handleSaveParticipant}
+            />
+            <ShareDestinationModal
+                isOpen={shareModalOpen}
+                onClose={() => setShareModalOpen(false)}
+                sharedContent={sharedContent}
             />
         </>
     )

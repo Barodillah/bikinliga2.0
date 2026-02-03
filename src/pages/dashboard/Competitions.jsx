@@ -7,6 +7,7 @@ import Input from '../../components/ui/Input'
 import AdSlot from '../../components/ui/AdSlot'
 
 import UserBadge from '../../components/ui/UserBadge'
+import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
 
 import { authFetch } from '../../utils/api'
 
@@ -200,10 +201,11 @@ export default function Competitions() {
 
                     <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center">
                         {featuredCompetition.logo && (
-                            <img
+                            <AdaptiveLogo
                                 src={featuredCompetition.logo}
                                 alt={featuredCompetition.name}
-                                className="w-24 h-24 rounded-2xl object-cover border-2 border-white/10 shadow-2xl"
+                                className="w-24 h-24 rounded-2xl object-cover shadow-2xl"
+                                fallbackSize="w-10 h-10"
                             />
                         )}
                         <div className="flex-1 space-y-4">
@@ -329,13 +331,12 @@ export default function Competitions() {
                         <React.Fragment key={comp.id}>
                             <Card className="p-6 hover:border-neonGreen/30 transition-all group flex flex-col h-full">
                                 <div className="flex items-start justify-between mb-4">
-                                    {comp.logo ? (
-                                        <img src={comp.logo} alt={comp.name} className="w-12 h-12 rounded-lg object-cover bg-white/5 border border-white/10 group-hover:scale-105 transition duration-300" />
-                                    ) : (
-                                        <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center group-hover:scale-110 transition">
-                                            <Trophy className="w-6 h-6 text-blue-400" />
-                                        </div>
-                                    )}
+                                    <AdaptiveLogo
+                                        src={comp.logo}
+                                        alt={comp.name}
+                                        className="w-12 h-12 flex-shrink-0 group-hover:scale-105 transition duration-300"
+                                        fallbackSize="w-6 h-6"
+                                    />
                                     <div className="flex flex-col items-end gap-1">
                                         <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(comp.status)}`}>
                                             {getStatusLabel(comp.status)}
@@ -442,13 +443,12 @@ export default function Competitions() {
                                 className="flex items-center justify-between p-4 hover:bg-white/5 transition"
                             >
                                 <div className="flex items-center gap-4">
-                                    {comp.logo ? (
-                                        <img src={comp.logo} alt={comp.name} className="w-10 h-10 rounded-lg object-cover bg-white/5 border border-white/10" />
-                                    ) : (
-                                        <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                                            <Trophy className="w-5 h-5 text-blue-400" />
-                                        </div>
-                                    )}
+                                    <AdaptiveLogo
+                                        src={comp.logo}
+                                        alt={comp.name}
+                                        className="w-10 h-10 flex-shrink-0"
+                                        fallbackSize="w-5 h-5"
+                                    />
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <div className="font-medium">{comp.name}</div>
@@ -492,15 +492,18 @@ export default function Competitions() {
                         ))}
                     </div>
                 </Card>
-            )}
+            )
+            }
 
-            {filteredCompetitions.length === 0 && !loading && (
-                <div className="text-center py-12">
-                    <Trophy className="w-16 h-16 mx-auto text-gray-600 mb-4" />
-                    <h3 className="font-display font-bold text-xl mb-2">Belum ada kompetisi publik</h3>
-                    <p className="text-gray-500 mb-6">Cek lagi nanti untuk turnamen terbaru!</p>
-                </div>
-            )}
-        </div>
+            {
+                filteredCompetitions.length === 0 && !loading && (
+                    <div className="text-center py-12">
+                        <Trophy className="w-16 h-16 mx-auto text-gray-600 mb-4" />
+                        <h3 className="font-display font-bold text-xl mb-2">Belum ada kompetisi publik</h3>
+                        <p className="text-gray-500 mb-6">Cek lagi nanti untuk turnamen terbaru!</p>
+                    </div>
+                )
+            }
+        </div >
     )
 }

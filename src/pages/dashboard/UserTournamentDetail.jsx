@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
-import { Trophy, Users, Calendar, BarChart2, ArrowLeft, TrendingUp, Activity, Sparkles, Brain, Goal, Newspaper, Gift, ChevronRight, ArrowRight, Grid3X3, GitMerge, DollarSign, Medal, Crown, Percent, Target } from 'lucide-react'
+import { Trophy, Users, Calendar, BarChart2, ArrowLeft, TrendingUp, Activity, Sparkles, Brain, Goal, Newspaper, Gift, ChevronRight, ArrowRight, Grid3X3, GitMerge, DollarSign, Medal, Crown, Percent, Target, Share2 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -12,7 +12,9 @@ import Bracket from '../../components/tournament/Bracket'
 import AdSlot from '../../components/ui/AdSlot'
 import Input from '../../components/ui/Input'
 import UserBadge from '../../components/ui/UserBadge'
+import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
 import LeagueNews from '../../components/tournament/LeagueNews'
+import ShareDestinationModal from '../../components/ui/ShareDestinationModal'
 
 import { authFetch } from '../../utils/api'
 import { useAuth } from '../../contexts/AuthContext'
@@ -127,6 +129,7 @@ export default function UserTournamentDetail() {
     const [activeTab, setActiveTab] = useState('overview')
     const [copied, setCopied] = useState(false)
     const [winnerData, setWinnerData] = useState(null)
+    const [shareModalOpen, setShareModalOpen] = useState(false)
     const carouselRef = useRef(null)
 
     // AI Chat State
@@ -154,6 +157,12 @@ export default function UserTournamentDetail() {
 
                 if (!dataTour.success) throw new Error(dataTour.message)
                 setTournamentData(dataTour.data)
+
+                // If tournament is draft and user is not the creator, redirect to join page
+                if (dataTour.data.status === 'draft' && String(dataTour.data.organizer_id) !== String(user.id)) {
+                    navigate(`/dashboard/competitions/${id}/join`)
+                    return
+                }
 
                 // 2. Fetch Standings
                 const resStandings = await authFetch(`/api/tournaments/${id}/standings`)
@@ -715,16 +724,53 @@ export default function UserTournamentDetail() {
         navigate(`/dashboard/${basePath}/${id}/view/match/${matchId}`)
     }
 
+    const handleShare = () => {
+        if (!tournamentData) return;
+        setShareModalOpen(true);
+    };
+
+    // Calculate tournament progress
+    const getTournamentProgress = () => {
+        if (!matches.length) return 'Belum dimulai';
+        const completedMatches = matches.filter(m => m.status === 'completed' || m.status === 'finished').length;
+        const totalMatches = matches.length;
+        if (completedMatches === totalMatches && tournamentData?.status === 'completed') return 'Selesai';
+        if (completedMatches > 0) return `${completedMatches}/${totalMatches} match`;
+        return 'Coming Soon';
+    };
+
+    const sharedContent = tournamentData ? {
+        type: 'tournament',
+        id: tournamentData.id,
+        metadata: {
+            name: tournamentData.name,
+            type: tournamentData.type?.replace('_', ' '),
+            participants: standings.length || 0,
+            visibility: tournamentData.visibility || 'public',
+            status: tournamentData.status,
+            progress: getTournamentProgress()
+        }
+    } : null;
+
     return (
         <div className="space-y-4 md:space-y-6 overflow-x-hidden pb-24">
             {/* Header */}
             <div className="space-y-4">
-                <button
-                    onClick={() => navigate('/dashboard/competitions')}
-                    className="text-gray-400 hover:text-white flex items-center gap-2 transition text-sm"
-                >
-                    <ArrowLeft className="w-4 h-4" /> Kembali ke kompetisi
-                </button>
+                <div className="flex items-center justify-between">
+                    <button
+                        onClick={() => navigate('/dashboard/competitions')}
+                        className="text-gray-400 hover:text-white flex items-center gap-2 transition text-sm"
+                    >
+                        <ArrowLeft className="w-4 h-4" /> Kembali ke kompetisi
+                    </button>
+                    <button
+                        onClick={handleShare}
+                        className="text-gray-400 hover:text-neonGreen flex items-center gap-2 transition text-sm"
+                        title="Bagikan ke E-Club"
+                    >
+                        <Share2 className="w-4 h-4" /> Bagikan ke E-Club
+                    </button>
+                </div>
 
                 {/* Tournament Detail Summary Card */}
                 <div className="bg-gradient-to-br from-blue-900/40 to-purple-900/40 border border-white/10 rounded-xl p-6 relative overflow-hidden">
@@ -734,10 +780,11 @@ export default function UserTournamentDetail() {
 
                     <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
                         {tournamentData.logo ? (
-                            <img
+                            <AdaptiveLogo
                                 src={tournamentData.logo}
                                 alt={tournamentData.name}
-                                className="w-24 h-24 rounded-2xl object-cover border-2 border-white/10 shadow-lg"
+                                className="w-24 h-24 rounded-2xl object-cover shadow-lg"
+                                fallbackSize="w-10 h-10"
                             />
                         ) : (
                             <div className="w-24 h-24 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
@@ -1564,6 +1611,12 @@ export default function UserTournamentDetail() {
 
             {activeTab === 'statistics' && <TournamentStatistics stats={statistics} loading={statisticsLoading} />}
 
+            {/* Share Destination Modal */}
+            <ShareDestinationModal
+                isOpen={shareModalOpen}
+                onClose={() => setShareModalOpen(false)}
+                sharedContent={sharedContent}
+            />
         </div >
     )
 }

@@ -1,86 +1,138 @@
-import React, { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { authFetch } from '../../utils/api'
+import { useAuth } from '../../contexts/AuthContext'
+import { useToast } from '../../contexts/ToastContext'
+import UserBadge from '../../components/ui/UserBadge'
+import ShareModal from '../../components/ui/ShareModal'
+import { useParams, Link, useLocation } from 'react-router-dom'
 import {
     Heart, MessageSquare, Share2, Users, Search, Lock, Globe,
     MoreHorizontal, Image as ImageIcon, Send, ArrowLeft, Shield, Info
 } from 'lucide-react'
 import AdSlot from '../../components/ui/AdSlot'
 
-// Mock Data for specific community context
-const MOCK_COMMUNITY_DATA = {
-    1: {
-        id: 1,
-        name: 'Mobile Legends Indo',
-        description: 'Komunitas terbesar pecinta Mobile Legends di Indonesia. Tempat diskusi meta, cari tim, dan info turnamen.',
-        members: '12.5k',
-        online: '1.2k',
-        type: 'public',
-        isJoined: true,
-        image: 'https://ui-avatars.com/api/?name=ML&background=ef4444&color=fff',
-        banner: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=2000'
-    },
-    2: {
-        id: 2,
-        name: 'PUBG Mobile Scrim',
-        description: 'Wadah latihan dan scrim rutin untuk tim PUBG Mobile. Jadwal scrim setiap malam jam 19.00 WIB.',
-        members: '8.2k',
-        online: '850',
-        type: 'private',
-        isJoined: false,
-        image: 'https://ui-avatars.com/api/?name=PUBG&background=f59e0b&color=fff',
-        banner: 'https://images.unsplash.com/photo-1593305841991-05c29736cef7?auto=format&fit=crop&q=80&w=2000'
+// Mock data removed
+const formatTime = (dateString) => {
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return 'Baru saja';
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+        if (diffInSeconds < 60) return 'Baru saja';
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} menit yang lalu`;
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} jam yang lalu`;
+        if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} hari yang lalu`;
+        return date.toLocaleDateString('id-ID');
+    } catch (e) {
+        return 'Baru saja';
     }
-}
-
-// Fallback if ID not found
-const DEFAULT_COMMUNITY = MOCK_COMMUNITY_DATA[1]
-
-const MOCK_COMMUNITY_POSTS = [
-    {
-        id: 101,
-        user: {
-            name: 'Admin ML Indo',
-            username: '@admin_ml',
-            avatar: 'https://ui-avatars.com/api/?name=Admin+ML&background=ef4444&color=fff',
-            role: 'Admin'
-        },
-        content: '📢 PENGUMUMAN: Rules grup diperbarui per tanggal 18 Januari. Dilarang spam link tidak jelas. Yang melanggar akan di-kick. Harap dibaca di pin post.',
-        likes: 543,
-        comments: 89,
-        time: '1 jam yang lalu',
-        isPinned: true
-    },
-    {
-        id: 102,
-        user: {
-            name: 'Pro Player Wannabe',
-            username: '@wannabe_pro',
-            avatar: 'https://ui-avatars.com/api/?name=Pro+Player&background=random'
-        },
-        content: 'Cari roam buat mabar push rank mythic immortal. Min WR 60%. Gas skrg!',
-        likes: 32,
-        comments: 15,
-        time: '3 jam yang lalu'
-    },
-    {
-        id: 103,
-        user: {
-            name: 'Event Organizer',
-            username: '@eo_gaming',
-            avatar: 'https://ui-avatars.com/api/?name=EO&background=random'
-        },
-        content: 'Turnamen Fast Cup berhadiah total 5 juta! Slot terbatas. Link pendaftaran di bio.',
-        image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=1000',
-        likes: 120,
-        comments: 42,
-        time: '5 jam yang lalu'
-    }
-]
+};
 
 export default function CommunityDetail() {
     const { id } = useParams()
-    const community = MOCK_COMMUNITY_DATA[id] || DEFAULT_COMMUNITY
-    const [isJoined, setIsJoined] = useState(community.isJoined)
+    const { user } = useAuth()
+    const { success, error } = useToast()
+    const [community, setCommunity] = useState(null)
+    const [posts, setPosts] = useState([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [postContent, setPostContent] = useState('')
+    const [isPosting, setIsPosting] = useState(false)
+    const [isJoining, setIsJoining] = useState(false)
+    const [shareModalOpen, setShareModalOpen] = useState(false)
+    const location = useLocation()
+    const [sharedContent, setSharedContent] = useState(null)
+
+    // Handle Shared Content from Navigation
+    React.useEffect(() => {
+        if (location.state?.shared_content) {
+            setSharedContent(location.state.shared_content);
+            if (!postContent) {
+                if (location.state.shared_content.type === 'tournament') {
+                    setPostContent(`Ayo ikutan turnamen ${location.state.shared_content.metadata.name}! 🏆`);
+                } else if (location.state.shared_content.type === 'match') {
+                    setPostContent(`Match seru nih! ${location.state.shared_content.metadata.homeTeam} vs ${location.state.shared_content.metadata.awayTeam} 🔥`);
+                }
+            }
+        }
+    }, [location.state]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                const [commRes, postsRes] = await Promise.all([
+                    authFetch(`/api/communities/${id}`),
+                    authFetch(`/api/posts?community_id=${id}`)
+                ]);
+                const commData = await commRes.json();
+                const postsData = await postsRes.json();
+
+                if (commData.success) setCommunity(commData.data);
+                if (postsData.success) setPosts(postsData.data);
+            } catch (err) {
+                console.error('Fetch error:', err);
+                error('Gagal memuat data komunitas');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchData();
+    }, [id]);
+
+    const handleJoin = async () => {
+        if (!community) return;
+        setIsJoining(true);
+        try {
+            const res = await authFetch(`/api/communities/${id}/join`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                setCommunity({ ...community, isJoined: true, member_count: community.member_count + 1 });
+                success(data.message);
+            } else {
+                error(data.message);
+            }
+        } catch (err) {
+            console.error(err);
+            error('Gagal bergabung');
+        } finally {
+            setIsJoining(false);
+        }
+    };
+
+    const handleCreatePost = async () => {
+        if (!postContent.trim()) return;
+        setIsPosting(true);
+        try {
+            const res = await authFetch('/api/posts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: postContent,
+                    community_id: id,
+                    shared_content_type: sharedContent?.type || 'none',
+                    shared_content_id: sharedContent?.id || null,
+                    metadata: sharedContent?.metadata || null
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setPosts([data.data, ...posts]);
+                setPostContent('');
+                success('Post berhasil dibuat');
+            } else {
+                error(data.message);
+            }
+        } catch (err) {
+            console.error(err);
+            error('Terjadi kesalahan');
+        } finally {
+            setIsPosting(false);
+        }
+    };
+
+    if (isLoading) return <div className="text-center py-20 text-white">Loading...</div>;
+    if (!community) return <div className="text-center py-20 text-white">Komunitas tidak ditemukan</div>;
 
     return (
         <div className="max-w-7xl mx-auto">
@@ -93,8 +145,12 @@ export default function CommunityDetail() {
             {/* Community Header */}
             <div className="bg-cardBg border border-white/10 rounded-xl overflow-hidden mb-6">
                 {/* Banner */}
-                <div className="h-48 md:h-64 w-full relative">
-                    <img src={community.banner} alt="Banner" className="w-full h-full object-cover" />
+                <div className="h-48 md:h-64 w-full relative bg-darkBg">
+                    {community.banner_url ? (
+                        <img src={community.banner_url} alt="Banner" className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full bg-gradient-to-r from-gray-800 to-gray-900" />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                 </div>
 
@@ -102,7 +158,7 @@ export default function CommunityDetail() {
                 <div className="px-6 pb-6 relative -mt-16 flex flex-col md:flex-row items-end md:items-center gap-6">
                     <div className="relative">
                         <img
-                            src={community.image}
+                            src={community.icon_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(community.name)}&background=random`}
                             alt={community.name}
                             className="w-32 h-32 rounded-xl border-4 border-cardBg shadow-lg"
                         />
@@ -112,6 +168,7 @@ export default function CommunityDetail() {
                     <div className="flex-1 mb-2">
                         <h1 className="text-2xl md:text-3xl font-display font-bold text-white flex items-center gap-2">
                             {community.name}
+                            {community.creator_tier && <UserBadge tier={community.creator_tier} />}
                             {community.type === 'private' && <Lock className="w-5 h-5 text-gray-400" />}
                             {community.type === 'public' && <Globe className="w-5 h-5 text-gray-400" />}
                         </h1>
@@ -119,7 +176,7 @@ export default function CommunityDetail() {
                         <div className="flex items-center gap-4 mt-3 text-sm text-gray-400">
                             <span className="flex items-center gap-1">
                                 <Users className="w-4 h-4" />
-                                {community.members} Anggota
+                                {community.member_count} Anggota
                             </span>
                             <span className="text-green-400 flex items-center gap-1">
                                 <div className="w-2 h-2 rounded-full bg-green-500" />
@@ -128,18 +185,26 @@ export default function CommunityDetail() {
                         </div>
                     </div>
 
-                    <div className="w-full md:w-auto mt-4 md:mt-0">
+                    <div className="w-full md:w-auto mt-4 md:mt-0 flex gap-3">
                         <button
-                            onClick={() => setIsJoined(!isJoined)}
-                            className={`w-full md:w-auto px-6 py-2.5 rounded-lg font-bold transition flex items-center justify-center gap-2 ${isJoined
-                                ? 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
-                                : 'bg-gradient-to-r from-neonGreen to-neonPink text-black hover:opacity-90'
+                            onClick={() => setShareModalOpen(true)}
+                            className="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-lg transition border border-white/10"
+                            title="Bagikan Komunitas"
+                        >
+                            <Share2 className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={handleJoin}
+                            disabled={community.isJoined || isJoining}
+                            className={`w-full md:w-auto px-6 py-2.5 rounded-lg font-bold transition flex items-center justify-center gap-2 ${community.isJoined
+                                ? 'bg-white/5 text-white hover:bg-white/10 border border-white/10 cursor-default'
+                                : 'bg-gradient-to-r from-neonGreen to-neonPink text-black hover:opacity-90 disabled:opacity-50'
                                 }`}
                         >
-                            {isJoined ? (
+                            {community.isJoined ? (
                                 <>Bergabung ✓</>
                             ) : (
-                                <>Gabung Komunitas</>
+                                <>{isJoining ? 'Memproses...' : 'Gabung Komunitas'}</>
                             )}
                         </button>
                     </div>
@@ -150,7 +215,7 @@ export default function CommunityDetail() {
                 {/* Main Content */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* Create Post */}
-                    {isJoined && (
+                    {community.isJoined && (
                         <div className="bg-cardBg border border-white/10 rounded-xl p-4">
                             <div className="flex gap-4">
                                 <img
@@ -161,18 +226,53 @@ export default function CommunityDetail() {
                                 <div className="flex-1">
                                     <input
                                         type="text"
+                                        value={postContent}
+                                        onChange={(e) => setPostContent(e.target.value)}
                                         placeholder={`Tulis sesuatu di ${community.name}...`}
                                         className="w-full bg-darkBg border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neonGreen transition mb-3"
                                     />
+                                    {/* Shared Content Preview */}
+                                    {sharedContent && (
+                                        <div className="mb-3 bg-darkBg/50 p-3 rounded-lg border border-white/5 relative group">
+                                            <button
+                                                onClick={() => setSharedContent(null)}
+                                                className="absolute top-2 right-2 text-gray-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"
+                                            >
+                                                &times;
+                                            </button>
+                                            {sharedContent.type === 'match' && (
+                                                <div className="text-sm text-gray-300">
+                                                    <p className="font-bold mb-1 text-neonGreen">Match Highlight</p>
+                                                    <div className="flex justify-between items-center">
+                                                        <span>{sharedContent.metadata.homeTeam}</span>
+                                                        <span className="font-bold text-white mx-2">vs</span>
+                                                        <span>{sharedContent.metadata.awayTeam}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {sharedContent.type === 'tournament' && (
+                                                <div className="text-sm text-gray-300">
+                                                    <p className="font-bold mb-1 text-neonPink">Tournament</p>
+                                                    <p className="text-white font-medium">{sharedContent.metadata.name}</p>
+                                                    <p className="text-xs">{sharedContent.metadata.type}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <div className="flex justify-between items-center">
                                         <div className="flex gap-2">
                                             <button className="p-2 text-gray-400 hover:text-neonGreen hover:bg-neonGreen/10 rounded-lg transition">
                                                 <ImageIcon className="w-5 h-5" />
                                             </button>
                                         </div>
-                                        <button className="px-4 py-2 bg-white/5 text-white font-bold rounded-lg hover:bg-white/10 transition flex items-center gap-2">
+                                        <button
+                                            onClick={handleCreatePost}
+                                            disabled={isPosting || !postContent.trim()}
+                                            className="px-4 py-2 bg-white/5 text-white font-bold rounded-lg hover:bg-white/10 transition flex items-center gap-2 disabled:opacity-50"
+                                        >
                                             <Send className="w-4 h-4" />
-                                            Kirim
+                                            {isPosting ? 'Mengirim...' : 'Kirim'}
                                         </button>
                                     </div>
                                 </div>
@@ -182,71 +282,79 @@ export default function CommunityDetail() {
 
                     {/* Posts */}
                     <div className="space-y-4">
-                        {MOCK_COMMUNITY_POSTS.map((post, index) => (
-                            <React.Fragment key={post.id}>
-                                <div className="bg-cardBg border border-white/10 rounded-xl overflow-hidden hover:border-white/20 transition">
-                                    <div className="p-4">
-                                        {post.isPinned && (
-                                            <div className="flex items-center gap-2 text-xs text-neonGreen font-medium mb-3">
-                                                <Shield className="w-3 h-3" />
-                                                Pinned Post
-                                            </div>
-                                        )}
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className="flex items-center gap-3">
-                                                <img src={post.user.avatar} alt={post.user.name} className="w-10 h-10 rounded-full" />
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <h3 className="font-bold text-white">{post.user.name}</h3>
-                                                        {post.user.role && (
-                                                            <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-neonGreen/20 text-neonGreen font-bold">
-                                                                {post.user.role}
-                                                            </span>
-                                                        )}
+                        {posts.length === 0 ? (
+                            <div className="text-center py-10 text-gray-500">Belum ada postingan di komunitas ini.</div>
+                        ) : (
+                            posts.map((post, index) => (
+                                <React.Fragment key={post.id}>
+                                    <div className="bg-cardBg border border-white/10 rounded-xl overflow-hidden hover:border-white/20 transition">
+                                        <div className="p-4">
+                                            {!!post.is_pinned && (
+                                                <div className="flex items-center gap-2 text-xs text-neonGreen font-medium mb-3">
+                                                    <Shield className="w-3 h-3" />
+                                                    Pinned Post
+                                                </div>
+                                            )}
+                                            <div className="flex items-center justify-between mb-3">
+                                                <div className="flex items-center gap-3">
+                                                    <img
+                                                        src={post.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.user_name)}&background=random`}
+                                                        alt={post.user_name}
+                                                        className="w-10 h-10 rounded-full"
+                                                    />
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <h3 className="font-bold text-white">{post.user_name}</h3>
+                                                            {post.user_role === 'admin' && (
+                                                                <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-neonGreen/20 text-neonGreen font-bold">
+                                                                    Admin
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-sm text-gray-400">{post.user_username} • {formatTime(post.created_at)}</p>
                                                     </div>
-                                                    <p className="text-sm text-gray-400">{post.user.username} • {post.time}</p>
                                                 </div>
+                                                <button className="text-gray-400 hover:text-white">
+                                                    <MoreHorizontal className="w-5 h-5" />
+                                                </button>
                                             </div>
-                                            <button className="text-gray-400 hover:text-white">
-                                                <MoreHorizontal className="w-5 h-5" />
-                                            </button>
-                                        </div>
-                                        <p className="text-gray-200 mb-4 whitespace-pre-wrap">{post.content}</p>
-                                        {post.image && (
-                                            <div className="rounded-lg overflow-hidden mb-4 border border-white/10">
-                                                <img src={post.image} alt="Post content" className="w-full h-64 object-cover" />
-                                            </div>
-                                        )}
+                                            <p className="text-gray-200 mb-4 whitespace-pre-wrap">{post.content}</p>
+                                            {post.image_url && (
+                                                <div className="rounded-lg overflow-hidden mb-4 border border-white/10">
+                                                    <img src={post.image_url} alt="Post content" className="w-full h-64 object-cover" />
+                                                </div>
+                                            )}
 
-                                        <div className="flex items-center justify-between border-t border-white/10 pt-3">
-                                            <button className="flex items-center gap-2 text-gray-400 hover:text-pink-500 transition group">
-                                                <div className="p-2 rounded-full group-hover:bg-pink-500/10">
-                                                    <Heart className="w-5 h-5" />
-                                                </div>
-                                                <span>{post.likes}</span>
-                                            </button>
-                                            <button className="flex items-center gap-2 text-gray-400 hover:text-blue-400 transition group">
-                                                <div className="p-2 rounded-full group-hover:bg-blue-400/10">
-                                                    <MessageSquare className="w-5 h-5" />
-                                                </div>
-                                                <span>{post.comments}</span>
-                                            </button>
-                                            <button className="flex items-center gap-2 text-gray-400 hover:text-green-400 transition group">
-                                                <div className="p-2 rounded-full group-hover:bg-green-400/10">
-                                                    <Share2 className="w-5 h-5" />
-                                                </div>
-                                                <span>Share</span>
-                                            </button>
+                                            <div className="flex items-center justify-between border-t border-white/10 pt-3">
+                                                <button className="flex items-center gap-2 text-gray-400 hover:text-pink-500 transition group">
+                                                    <div className="p-2 rounded-full group-hover:bg-pink-500/10">
+                                                        <Heart className="w-5 h-5" />
+                                                    </div>
+                                                    <span>{post.likes_count}</span>
+                                                </button>
+                                                <button className="flex items-center gap-2 text-gray-400 hover:text-blue-400 transition group">
+                                                    <div className="p-2 rounded-full group-hover:bg-blue-400/10">
+                                                        <MessageSquare className="w-5 h-5" />
+                                                    </div>
+                                                    <span>{post.comments_count}</span>
+                                                </button>
+                                                <button className="flex items-center gap-2 text-gray-400 hover:text-green-400 transition group">
+                                                    <div className="p-2 rounded-full group-hover:bg-green-400/10">
+                                                        <Share2 className="w-5 h-5" />
+                                                    </div>
+                                                    <span>Share</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Ad Slot Injection */}
-                                {(index + 1) % 2 === 0 && (
-                                    <AdSlot variant="inline" className="w-full max-w-none" />
-                                )}
-                            </React.Fragment>
-                        ))}
+                                    {/* Ad Slot Injection */}
+                                    {(index + 1) % 2 === 0 && (
+                                        <AdSlot variant="inline" className="w-full max-w-none" />
+                                    )}
+                                </React.Fragment>
+                            ))
+                        )}
                     </div>
                 </div>
 
@@ -276,24 +384,37 @@ export default function CommunityDetail() {
                     <div className="bg-cardBg border border-white/10 rounded-xl p-4">
                         <h2 className="font-bold text-white mb-4">Admin & Moderator</h2>
                         <div className="space-y-3">
-                            <div className="flex items-center gap-3">
-                                <img src="https://ui-avatars.com/api/?name=Admin+ML&background=ef4444&color=fff" className="w-8 h-8 rounded-full" alt="Admin" />
-                                <div className="flex-1">
-                                    <div className="text-sm font-medium text-white">Admin ML Indo</div>
-                                    <div className="text-xs text-neonGreen">Admin Utama</div>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <img src="https://ui-avatars.com/api/?name=Mod+One&background=random" className="w-8 h-8 rounded-full" alt="Mod" />
-                                <div className="flex-1">
-                                    <div className="text-sm font-medium text-white">Mod One</div>
-                                    <div className="text-xs text-blue-400">Moderator</div>
-                                </div>
-                            </div>
+                            {community.admins && community.admins.length > 0 ? (
+                                community.admins.map(admin => (
+                                    <div key={admin.id} className="flex items-center gap-3">
+                                        <img
+                                            src={admin.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(admin.name)}&background=ef4444&color=fff`}
+                                            className="w-8 h-8 rounded-full"
+                                            alt={admin.name}
+                                        />
+                                        <div className="flex-1">
+                                            <div className="text-sm font-medium text-white">{admin.name}</div>
+                                            <div className={`text-xs ${admin.role === 'admin' ? 'text-neonGreen' : 'text-blue-400'}`}>
+                                                {admin.role === 'admin' ? 'Admin' : 'Moderator'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-gray-500 text-sm">Tidak ada admin terdaftar</div>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
+            {/* Share Modal */}
+            <ShareModal
+                isOpen={shareModalOpen}
+                onClose={() => setShareModalOpen(false)}
+                link={`${window.location.origin}/eclub/${id}`}
+                text={`Gabung komunitas ${community.name} di BikinLiga!`}
+                title={`Bagikan ${community.name}`}
+            />
         </div>
     )
 }

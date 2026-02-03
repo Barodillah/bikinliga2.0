@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useParams, Link, useNavigate, useLocation, useOutletContext } from 'react-router-dom'
-import { ArrowLeft, Clock, Goal, Brain, Percent, History, MessageCircle, Send, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Clock, Goal, Brain, Percent, History, MessageCircle, Send, ChevronRight, Share2 } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import AdSlot from '../../components/ui/AdSlot'
 import Button from '../../components/ui/Button'
+import ShareDestinationModal from '../../components/ui/ShareDestinationModal'
 
 import { authFetch } from '../../utils/api'
 
@@ -179,6 +180,9 @@ export default function UserMatchDetail() {
     const [match, setMatch] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
+    const [shareModalOpen, setShareModalOpen] = useState(false)
+    const location = useLocation()
+    const isCompetition = location.pathname.includes('/competitions')
 
     useEffect(() => {
         if (match) {
@@ -232,18 +236,42 @@ export default function UserMatchDetail() {
     if (error) return <div className="min-h-screen flex items-center justify-center text-white">{error}</div>
     if (!match) return <div className="min-h-screen flex items-center justify-center text-white">Pertandingan tidak ditemukan</div>
 
-    const location = useLocation()
-    const isCompetition = location.pathname.includes('/competitions')
+    const handleShare = () => {
+        if (!match) return;
+        setShareModalOpen(true);
+    };
+
+    const sharedContent = match ? {
+        type: 'match',
+        id: match.id,
+        metadata: {
+            homeTeam: match.homeTeam.name,
+            awayTeam: match.awayTeam.name,
+            homeScore: match.homeScore,
+            awayScore: match.awayScore,
+            status: match.status,
+            tournament_id: id // from useParams
+        }
+    } : null;
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-20">
             {/* Header / Nav */}
-            <button
-                onClick={() => navigate(-1)}
-                className="flex items-center gap-2 text-gray-400 hover:text-white transition"
-            >
-                <ArrowLeft className="w-4 h-4" /> {location.state?.from === 'stream' ? 'Kembali ke Stream' : (isCompetition ? 'Kembali ke Kompetisi' : 'Kembali ke Turnamen')}
-            </button>
+            <div className="flex items-center justify-between">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center gap-2 text-gray-400 hover:text-white transition"
+                >
+                    <ArrowLeft className="w-4 h-4" /> {location.state?.from === 'stream' ? 'Kembali ke Stream' : (isCompetition ? 'Kembali ke Kompetisi' : 'Kembali ke Turnamen')}
+                </button>
+                <button
+                    onClick={handleShare}
+                    className="text-gray-400 hover:text-neonGreen flex items-center gap-2 transition text-sm"
+                    title="Bagikan ke E-Club"
+                >
+                    <Share2 className="w-4 h-4" /> Bagikan ke E-Club
+                </button>
+            </div>
 
             {/* Scoreboard Main */}
             <Card className="overflow-hidden">
@@ -481,6 +509,13 @@ export default function UserMatchDetail() {
                     <LiveChat isWidget={true} status={match?.status} matchId={matchId} />
                 </div>
             </div>
+
+            {/* Share Destination Modal */}
+            <ShareDestinationModal
+                isOpen={shareModalOpen}
+                onClose={() => setShareModalOpen(false)}
+                sharedContent={sharedContent}
+            />
         </div>
     )
 }

@@ -31,6 +31,8 @@ import JoinCompetition from './pages/dashboard/JoinCompetition'
 import PublicLayout from './layouts/PublicLayout'
 import TournamentPublicView from './pages/public/TournamentPublicView'
 import MatchPublicView from './pages/public/MatchPublicView'
+import PublicPostDetail from './pages/public/PublicPostDetail';
+import PublicCommunityDetail from './pages/public/PublicCommunityDetail';
 import UserTournamentDetail from './pages/dashboard/UserTournamentDetail'
 import UserMatchDetail from './pages/dashboard/UserMatchDetail'
 import UserNewsDetail from './pages/dashboard/UserNewsDetail'
@@ -76,6 +78,14 @@ function App() {
                         <Route path="/t" element={<PublicLayout />}>
                             <Route path=":slug" element={<TournamentPublicView />} />
                             <Route path=":slug/match/:matchId" element={<MatchPublicView />} />
+                        </Route>
+
+                        {/* Public Post View */}
+                        <Route path="/post" element={<PublicLayout />}>
+                            <Route path=":id" element={<PublicPostDetail />} />
+                        </Route>
+                        <Route path="/eclub" element={<PublicLayout />}>
+                            <Route path=":id" element={<PublicCommunityDetail />} />
                         </Route>
 
 

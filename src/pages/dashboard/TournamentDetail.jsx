@@ -3755,6 +3755,28 @@ export default function TournamentDetail() {
                             return null
                         })()}
 
+                        {/* Owner Join Alert */}
+                        {isDraft && isOrganizer && !(tournamentData.participants || []).some(p => p.user_id === user?.id) && (
+                            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 flex items-center justify-between gap-4 animate-fadeIn">
+                                <div className="flex items-start gap-3">
+                                    <div className="p-2 bg-blue-500/20 rounded-lg">
+                                        <User className="w-5 h-5 text-blue-400" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-blue-400">Ikut Serta dalam Kompetisi</h4>
+                                        <p className="text-sm text-gray-400">
+                                            Anda bisa mendaftarkan tim Anda sendiri ke dalam turnamen ini.
+                                        </p>
+                                    </div>
+                                </div>
+                                <Link to={`/dashboard/competitions/${tournamentData.slug || id}/join`}>
+                                    <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white border-none whitespace-nowrap">
+                                        Gabung Kompetisi
+                                    </Button>
+                                </Link>
+                            </div>
+                        )}
+
                         {isDraft ? (
                             <DraftPlayerList
                                 players={tournamentData.participants || []}

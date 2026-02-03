@@ -5,25 +5,7 @@ import { useToast } from '../../contexts/ToastContext'
 import { authFetch } from '../../utils/api'
 import { useAuth } from '../../contexts/AuthContext'
 
-// Mock Data for Communities
-const MOCK_ADMIN_COMMUNITIES = [
-    {
-        id: 1,
-        name: 'Mobile Legends Indo',
-        members: '12.5k',
-        type: 'public',
-        role: 'admin',
-        image: 'https://ui-avatars.com/api/?name=ML&background=ef4444&color=fff'
-    },
-    {
-        id: 4,
-        name: 'Valorant Tactics',
-        members: '3.4k',
-        type: 'private',
-        role: 'admin',
-        image: 'https://ui-avatars.com/api/?name=VL&background=ef4444&color=fff'
-    }
-]
+// MOCK_ADMIN_COMMUNITIES removed in favor of real data
 
 export default function Settings() {
     const { success, error } = useToast()
@@ -120,6 +102,25 @@ export default function Settings() {
         type: 'public',
         description: ''
     })
+    const [myCommunities, setMyCommunities] = useState([])
+
+    const fetchMyCommunities = async () => {
+        try {
+            const res = await authFetch('/api/communities/my')
+            const data = await res.json()
+            if (data.success) {
+                setMyCommunities(data.data)
+            }
+        } catch (err) {
+            console.error('Error fetching communities:', err)
+        }
+    }
+
+    useEffect(() => {
+        if (activeTab === 'eclub') {
+            fetchMyCommunities()
+        }
+    }, [activeTab])
 
     const handleProfileUpdate = async (e) => {
         e.preventDefault()
@@ -210,15 +211,31 @@ export default function Settings() {
         }
     }
 
-    const handleCreateClub = (e) => {
+    const handleCreateClub = async (e) => {
         e.preventDefault()
         setIsLoading(true)
-        // Simulate coin payment and creation
-        setTimeout(() => {
+        try {
+            const res = await authFetch('/api/communities', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newClub)
+            })
+            const data = await res.json()
+
+            if (data.success) {
+                success(data.message)
+                setShowCreateClub(false)
+                setNewClub({ name: '', type: 'public', description: '' })
+                fetchMyCommunities()
+            } else {
+                error(data.message)
+            }
+        } catch (err) {
+            console.error('Create club error:', err)
+            error('Gagal membuat komunitas')
+        } finally {
             setIsLoading(false)
-            setShowCreateClub(false)
-            success('Komunitas berhasil dibuat! Saldo koin telah dikurangi.')
-        }, 1500)
+        }
     }
 
     const renderTabContent = () => {
@@ -510,34 +527,46 @@ export default function Settings() {
 
                         {/* Admin Communities Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {MOCK_ADMIN_COMMUNITIES.map((community) => (
-                                <div key={community.id} className="bg-cardBg border border-white/10 rounded-xl p-4 hover:border-neonGreen/50 transition group">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <img src={community.image} alt={community.name} className="w-12 h-12 rounded-lg" />
-                                            <div>
-                                                <h3 className="font-bold text-white group-hover:text-neonGreen transition">{community.name}</h3>
-                                                <span className="text-xs px-2 py-0.5 rounded-full bg-neonGreen/10 text-neonGreen border border-neonGreen/20">
-                                                    Admin
-                                                </span>
+                            {myCommunities.length === 0 ? (
+                                <div className="col-span-full text-center py-10 text-gray-500">
+                                    Belum ada komunitas yang dikelola.
+                                </div>
+                            ) : (
+                                myCommunities.map((community) => (
+                                    <div key={community.id} className="bg-cardBg border border-white/10 rounded-xl p-4 hover:border-neonGreen/50 transition group">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <img
+                                                    src={community.icon_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(community.name)}&background=random`}
+                                                    alt={community.name}
+                                                    className="w-12 h-12 rounded-lg"
+                                                />
+                                                <div>
+                                                    <h3 className="font-bold text-white group-hover:text-neonGreen transition">{community.name}</h3>
+                                                    <span className="text-xs px-2 py-0.5 rounded-full bg-neonGreen/10 text-neonGreen border border-neonGreen/20">
+                                                        {community.user_role === 'admin' ? 'Admin' : 'Member'}
+                                                    </span>
+                                                </div>
                                             </div>
+                                            {community.user_role === 'admin' && (
+                                                <button className="text-gray-400 hover:text-white">
+                                                    <Check className="w-5 h-5" />
+                                                </button>
+                                            )}
                                         </div>
-                                        <button className="text-gray-400 hover:text-white">
-                                            <Check className="w-5 h-5" />
+                                        <div className="flex items-center justify-between text-sm text-gray-400 border-t border-white/10 pt-3">
+                                            <span className="flex items-center gap-1">
+                                                <Users className="w-4 h-4" />
+                                                {community.total_members}
+                                            </span>
+                                            <span className="capitalize">{community.type}</span>
+                                        </div>
+                                        <button className="w-full mt-4 bg-white/5 hover:bg-white/10 text-white font-medium py-2 rounded-lg transition text-sm">
+                                            Kelola Komunitas
                                         </button>
                                     </div>
-                                    <div className="flex items-center justify-between text-sm text-gray-400 border-t border-white/10 pt-3">
-                                        <span className="flex items-center gap-1">
-                                            <Users className="w-4 h-4" />
-                                            {community.members}
-                                        </span>
-                                        <span className="capitalize">{community.type}</span>
-                                    </div>
-                                    <button className="w-full mt-4 bg-white/5 hover:bg-white/10 text-white font-medium py-2 rounded-lg transition text-sm">
-                                        Kelola Komunitas
-                                    </button>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
                     </div>
                 )
