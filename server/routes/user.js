@@ -196,9 +196,22 @@ router.get('/profile', authMiddleware, async (req, res) => {
             });
         }
 
+        // Fetch Subscription
+        const subscription = await query(
+            `SELECT sp.name as plan_name, us.status, us.end_date 
+             FROM user_subscriptions us
+             JOIN subscription_plans sp ON us.plan_id = sp.id
+             WHERE us.user_id = ? AND us.status = 'active'
+             ORDER BY sp.price DESC LIMIT 1`,
+            [userId]
+        );
+
+        const profileData = profiles[0];
+        profileData.subscription = subscription.length > 0 ? subscription[0] : null;
+
         res.json({
             success: true,
-            data: profiles[0]
+            data: profileData
         });
     } catch (error) {
         console.error('Get profile error:', error);

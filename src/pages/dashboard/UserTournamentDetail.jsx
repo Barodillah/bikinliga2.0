@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
-import { Trophy, Users, Calendar, BarChart2, ArrowLeft, TrendingUp, Activity, Sparkles, Brain, Goal, Newspaper, Gift, ChevronRight, ArrowRight, Grid3X3, GitMerge, DollarSign, Medal, Crown, Percent, Target, Share2 } from 'lucide-react'
+import { Trophy, Users, Calendar, BarChart2, ArrowLeft, TrendingUp, Activity, Sparkles, Brain, Goal, Newspaper, Gift, ChevronRight, ArrowRight, Grid3X3, GitMerge, DollarSign, Medal, Crown, Percent, Target, Share2, Lock } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -18,6 +18,8 @@ import ShareDestinationModal from '../../components/ui/ShareDestinationModal'
 
 import { authFetch } from '../../utils/api'
 import { useAuth } from '../../contexts/AuthContext'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 // Helper to format date
 const formatDate = (dateString) => {
@@ -145,6 +147,43 @@ export default function UserTournamentDetail() {
         const myStanding = standings.find(s => String(s.user_id) === String(user.id));
         return myStanding ? myStanding.participant_id : null;
     }, [user, standings]);
+
+    // AI Analysis State - MOVED UP before early returns
+    const [aiSessionId, setAiSessionId] = useState(null)
+    const [userSubscription, setUserSubscription] = useState(null)
+    const [loadingSubscription, setLoadingSubscription] = useState(true)
+    const [chatLocked, setChatLocked] = useState(false) // derived state if needed
+
+    useEffect(() => {
+        const fetchSubscription = async () => {
+            try {
+                // Using authFetch instead of api
+                const res = await authFetch('/api/user/profile')
+                const profileRes = await res.json()
+
+                if (profileRes.success) {
+                    console.log('DEBUG: User Subscription Data:', profileRes.data?.subscription);
+                    setUserSubscription(profileRes.data?.subscription)
+                }
+            } catch (error) {
+                console.error("Failed to fetch sub", error)
+            } finally {
+                setLoadingSubscription(false)
+            }
+        }
+        fetchSubscription()
+    }, [])
+
+    const isPremiumUser = userSubscription?.plan_name?.toLowerCase().includes('captain') || userSubscription?.plan_name?.toLowerCase().includes('pro') || userSubscription?.plan_name?.toLowerCase().includes('superadmin');
+    const isPro = userSubscription?.plan_name?.toLowerCase().includes('pro') || userSubscription?.plan_name?.toLowerCase().includes('superadmin');
+
+    console.log('DEBUG: isPremiumUser:', isPremiumUser, 'Plan:', userSubscription?.plan_name);
+
+    // Fallback if subscription fetch fails or is complex: rely on backend error codes to handle UI states?
+    // Better to know upfront to show the "Lock" screen.
+
+
+
 
 
     // Fetch All Data
@@ -644,11 +683,6 @@ export default function UserTournamentDetail() {
         return null
     }
 
-    if (loading) return <div className="min-h-screen flex items-center justify-center text-white">Loading...</div>
-    if (error) return <div className="min-h-screen flex items-center justify-center text-white">{error}</div>
-    if (!tournamentData) return <div className="min-h-screen flex items-center justify-center text-white">Turnamen tidak ditemukan</div>
-
-
     const getTabs = () => {
         const baseTabs = [
             { id: 'overview', label: 'Overview', icon: Trophy },
@@ -681,7 +715,7 @@ export default function UserTournamentDetail() {
         return baseTabs
     }
 
-    const tabs = getTabs()
+
 
     const copyShareLink = () => {
         const link = `${window.location.origin}/t/${tournamentData.slug}`
@@ -690,26 +724,77 @@ export default function UserTournamentDetail() {
         setTimeout(() => setCopied(false), 2000)
     }
 
-    const handleSendMessage = (e) => {
+    const handleSendMessage = async (e) => {
         e.preventDefault()
         if (!chatInput.trim()) return
 
-        // User Message
+        // Check subscription locally first for immediate feedback (optional, backend also checks)
+        // If we don't know the sub yet, maybe let it pass and fail on backend.
+
         const userMsg = { id: Date.now(), role: 'user', content: chatInput }
         setChatMessages(prev => [...prev, userMsg])
         setChatInput('')
         setIsTyping(true)
 
-        // Simulate AI Response
-        setTimeout(() => {
-            const aiMsg = {
+        try {
+            // Use authFetch for post request too
+            const response = await authFetch('/api/chat/analyze', {
+                method: 'POST',
+                body: JSON.stringify({
+                    tournamentId: id,
+                    message: userMsg.content,
+                    sessionId: aiSessionId
+                }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+
+            const responseData = await response.json()
+
+            // Check if response is successful
+            // authFetch wrapper might return the data directly or the response object.
+            // If it returns response object:
+            if (responseData.success) { // Assuming authFetch returns parsed JSON with success field
+                const aiMsg = responseData.data
+                setChatMessages(prev => [...prev, aiMsg])
+                if (responseData.sessionId) setAiSessionId(responseData.sessionId)
+            } else {
+                throw new Error(responseData.message || 'Error', { cause: { code: responseData.code } })
+            }
+
+        } catch (error) {
+            console.error(error)
+            // Error handling depends on how authFetch throws errors.
+            // Assuming it throws or returns successful error object.
+
+            const errorCode = error.cause?.code // or error.response?.data?.code if using axios style but authFetch is usually fetch wrapper.
+            // Let's assume error object has the properties if thrown manually or from backend JSON.
+            // If authFetch throws an error with response property:
+
+            const errorMessage = error.message || 'Maaf, terjadi kesalahan pada AI.'
+            let displayCode = errorCode
+
+            // Adjust property access if needed based on authFetch implementation.
+
+            let displayMessage = errorMessage
+
+            if (displayCode === 'PLAN_FREE') {
+                displayMessage = "🔒 Fitur ini khusus member Premium. Silakan upgrade paket Anda."
+            } else if (displayCode === 'LIMIT_REACHED') {
+                displayMessage = "⚠️ Kuota harian Anda habis. Upgrade ke Pro League untuk akses unlimited."
+            }
+
+            setChatMessages(prev => [...prev, {
                 id: Date.now() + 1,
                 role: 'system',
-                content: `Berdasarkan data statistik terkini, pertanyaan Anda tentang "${userMsg.content}" menarik. Tim X menunjukkan performa signifikat di babak kedua, yang mungkin menjadi kunci.`
-            }
-            setChatMessages(prev => [...prev, aiMsg])
+                content: displayMessage,
+                isError: true, // Helper for styling
+                errorCode: displayCode
+            }])
+        } finally {
             setIsTyping(false)
-        }, 1500)
+        }
     }
 
     const handlePromptClick = (prompt) => {
@@ -751,6 +836,12 @@ export default function UserTournamentDetail() {
             progress: getTournamentProgress()
         }
     } : null;
+
+    if (loading) return <div className="min-h-screen flex items-center justify-center text-white">Loading...</div>
+    if (error) return <div className="min-h-screen flex items-center justify-center text-white">{error}</div>
+    if (!tournamentData) return <div className="min-h-screen flex items-center justify-center text-white">Turnamen tidak ditemukan</div>
+
+    const tabs = getTabs()
 
     return (
         <div className="space-y-4 md:space-y-6 overflow-x-hidden pb-24">
@@ -976,7 +1067,26 @@ export default function UserTournamentDetail() {
                         </div>
 
                         {/* Chat Area & Input */}
-                        <div className="md:col-span-2 flex flex-col gap-3 md:gap-4">
+                        <div className="md:col-span-2 flex flex-col gap-3 md:gap-4 relative">
+                            {/* Locked Overlay for Free Users */}
+                            {!loadingSubscription && !isPremiumUser && (
+                                <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center p-6 text-center border border-white/10">
+                                    <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mb-4 ring-4 ring-white/5">
+                                        <Lock className="w-8 h-8 text-gray-400" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-white mb-2">Fitur Analisis Premium</h3>
+                                    <p className="text-gray-400 max-w-sm mb-6">
+                                        Dapatkan analisis mendalam, prediksi, dan statistik turnamen berbasis AI dengan paket Premium.
+                                    </p>
+                                    <button
+                                        onClick={() => navigate('/dashboard/topup')}
+                                        className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold py-2.5 px-6 rounded-full hover:shadow-lg hover:shadow-yellow-500/20 transition transform hover:-translate-y-1 active:scale-95"
+                                    >
+                                        Upgrade Sekarang
+                                    </button>
+                                </div>
+                            )}
+
                             {/* Messages Card */}
                             <div className="flex flex-col h-[calc(100vh-380px)] min-h-[320px] max-h-[450px] md:h-[500px] md:max-h-none bg-[#0a0a0a] rounded-xl border border-white/10 overflow-hidden relative">
                                 {/* Premium Badge Background */}
@@ -993,11 +1103,19 @@ export default function UserTournamentDetail() {
                                         <div className="min-w-0">
                                             <div className="font-bold flex items-center gap-1.5 md:gap-2 text-sm md:text-base">
                                                 <span className="truncate">Tournament Analyst AI</span>
-                                                <span className="text-[9px] md:text-[10px] bg-yellow-500 text-black px-1 md:px-1.5 py-0.5 rounded font-bold flex-shrink-0">PRO</span>
+                                                <span className="text-[9px] md:text-[10px] bg-yellow-500 text-black px-1 md:px-1.5 py-0.5 rounded font-bold flex-shrink-0">
+                                                    {isPro ? "PRO" : "LITE"}
+                                                </span>
                                             </div>
                                             <div className="text-[10px] md:text-xs text-gray-400 truncate">Powered by advanced match data</div>
                                         </div>
                                     </div>
+                                    {/* Usage Indicator for Captain */}
+                                    {isPremiumUser && !isPro && (
+                                        <div className="text-[10px] bg-white/10 px-2 py-1 rounded text-gray-400">
+                                            Daily Limit: 2 Chats
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Messages */}
@@ -1006,9 +1124,57 @@ export default function UserTournamentDetail() {
                                         <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                             <div className={`max-w-[85%] md:max-w-[80%] rounded-2xl p-3 md:p-4 text-sm md:text-base ${msg.role === 'user'
                                                 ? 'bg-blue-600 text-white rounded-br-none'
-                                                : 'bg-white/10 text-gray-200 rounded-bl-none border border-white/5'
+                                                : msg.isError
+                                                    ? 'bg-red-500/10 text-red-200 border border-red-500/20 rounded-bl-none'
+                                                    : 'bg-white/10 text-gray-200 rounded-bl-none border border-white/5'
                                                 }`}>
-                                                {msg.content}
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={{
+                                                        strong: ({ node, ...props }) => <span className="font-bold text-yellow-400" {...props} />,
+                                                        em: ({ node, ...props }) => <span className="italic opacity-80" {...props} />,
+                                                        p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                                                        ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
+                                                        ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2 space-y-1" {...props} />,
+                                                        li: ({ node, ...props }) => <li className="pl-1" {...props} />,
+                                                        h1: ({ node, ...props }) => <h1 className="text-lg font-bold my-2 border-b border-white/10 pb-1" {...props} />,
+                                                        h2: ({ node, ...props }) => <h2 className="text-base font-bold my-2" {...props} />,
+                                                        h3: ({ node, ...props }) => <h3 className="text-sm font-bold my-1" {...props} />,
+                                                        blockquote: ({ node, ...props }) => <blockquote className="border-l-2 border-yellow-500/50 pl-2 italic my-2 opacity-70" {...props} />,
+                                                        code: ({ node, inline, className, children, ...props }) => {
+                                                            return inline ? (
+                                                                <code className="bg-black/30 text-yellow-400 rounded px-1 py-0.5 text-xs font-mono" {...props}>{children}</code>
+                                                            ) : (
+                                                                <code className="block bg-black/50 p-2 rounded-lg my-2 text-xs font-mono overflow-x-auto border border-white/10" {...props}>{children}</code>
+                                                            )
+                                                        },
+                                                        a: ({ node, ...props }) => <a className="text-yellow-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                                                        img: ({ node, ...props }) => <img className="rounded-lg my-2 max-w-full border border-white/10" {...props} />,
+                                                        hr: ({ node, ...props }) => <hr className="border-white/10 my-4" {...props} />,
+                                                        table: ({ node, ...props }) => <div className="overflow-x-auto my-2"><table className="min-w-full border-collapse border border-white/10 text-xs" {...props} /></div>,
+                                                        th: ({ node, ...props }) => <th className="border border-white/10 px-2 py-1 bg-white/5 font-bold text-left" {...props} />,
+                                                        td: ({ node, ...props }) => <td className="border border-white/10 px-2 py-1" {...props} />,
+                                                        del: ({ node, ...props }) => <del className="opacity-60" {...props} />,
+                                                    }}
+                                                >
+                                                    {msg.content}
+                                                </ReactMarkdown>
+                                                {msg.errorCode === 'PLAN_FREE' && (
+                                                    <button
+                                                        onClick={() => navigate('/dashboard/topup')}
+                                                        className="block mt-2 text-xs bg-white text-black px-2 py-1 rounded font-bold hover:bg-gray-200 transition"
+                                                    >
+                                                        Upgrade Package
+                                                    </button>
+                                                )}
+                                                {msg.errorCode === 'LIMIT_REACHED' && (
+                                                    <button
+                                                        onClick={() => navigate('/dashboard/topup')}
+                                                        className="block mt-2 text-xs bg-yellow-500 text-black px-2 py-1 rounded font-bold hover:bg-yellow-400 transition"
+                                                    >
+                                                        Upgrade to Pro
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
@@ -1029,7 +1195,8 @@ export default function UserTournamentDetail() {
                                             <button
                                                 key={i}
                                                 onClick={() => handlePromptClick(prompt)}
-                                                className="whitespace-nowrap px-2.5 md:px-3 py-1.5 md:py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] md:text-xs text-gray-400 hover:bg-white/10 hover:text-white active:bg-white/15 transition touch-manipulation"
+                                                disabled={!isPremiumUser}
+                                                className="whitespace-nowrap px-2.5 md:px-3 py-1.5 md:py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] md:text-xs text-gray-400 hover:bg-white/10 hover:text-white active:bg-white/15 transition touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                                 {prompt}
                                             </button>
@@ -1039,11 +1206,16 @@ export default function UserTournamentDetail() {
                                         <Input
                                             value={chatInput}
                                             onChange={(e) => setChatInput(e.target.value)}
-                                            placeholder="Tanyakan analisis..."
+                                            placeholder={!isPremiumUser ? "Fitur terkunci..." : "Tanyakan analisis..."}
                                             containerClassName="flex-1"
                                             className="w-full text-sm md:text-base"
+                                            disabled={!isPremiumUser}
                                         />
-                                        <Button type="submit" className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black border-none hover:opacity-90 active:opacity-80 px-3 md:px-4">
+                                        <Button
+                                            type="submit"
+                                            disabled={!isPremiumUser || !chatInput.trim() || isTyping}
+                                            className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black border-none hover:opacity-90 active:opacity-80 px-3 md:px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
                                             <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
                                         </Button>
                                     </form>

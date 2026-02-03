@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Calendar, Trophy, Users, Lock, ChevronRight, Share2, MapPin, Grid, List, Shield } from 'lucide-react'
+import { Calendar, Trophy, Users, Lock, ChevronRight, Share2, MapPin, Grid, List, Shield, UserCheck } from 'lucide-react'
 import Card, { CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import AdSlot from '../../components/ui/AdSlot'
+import ShareModal from '../../components/ui/ShareModal'
 import { authFetch } from '../../utils/api' // Assuming authFetch is available globally or need to import
 
 // Mock Data
@@ -49,7 +50,9 @@ export default function TournamentPublicView() {
     const [standings, setStandings] = useState([])
     const [matches, setMatches] = useState([])
     const [topScorers, setTopScorers] = useState([])
+    const [participants, setParticipants] = useState([])
     const [error, setError] = useState(null)
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
     useEffect(() => {
         const fetchTournament = async () => {
@@ -58,8 +61,12 @@ export default function TournamentPublicView() {
                 const data = await response.json()
                 if (data.success) {
                     setTournament(data.data)
-                    // Set default tab based on type
-                    if (data.data.type === 'knockout') {
+                    // Also set participants from tournament data (same as JoinCompetition.jsx)
+                    setParticipants(data.data.participants || [])
+                    // Set default tab based on status and type
+                    if (data.data.status === 'draft') {
+                        setActiveTab('pendaftar')
+                    } else if (data.data.type === 'knockout') {
                         setActiveTab('bracket')
                     } else if (data.data.type === 'group' || data.data.type === 'group_knockout') {
                         setActiveTab('standings')
@@ -105,13 +112,17 @@ export default function TournamentPublicView() {
     if (error) return <div className="min-h-screen flex items-center justify-center text-white">{error}</div>
     if (!tournament) return <div className="min-h-screen flex items-center justify-center text-white">Turnamen tidak ditemukan</div>
 
-    const displayTabs = [
-        { id: 'standings', label: 'Klasemen', icon: List, hidden: tournament.type === 'knockout' },
-        { id: 'matches', label: 'Jadwal & Hasil', icon: Calendar },
-        { id: 'topscore', label: 'Top Score', icon: Users },
-        { id: 'bracket', label: 'Bracket', icon: Grid, hidden: tournament.type === 'league' },
-        { id: 'stats', label: 'Statistik', icon: Trophy, locked: true },
-    ].filter(t => !t.hidden)
+    const isDraft = tournament.status === 'draft'
+
+    const displayTabs = isDraft
+        ? [{ id: 'pendaftar', label: 'Pendaftar', icon: UserCheck }]
+        : [
+            { id: 'standings', label: 'Klasemen', icon: List, hidden: tournament.type === 'knockout' },
+            { id: 'matches', label: 'Jadwal & Hasil', icon: Calendar },
+            { id: 'topscore', label: 'Top Score', icon: Users },
+            { id: 'bracket', label: 'Bracket', icon: Grid, hidden: tournament.type === 'league' },
+            { id: 'stats', label: 'Statistik', icon: Trophy, locked: true },
+        ].filter(t => !t.hidden)
 
     return (
         <div className="space-y-6 pb-20">
@@ -156,14 +167,19 @@ export default function TournamentPublicView() {
                     </div>
 
                     <div className="flex gap-3 w-full sm:w-auto">
-                        <Button className="flex-1 sm:flex-none bg-white text-black hover:bg-gray-200 text-xs py-2 h-9 sm:text-sm sm:h-10">
+                        <Button
+                            onClick={() => setIsShareModalOpen(true)}
+                            className="flex-1 sm:flex-none bg-white text-black hover:bg-gray-200 text-xs py-2 h-9 sm:text-sm sm:h-10"
+                        >
                             <Share2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" /> Share
                         </Button>
-                        <Link to={`/join/${tournament.id}`} className="flex-1 sm:flex-none">
-                            <Button className="w-full bg-neonGreen text-black hover:bg-neonGreen/80 text-xs py-2 h-9 sm:text-sm sm:h-10">
-                                Join Tournament
-                            </Button>
-                        </Link>
+                        {isDraft && (
+                            <Link to={`/join/${tournament.id}`} className="flex-1 sm:flex-none">
+                                <Button className="w-full bg-neonGreen text-black hover:bg-neonGreen/80 text-xs py-2 h-9 sm:text-sm sm:h-10">
+                                    Join Tournament
+                                </Button>
+                            </Link>
+                        )}
                     </div>
                 </div>
             </div>
@@ -313,6 +329,57 @@ export default function TournamentPublicView() {
                         </div>
                     )}
 
+                    {/* PENDAFTAR TAB (for draft status) */}
+                    {activeTab === 'pendaftar' && (
+                        <div className="space-y-4 animate-fadeIn">
+                            {participants.length === 0 ? (
+                                <div className="text-center py-12 text-gray-500 bg-white/5 rounded-xl border border-white/10">
+                                    <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                    <p>Belum ada pendaftar</p>
+                                </div>
+                            ) : (
+                                <>
+                                    {participants.map((player, index) => (
+                                        <div key={player.id || index} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between hover:bg-white/10 transition">
+                                            <div className="flex items-center gap-4">
+                                                {player.logo_url || player.team_logo ? (
+                                                    <img src={player.logo_url || player.team_logo} alt={player.team_name} className="w-10 h-10 object-contain" />
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 font-bold">
+                                                        {player.team_name?.charAt(0) || player.name?.charAt(0) || '?'}
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <h4 className="font-bold text-white">{player.team_name || player.team}</h4>
+                                                    <p className="text-sm text-gray-400">{player.name}</p>
+                                                    {player.username && (
+                                                        <p className="text-xs text-neonGreen mt-0.5">@{player.username}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="text-right">
+                                                <span className={`text-xs font-bold px-2 py-1 rounded-full border ${player.status === 'confirmed' || player.status === 'approved'
+                                                        ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                                                        : player.status === 'pending'
+                                                            ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                                                            : player.status === 'rejected'
+                                                                ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                                                : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                                                    }`}>
+                                                    {player.status || 'Pending'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div className="text-center p-4">
+                                        <p className="text-sm text-gray-500">Menampilkan {participants.length} peserta terdaftar.</p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+
                     {/* LOCKED STATS TAB */}
                     {activeTab === 'stats' && (
                         <div className="relative overflow-hidden rounded-xl border border-white/10">
@@ -383,6 +450,15 @@ export default function TournamentPublicView() {
                     </div>
                 </div>
             </div>
+
+            {/* Share Modal */}
+            <ShareModal
+                isOpen={isShareModalOpen}
+                onClose={() => setIsShareModalOpen(false)}
+                link={window.location.href}
+                text={`Check out ${tournament.name} on BikinLiga!`}
+                title="Bagikan Turnamen"
+            />
         </div>
     )
 }

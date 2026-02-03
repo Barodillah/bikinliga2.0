@@ -13,6 +13,8 @@ import adminRoutes from './routes/admin.js';
 import rankingsRoutes from './routes/rankings.js';
 import communityRoutes from './routes/communities.js';
 import postRoutes from './routes/posts.js';
+import chatbotRoutes from './routes/chatbot.js';
+import complaintsRoutes from './routes/complaints.js';
 import { initDatabase } from './config/db.js';
 
 const app = express();
@@ -39,6 +41,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/rankings', rankingsRoutes);
 app.use('/api/communities', communityRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/chat', chatbotRoutes);
+app.use('/api/complaints', complaintsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
