@@ -959,7 +959,6 @@ function EditParticipantModal({ isOpen, onClose, participant, onSave }) {
             // I'll send both to be safe or check backend. 
             // Let's assume backend handles 'team_name' or 'team'.
             team_name: formData.team_name,
-            team: formData.team_name,
             logo_url: formData.logo_url,
             // Preserve other fields? Usually PUT merges or overwrites. 
             // The logic in TournamentDetail sends explicit fields.

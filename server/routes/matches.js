@@ -599,6 +599,86 @@ router.patch('/:id', authenticateToken, async (req, res) => {
                      VALUES (?, ?, ?, 'fulltime', 90, 'home')`,
                     [eventId, currentMatch.tournament_id, id]
                 );
+
+                // --- START: Update User Statistics (Ranking) ---
+                try {
+                    // Fetch participants to get user_ids
+                    const [statsParticipants] = await connection.query(
+                        'SELECT id, user_id FROM participants WHERE id IN (?, ?)',
+                        [currentMatch.home_participant_id, currentMatch.away_participant_id]
+                    );
+
+                    const homePart = statsParticipants.find(p => p.id === currentMatch.home_participant_id);
+                    const awayPart = statsParticipants.find(p => p.id === currentMatch.away_participant_id);
+
+                    if (homePart?.user_id || awayPart?.user_id) {
+                        const hScore = homeScore !== undefined ? Number(homeScore) : (currentMatch.home_score || 0);
+                        const aScore = awayScore !== undefined ? Number(awayScore) : (currentMatch.away_score || 0);
+
+                        let hWin = 0, aWin = 0, hDraw = 0, aDraw = 0, hLoss = 0, aLoss = 0;
+                        if (hScore > aScore) { hWin = 1; aLoss = 1; }
+                        else if (aScore > hScore) { aWin = 1; hLoss = 1; }
+                        else { hDraw = 1; aDraw = 1; }
+
+                        const updateStats = async (userId, isWin, isDraw, isLoss, gf, ga) => {
+                            if (!userId) return;
+
+                            // Points Logic: Win +6, Draw +2, Loss -4
+                            let points = 0;
+                            if (isWin) points = 6;
+                            else if (isDraw) points = 2;
+                            else if (isLoss) points = -4;
+
+                            const w = isWin ? 1 : 0;
+                            const l = isLoss ? 1 : 0;
+                            const d = isDraw ? 1 : 0;
+                            const gd = gf - ga;
+
+                            // 1. Upsert User Statistics
+                            await connection.query(
+                                `INSERT INTO user_statistics (user_id, total_points, total_matches, total_wins, total_losses, total_draws, goals_for, goals_against, goal_difference, win_rate)
+                             VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
+                             ON DUPLICATE KEY UPDATE
+                                total_points = total_points + ?,
+                                total_wins = total_wins + ?,
+                                total_losses = total_losses + ?,
+                                total_draws = total_draws + ?,
+                                total_matches = total_matches + 1,
+                                goals_for = goals_for + ?,
+                                goals_against = goals_against + ?,
+                                goal_difference = goal_difference + ?,
+                                win_rate = (total_wins / total_matches) * 100`,
+                                [
+                                    userId, points, w, l, d, gf, ga, gd, (w * 100), // Insert
+                                    points, w, l, d, gf, ga, gd // Update
+                                ]
+                            );
+
+                            // 2. Insert User Statistics History (Realtime)
+                            // Fetch updated stats to record snapshot
+                            const [updatedStats] = await connection.query(
+                                'SELECT total_points, win_rate FROM user_statistics WHERE user_id = ?',
+                                [userId]
+                            );
+
+                            if (updatedStats.length > 0) {
+                                const current = updatedStats[0];
+                                await connection.query(
+                                    `INSERT INTO user_statistics_history (user_id, points, win_rate, recorded_at)
+                                 VALUES (?, ?, ?, NOW())`,
+                                    [userId, current.total_points, current.win_rate]
+                                );
+                            }
+                        };
+
+                        await updateStats(homePart?.user_id, !!hWin, !!hDraw, !!hLoss, hScore, aScore);
+                        await updateStats(awayPart?.user_id, !!aWin, !!aDraw, !!aLoss, aScore, hScore);
+                    }
+                } catch (err) {
+                    console.error("[Stats Update Error] Failed to update user stats:", err);
+                    // Non-blocking error, continue transaction
+                }
+                // --- END: Update User Statistics ---
             }
 
             // AUTO UPDATE STANDINGS IF LEAGUE OR GROUP STAGE OF KNOCKOUT

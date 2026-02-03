@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Search, Filter, Trophy, Calendar, Users, MoreVertical, ExternalLink, Eye } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useToast } from '../../contexts/ToastContext'
+import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
 
 export default function AdminTournaments() {
     const { error: toastError } = useToast()
@@ -151,22 +152,12 @@ export default function AdminTournaments() {
                                     <tr key={tournament.id} className="hover:bg-gray-50 transition group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
-                                                    {tournament.logo_url ? (
-                                                        <img
-                                                            src={tournament.logo_url}
-                                                            alt={tournament.name}
-                                                            className="w-full h-full object-contain"
-                                                            onError={(e) => {
-                                                                e.target.style.display = 'none';
-                                                                e.target.parentElement.classList.add('flex', 'items-center', 'justify-center');
-                                                            }}
-                                                        />
-                                                    ) : (
-                                                        <Trophy className="w-5 h-5 text-gray-400" />
-                                                    )}
-                                                    {tournament.logo_url && <Trophy className="w-5 h-5 text-gray-400 hidden" />}
-                                                </div>
+                                                <AdaptiveLogo
+                                                    src={tournament.logo_url}
+                                                    alt={tournament.name}
+                                                    className="w-10 h-10"
+                                                    fallbackSize="w-5 h-5"
+                                                />
                                                 <div>
                                                     <div className="font-medium text-gray-900">{tournament.name}</div>
                                                     <div className="text-xs text-gray-500">{tournament.type}</div>

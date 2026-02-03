@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Trophy, Medal, Star, Shield, Gamepad2, Calendar, Swords, ArrowLeft, Twitch, Instagram, Twitter, MessageCircle, AlertCircle, Loader2 } from 'lucide-react'
+import {
+    Trophy, Medal, Star, Shield, Gamepad2, Calendar, Swords,
+    ArrowLeft, Twitch, Instagram, Twitter, AlertCircle,
+    Loader2, TrendingUp, MapPin, ExternalLink
+} from 'lucide-react'
 import AdSlot from '../../components/ui/AdSlot'
 import { authFetch } from '../../utils/api'
 import Button from '../../components/ui/Button'
@@ -20,16 +24,32 @@ export default function Profile() {
             setError(null)
             try {
                 // If username starts with @, strip it
-                const searchUsername = username.startsWith('@') ? username : username;
+                const searchUsername = username.startsWith('@') ? username.substring(1) : username;
 
-                const response = await authFetch(`/api/user/public/${searchUsername}`)
-                const data = await response.json()
+                // Parallel Fetch: User Profile & Ranking Stats
+                const [profileRes, statsRes] = await Promise.all([
+                    authFetch(`/api/user/public/${searchUsername}`),
+                    fetch(`/api/rankings/user/${searchUsername}`)
+                ]);
 
-                if (!data.success) {
-                    throw new Error(data.message || 'User not found')
+                const profileData = await profileRes.json()
+                const statsData = await statsRes.json()
+
+                if (!profileData.success) {
+                    throw new Error(profileData.message || 'User not found')
                 }
 
-                setUser(data.data)
+                // Merge Data
+                // Merge Data
+                const mergedUser = {
+                    ...profileData.data,
+                    // Stats and History come from rankings API
+                    stats: statsData.success ? statsData.stats : null,
+                    history: statsData.success ? statsData.history : [],
+                    // DO NOT overwrite recentMatchesDetails. It comes correctly from profileData.data
+                }
+
+                setUser(mergedUser)
             } catch (err) {
                 console.error('Fetch profile error:', err)
                 setError(err.message)
@@ -45,23 +65,30 @@ export default function Profile() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-96">
-                <Loader2 className="w-8 h-8 animate-spin text-neonGreen" />
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="relative">
+                    <div className="w-16 h-16 border-4 border-neonGreen/30 border-t-neonGreen rounded-full animate-spin"></div>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                        <UserBadge tier="pro" size="sm" className="opacity-50" />
+                    </div>
+                </div>
             </div>
         )
     }
 
     if (error || !user) {
         return (
-            <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-4">
-                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
-                    <AlertCircle className="w-8 h-8 text-red-500" />
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-6">
+                <div className="w-24 h-24 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                    <AlertCircle className="w-12 h-12 text-red-500" />
                 </div>
-                <h2 className="text-xl font-bold text-white">Profil Tidak Ditemukan</h2>
-                <p className="text-gray-400 max-w-md">
-                    Pengguna dengan username <span className="text-white font-mono">{username}</span> tidak ditemukan atau tidak tersedia.
-                </p>
-                <Button onClick={() => navigate(-1)} icon={ArrowLeft}>
+                <div className="space-y-2">
+                    <h2 className="text-2xl font-bold text-white">Profil Tidak Ditemukan</h2>
+                    <p className="text-gray-400 max-w-md mx-auto">
+                        Pengguna <span className="text-white font-mono bg-white/10 px-2 py-0.5 rounded">@{username}</span> tidak dapat ditemukan.
+                    </p>
+                </div>
+                <Button onClick={() => navigate(-1)} variant="outline" icon={ArrowLeft}>
                     Kembali
                 </Button>
             </div>
@@ -69,208 +96,330 @@ export default function Profile() {
     }
 
     return (
-        <div className="w-full space-y-6">
-            {/* Back Button */}
-            <button
-                onClick={() => navigate(-1)}
-                className="flex items-center gap-2 text-gray-400 hover:text-white transition group"
-            >
-                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                Back
-            </button>
+        <div className="w-full max-w-7xl mx-auto space-y-8 pb-12">
+            {/* Header Section */}
+            <div className="relative">
+                {/* Banner / Cover */}
+                <div className="h-48 md:h-64 w-full rounded-2xl md:rounded-3xl overflow-hidden relative group">
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-900 via-purple-900 to-black"></div>
+                    <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-20"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
 
-            {/* Profile Header Card */}
-            <div className="bg-cardBg border border-white/10 rounded-2xl p-6 md:p-8 relative overflow-hidden">
-                {/* Background Decoration */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-neonGreen/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                    {/* Floating Tier Icon Background */}
+                    <div className="absolute -right-10 -top-10 opacity-10 rotate-12 transition-transform group-hover:scale-110 duration-700">
+                        <Trophy className="w-64 h-64 text-white" />
+                    </div>
 
-                <div className="flex flex-col md:flex-row items-center md:items-start gap-6 relative z-10">
-                    <img
-                        src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=random&size=150`}
-                        alt={user.name}
-                        className="w-32 h-32 rounded-full border-4 border-white/10 shadow-xl object-cover"
-                    />
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="absolute top-4 left-4 md:top-6 md:left-6 p-2 rounded-full bg-black/20 hover:bg-black/40 backdrop-blur-sm text-white transition-all border border-white/10 z-20 group-btn"
+                    >
+                        <ArrowLeft className="w-5 h-5 group-btn-hover:-translate-x-1 transition-transform" />
+                    </button>
+                </div>
 
-                    <div className="flex-1 text-center md:text-left space-y-2">
-                        <div>
-                            <h1 className="text-3xl font-display font-bold text-white">{user.name}</h1>
-                            <p className="text-neonGreen text-lg font-medium">{user.username}</p>
+                {/* Profile Info Layer */}
+                <div className="px-4 md:px-8 relative -mt-20 md:-mt-24 z-10 flex flex-col md:flex-row items-end md:items-end gap-6">
+                    {/* Avatar */}
+                    <div className="relative group">
+                        <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-cardBg bg-cardBg p-1 shadow-2xl relative z-10">
+                            <img
+                                src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=random&size=150`}
+                                alt={user.name}
+                                className="w-full h-full rounded-full object-cover bg-gray-800"
+                            />
                         </div>
+                        {user.tier && (
+                            <div className="absolute bottom-2 right-2 z-20 scale-110">
+                                <UserBadge tier={user.tier} showLabel={false} size="lg" />
+                            </div>
+                        )}
+                    </div>
 
-                        <div className="flex flex-wrap justify-center md:justify-start gap-3 text-sm text-gray-400">
-
-                            {/* User Tier Badge (if any) */}
-                            <UserBadge tier={user.tier} showLabel={true} />
-
-                            <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
-                                <Shield className="w-4 h-4" />
-                                {user.team}
-                            </span>
-
-                            {/* Default Role Badge (Only if no tier) */}
-                            {(!user.tier || user.tier === 'free') && (
-                                <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
-                                    <Gamepad2 className="w-4 h-4" />
-                                    {user.role || 'Player'}
-                                </span>
-                            )}
-
-                            <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
-                                <Calendar className="w-4 h-4" />
-                                Joined {user.joinDate}
-                            </span>
+                    {/* Basic Info */}
+                    <div className="flex-1 text-center md:text-left pb-2 space-y-1">
+                        <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
+                            <h1 className="text-3xl md:text-4xl font-display font-bold text-white shadow-sm">{user.name}</h1>
+                            {user.tier && <UserBadge tier={user.tier} className="shadow-lg" />}
                         </div>
-
-                        <p className="text-gray-300 max-w-xl mx-auto md:mx-0 mt-4 leading-relaxed">
-                            {user.bio}
+                        <p className="text-gray-300 font-medium flex items-center justify-center md:justify-start gap-2">
+                            <span className="text-neonGreen">@{user.username}</span>
+                            <span className="w-1 h-1 rounded-full bg-gray-500"></span>
+                            <span>{user.team || 'Free Agent'}</span>
                         </p>
 
-                        {/* Socials */}
-                        <div className="flex justify-center md:justify-start gap-4 pt-2">
-                            {user.socials?.twitch && (
-                                <a href="#" className="text-gray-400 hover:text-[#9146FF] transition"><Twitch className="w-5 h-5" /></a>
-                            )}
-                            {user.socials?.instagram && (
-                                <a href="#" className="text-gray-400 hover:text-[#E4405F] transition"><Instagram className="w-5 h-5" /></a>
-                            )}
-                            {user.socials?.twitter && (
-                                <a href="#" className="text-gray-400 hover:text-[#1DA1F2] transition"><Twitter className="w-5 h-5" /></a>
-                            )}
+                        {/* Bio & Socials */}
+                        <div className="pt-3 flex flex-col md:flex-row gap-4 items-center md:items-start text-sm text-gray-400">
+                            {user.bio && <p className="max-w-lg leading-relaxed">{user.bio}</p>}
+
+                            <div className="flex gap-3">
+                                {user.socials?.twitch && <a href="#" className="p-2 rounded-lg bg-white/5 hover:bg-[#9146FF]/20 hover:text-[#9146FF] transition border border-white/5"><Twitch className="w-4 h-4" /></a>}
+                                {user.socials?.instagram && <a href="#" className="p-2 rounded-lg bg-white/5 hover:bg-[#E4405F]/20 hover:text-[#E4405F] transition border border-white/5"><Instagram className="w-4 h-4" /></a>}
+                                {user.socials?.twitter && <a href="#" className="p-2 rounded-lg bg-white/5 hover:bg-[#1DA1F2]/20 hover:text-[#1DA1F2] transition border border-white/5"><Twitter className="w-4 h-4" /></a>}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Quick Stats Block (Desktop) */}
-                    <div className="hidden md:flex flex-col gap-4 min-w-[150px]">
-                        <div className="bg-white/5 rounded-xl p-4 text-center border border-white/10">
-                            <div className="text-2xl font-display font-bold text-white">{user.points}</div>
-                            <div className="text-xs text-gray-400">Total Points</div>
-                        </div>
-                        <div className="bg-white/5 rounded-xl p-4 text-center border border-white/10">
-                            <div className="text-2xl font-display font-bold text-neonGreen">{user.winRate}</div>
-                            <div className="text-xs text-gray-400">Win Rate</div>
+                    {/* Quick Action / Status */}
+                    <div className="flex gap-3 pb-2 w-full md:w-auto justify-center">
+                        <div className="flex flex-col items-center md:items-end gap-1">
+                            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
+                                <Calendar className="w-4 h-4 text-gray-400" />
+                                <span className="text-xs text-gray-300">Joined {user.joinDate || '2024'}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Mobile Stats Grid */}
-            <div className="grid grid-cols-2 gap-3 md:hidden">
-                <div className="bg-cardBg border border-white/10 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-display font-bold text-white">{user.points}</div>
-                    <div className="text-xs text-gray-400">Total Points</div>
-                </div>
-                <div className="bg-cardBg border border-white/10 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-display font-bold text-neonGreen">{user.winRate}</div>
-                    <div className="text-xs text-gray-400">Win Rate</div>
-                </div>
+            {/* Stats Overview Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-4 md:px-0">
+                <StatCard
+                    label="Total Points"
+                    value={user.stats?.total_points || 0}
+                    icon={Star}
+                    color="text-yellow-400"
+                    bg="bg-yellow-400/10"
+                    trend="+12 this week"
+                />
+                <StatCard
+                    label="Win Rate"
+                    value={`${user.stats?.win_rate || 0}%`}
+                    icon={TrendingUp}
+                    color="text-neonGreen"
+                    bg="bg-neonGreen/10"
+                />
+                <StatCard
+                    label="Matches"
+                    value={user.stats?.total_matches || 0}
+                    icon={Gamepad2}
+                    color="text-blue-400"
+                    bg="bg-blue-400/10"
+                />
+                <StatCard
+                    label="Goal Diff"
+                    value={user.stats?.goal_difference || 0}
+                    valueClassName={user.stats?.goal_difference > 0 ? "text-green-400" : "text-red-400"}
+                    icon={Swords}
+                    color="text-purple-400"
+                    bg="bg-purple-400/10"
+                />
             </div>
 
-            {/* Ad Slot between Header and Content */}
-            <AdSlot variant="banner" className="w-full" />
+            {/* Main Layout Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-4 md:px-0">
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Main Content Area */}
-                <div className="md:col-span-2 space-y-6">
-                    {/* Recent Matches */}
-                    <div className="bg-cardBg border border-white/10 rounded-xl p-6">
-                        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                            <Swords className="w-5 h-5 text-red-500" />
-                            Recent Matches
-                        </h3>
+                {/* Left Column: Matches & Performance */}
+                <div className="lg:col-span-2 space-y-8">
+
+                    {/* Performance Chart */}
+                    <div className="bg-cardBg border border-white/10 rounded-2xl p-6 relative overflow-hidden">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-display font-bold text-white text-lg flex items-center gap-2">
+                                <TrendingUp className="w-5 h-5 text-neonGreen" />
+                                Performance History
+                            </h3>
+                            <select className="bg-black/20 border border-white/10 rounded-lg text-xs px-2 py-1 text-gray-400 outline-none">
+                                <option>Current Season</option>
+                                <option>All Time</option>
+                            </select>
+                        </div>
+
+                        <div className="h-48 w-full bg-black/20 rounded-xl border border-white/5 p-4 relative">
+                            {/* Chart Placeholder / Implementation */}
+                            {user.history && user.history.length > 0 ? (
+                                <div className="w-full h-full flex items-end justify-between px-2 gap-1 overflow-x-auto">
+                                    {user.history.map((h, i) => {
+                                        // Handle potential schema naming diffs
+                                        const pointVal = h.points !== undefined ? h.points : (h.total_points || 0);
+                                        const safePoints = Number(pointVal);
+
+                                        const allValues = user.history.map(x => Number(x.points !== undefined ? x.points : (x.total_points || 0)));
+                                        const maxPoints = Math.max(...allValues, 50); // Scale at least to 50
+
+                                        let height = (safePoints / maxPoints) * 100;
+                                        if (height < 4) height = 4; // Min height for visibility
+
+                                        return (
+                                            <div key={i} className="group relative flex flex-col items-center flex-1 min-w-[10px] h-full justify-end">
+                                                <div
+                                                    className="w-full max-w-[12px] md:max-w-[16px] bg-neonGreen/20 border-t-2 border-neonGreen rounded-t-sm transition-all hover:bg-neonGreen/50 relative"
+                                                    style={{ height: `${height}%` }}
+                                                >
+                                                    {/* Tooltip */}
+                                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-900 border border-white/10 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none z-20 shadow-xl">
+                                                        <span className="font-bold text-neonGreen">{safePoints} pts</span>
+                                                        <div className="text-[9px] text-gray-500 text-center">
+                                                            {h.recorded_at ? new Date(h.recorded_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '-'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-2">
+                                    <TrendingUp className="w-8 h-8 opacity-20" />
+                                    <span className="text-sm">Belum ada data history statistik</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Ad Slot */}
+                    <AdSlot variant="banner" />
+
+                    {/* Recent Matches Feed */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-display font-bold text-white text-lg flex items-center gap-2">
+                                <Swords className="w-5 h-5 text-neonPink" />
+                                Recent Matches
+                            </h3>
+                            <button className="text-xs text-neonGreen hover:underline">View All</button>
+                        </div>
+
                         <div className="space-y-3">
                             {user.recentMatchesDetails?.length > 0 ? (
                                 user.recentMatchesDetails.map((match, i) => (
-                                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition border border-white/5">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-2 h-10 rounded-full ${match.result === 'Win' ? 'bg-green-500' :
-                                                match.result === 'Draw' ? 'bg-yellow-500' : 'bg-red-500'
-                                                }`} />
+                                    <div key={i} className="group flex flex-col md:flex-row items-center justify-between p-4 rounded-xl bg-cardBg border border-white/5 hover:border-white/10 hover:bg-white/5 transition relative overflow-hidden">
+
+                                        {/* Status Strip */}
+                                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${match.result === 'Win' ? 'bg-green-500' : match.result === 'Draw' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+
+                                        <div className="flex items-center gap-4 w-full md:w-auto mb-3 md:mb-0">
+                                            <div className="w-12 h-12 rounded-lg bg-black/30 flex items-center justify-center border border-white/5 text-xs font-bold text-gray-500">
+                                                VS
+                                            </div>
                                             <div>
-                                                <div className="text-white font-medium">vs {match.opponent}</div>
-                                                <div className="text-xs text-gray-500">{new Date(match.date).toLocaleDateString()}</div>
+                                                <h4 className="font-bold text-white text-lg group-hover:text-neonPink transition">{match.opponent}</h4>
+                                                <div className="flex items-center gap-2 text-xs text-gray-400">
+                                                    <Calendar className="w-3 h-3" />
+                                                    {new Date(match.date).toLocaleDateString()}
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col items-end gap-1">
-                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${match.result === 'Win'
-                                                ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                                                : match.result === 'Draw'
-                                                    ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
-                                                    : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                                }`}>
-                                                {match.result.toUpperCase()}
-                                            </span>
-                                            <span className="text-xs font-mono text-gray-400">{match.score}</span>
+
+                                        <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
+                                            <div className="text-right">
+                                                <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-1 ${match.result === 'Win' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+                                                    match.result === 'Draw' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' :
+                                                        'bg-red-500/10 text-red-400 border border-red-500/20'
+                                                    }`}>
+                                                    {match.result}
+                                                </span>
+                                            </div>
+                                            <div className="text-2xl font-display font-bold text-white tracking-widest bg-black/20 px-3 py-1 rounded-lg border border-white/5">
+                                                {match.score}
+                                            </div>
                                         </div>
                                     </div>
                                 ))
                             ) : (
-                                <div className="text-center py-8 text-gray-500 bg-white/5 rounded-lg border border-dashed border-white/10">
-                                    Belum ada pertandingan yang dimainkan.
+                                <div className="text-center py-12 rounded-xl bg-white/5 border border-dashed border-white/10">
+                                    <Swords className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                                    <p className="text-gray-400">Belum ada history pertandingan</p>
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
 
-                {/* Sidebar */}
-                <div className="space-y-6">
-                    {/* Achievements (Mock) */}
-                    <div className="bg-cardBg border border-white/10 rounded-xl p-6">
-                        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                            <Trophy className="w-5 h-5 text-yellow-500" />
-                            Achievements
-                        </h3>
-                        <div className="grid grid-cols-3 gap-2">
-                            {[1, 2, 3].map((_, i) => (
-                                <div key={i} className="aspect-square rounded-lg bg-white/5 flex items-center justify-center border border-white/5 hover:border-neonGreen/50 transition cursor-pointer group">
-                                    <Medal className="w-6 h-6 text-gray-500 group-hover:text-neonGreen transition" />
+                {/* Right Column: Sidebar */}
+                <div className="space-y-8">
+
+                    {/* Achievements */}
+                    <div className="bg-cardBg border border-white/10 rounded-2xl p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-display font-bold text-white text-lg flex items-center gap-2">
+                                <Trophy className="w-5 h-5 text-yellow-500" />
+                                Achievements
+                            </h3>
+                            <span className="text-xs text-gray-500">0 unlocked</span>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                            {[1, 2, 3, 4, 5, 6, 7, 8].map((_, i) => (
+                                <div key={i} className="aspect-square rounded-xl bg-black/20 border border-white/5 flex items-center justify-center grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition cursor-pointer group hover:bg-white/5 hover:border-yellow-500/30">
+                                    <Medal className="w-6 h-6 text-yellow-600 group-hover:text-yellow-400 transition" />
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Joined Tournaments */}
-                    <div className="bg-cardBg border border-white/10 rounded-xl p-6">
+                    {/* Joined Competitions */}
+                    <div className="bg-cardBg border border-white/10 rounded-2xl p-6">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                <Trophy className="w-5 h-5 text-neonPink" />
-                                Kompetisi
+                            <h3 className="font-display font-bold text-white text-lg flex items-center gap-2">
+                                <Shield className="w-5 h-5 text-blue-400" />
+                                Competitions
                             </h3>
-                            <span className="bg-white/10 text-white text-xs px-2 py-1 rounded-full">
-                                {user.totalTournaments} Joined
+                            <span className="bg-blue-500/20 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30">
+                                {user.totalTournaments || 0} Active
                             </span>
                         </div>
 
                         <div className="space-y-3">
                             {user.joinedTournaments?.length > 0 ? (
                                 user.joinedTournaments.map((t) => (
-                                    <Link
-                                        key={t.id}
-                                        to={`/t/${t.slug}`}
-                                        className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition border border-white/5 group"
-                                    >
-                                        <img
-                                            src={t.logo_url}
-                                            alt={t.name}
-                                            className="w-10 h-10 rounded object-contain bg-black/20 p-1"
-                                            onError={(e) => {
-                                                e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🏆</text></svg>'
-                                            }}
-                                        />
-                                        <div className="overflow-hidden">
-                                            <div className="text-sm font-medium text-white truncate group-hover:text-neonGreen transition">{t.name}</div>
-                                            <div className="text-xs text-gray-500 capitalize">{t.type?.replace('_', ' ')}</div>
+                                    <Link key={t.id} to={`/t/${t.slug}`} className="block group">
+                                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-blue-500/10 hover:border-blue-500/30 transition">
+                                            <div className="w-10 h-10 rounded-lg bg-black/30 flex-shrink-0 flex items-center justify-center p-1">
+                                                <img
+                                                    src={t.logo_url}
+                                                    alt={t.name}
+                                                    className="w-full h-full object-contain"
+                                                    onError={e => e.target.src = 'https://via.placeholder.com/40?text=T'}
+                                                />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="text-sm font-bold text-white truncate group-hover:text-blue-300 transition">{t.name}</h4>
+                                                <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                                                    <span className="capitalize">{t.type?.replace('_', ' ')}</span>
+                                                    <span className="w-1 h-1 rounded-full bg-gray-600"></span>
+                                                    <span>{t.status}</span>
+                                                </div>
+                                            </div>
+                                            <ExternalLink className="w-4 h-4 text-gray-600 group-hover:text-blue-400 transition" />
                                         </div>
                                     </Link>
                                 ))
                             ) : (
-                                <div className="text-sm text-gray-500 text-center py-4">
-                                    Belum mengikuti turnamen apapun.
+                                <div className="text-center py-6">
+                                    <p className="text-sm text-gray-500 italic">Not joined any tournaments yet.</p>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="mt-3 w-full border-dashed"
+                                        onClick={() => navigate('/dashboard/competitions')}
+                                    >
+                                        Join Competition
+                                    </Button>
                                 </div>
                             )}
                         </div>
                     </div>
+
                 </div>
+            </div>
+        </div>
+    )
+}
+
+function StatCard({ label, value, icon: Icon, color, bg, trend, valueClassName }) {
+    return (
+        <div className="bg-cardBg border border-white/10 rounded-2xl p-4 md:p-5 flex flex-col justify-between hover:border-white/20 transition group">
+            <div className="flex justify-between items-start mb-2">
+                <div className={`p-2 rounded-lg ${bg} ${color}`}>
+                    <Icon className="w-5 h-5" />
+                </div>
+                {trend && <span className="text-[10px] text-gray-400 font-mono">{trend}</span>}
+            </div>
+            <div>
+                <div className={`text-2xl md:text-3xl font-display font-bold ${valueClassName || 'text-white'} mb-1`}>
+                    {value}
+                </div>
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider">{label}</div>
             </div>
         </div>
     )

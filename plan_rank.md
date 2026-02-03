@@ -1,107 +1,96 @@
-# Rencana Implementasi: Sistem Ranking & Statistik
+# Rencana Implementasi: Sistem Ranking & Statistik (Final Decision)
 
-## 1. Analisis dan Jawaban Pertanyaan User
+## 1. Keputusan Arsitektur
+User memutuskan: **Pisahkan Table**.
+*   Tabel `users`: Fokus Auth & Profile dasar.
+*   Tabel `user_statistics`: Fokus Data Ranking (Points, Winrate).
 
-User mengajukan pertanyaan kritis:
-> "Jika perhitungan winrate dan poin sama dengan Profile.jsx, apakah perlu table baru?"
-
-**Jawaban: YA, Sangat Perlu.**
-
-### Alasan:
-1.  **Isu Skalabilitas & Performa**:
-    *   Halaman **Profile** hanya menghitung data untuk **1 user**. Melakukan query `SUM(points)` dari ribuan match history untuk 1 user masih tergolong cepat.
-    *   Halaman **Ranking** menampilkan Top 100 user dari ribuan/jutaan user. Jika database harus melakukan kalkulasi `SUM` on-the-fly untuk *setiap user* di database lalu mengurutkannya (`ORDER BY total_points`), website akan "hang" atau extremely slow.
-2.  **Indexing**: Database membutuhkan kolom fisik (bukan kalkulasi) untuk bisa di-index agar sorting Ranking instan.
-
-**Kesimpulan**: Kita membutuhkan tabel khusus (misal: `user_statistics`) yang menyimpan *nilai akhir* (Total Points, Total Wins, dll) yang selalu di-update increment saat match selesai.
+Ini keputusan yang bagus untuk **Separation of Concern**. Jika DB berkembang, tabel auth tidak terganggu frequent update dari tabel stats.
 
 ---
 
 ## 2. Struktur Database Baru
 
-Sesuai permintaan user, kita akan menghapus `rank_tier` (karena ambil dari subscription) dan menambahkan logika untuk `gaps` dan `chart record`.
+Kita akan membuat 2 tabel baru via Migration.
 
-### A. Tabel Utama: `user_statistics`
-Tabel ini menyimpan data "Live" untuk keperluan Leaderboard/Ranking Page yang cepat.
+### A. Tabel `user_statistics` (Live Ranking)
+Menyimpan total poin dan statistik akumulatif. Update setiap match selesai.
 
-| Nama Kolom | Tipe Data | Keterangan |
+| Kolom | Tipe | Keterangan |
 | :--- | :--- | :--- |
-| `id` | INT (PK) | Auto increment. |
-| `user_id` | INT (FK) | Relasi ke table `users`. |
-| `total_points` | INT | **Indexed**. Poin saat ini. Sumber utama sorting ranking. |
-| `total_matches` | INT | Jumlah total pertandingan. |
-| `total_wins` | INT | Jumlah kemenangan. |
-| `total_losses` | INT | Jumlah kekalahan. |
-| `win_rate` | DECIMAL(5,2)| Cache winrate (e.g., 65.50). Update setiap match selesai. |
-| `previous_points_daily` | INT | Snapshot poin pada jam 00:00 hari ini. |
-| `previous_rank_daily` | INT | Snapshot ranking pada jam 00:00 hari ini. |
-| `updated_at` | TIMESTAMPTZ | Waktu update terakhir. |
+| `user_id` | VARCHAR(36) (PK) | One-to-One dengan `users.id`. Menggunakan ID yang sama agar join cepat. |
+| `total_points` | INT | **INDEXED**. Default 0. |
+| `total_matches` | INT | Default 0. |
+| `total_wins` | INT | Default 0. |
+| `total_losses` | INT | Default 0. |
+| `total_draws` | INT | Default 0. |
+| `goals_for` | INT | Default 0. (Total Goal) |
+| `goals_against` | INT | Default 0. (Kemasukan) |
+| `goal_difference`| INT | Default 0. (Selisih) |
+| `win_rate` | DECIMAL(5,2)| Default 0.00. |
+| `previous_points_daily`| INT | Default 0. Snapshot jam 00:00. |
+| `updated_at` | TIMESTAMP | Waktu update terakhir. |
+
+### B. Tabel `user_statistics_history` (Grafik chart)
+Untuk fitur grafik di Profile Page. Insert 1 row per user setiap kali ada status pertandingan `finished`/`completed` (Realtime).
+
+| Kolom | Tipe | Keterangan |
+| :--- | :--- | :--- |
+| `id` | INT (PK) | Auto Increment. |
+| `user_id` | VARCHAR(36)| FK ke `users.id`. |
+| `points` | INT | Snapshot poin. |
+| `rank_position` | INT | (Optional) Snapshot ranking saat itu. |
+| `win_rate` | DECIMAL | Snapshot win rate. |
+| `recorded_at` | TIMESTAMP | Waktu pencatatan. |
 
 > [!NOTE]
-> Kolom **`rank_tier`** tidak dimasukkan. Saat query Ranking, kita akan melakukan `JOIN` ke tabel `user_subscriptions` untuk mendapatkan Tier/Badge user.
-
-### B. Tabel History: `user_ranking_history` (Untuk Grafik Chart)
-Tabel ini menyimpan rekam jejak (snapshot) historis untuk divisualisasikan menjadi grafik di Profile Page.
-
-| Nama Kolom | Tipe Data | Keterangan |
-| :--- | :--- | :--- |
-| `id` | INT (PK) | Auto increment. |
-| `user_id` | INT (FK) | Relasi ke user. |
-| `points` | INT | Poin saat dicatat. |
-| `rank_position` | INT | Posisi ranking global saat dicatat. |
-| `win_rate` | DECIMAL | Winrate saat dicatat. |
-| `recorded_at` | DATE | Tanggal pencatatan (misal: 2026-02-01). |
+> **Season Reset**: Nantinya akan ada sistem reset season. Saat reset, data stats mungkin direset atau di-archive.
+> **Logic Update**: Setiap pertandingan selesai, update `user_statistics`. Record `user_statistics_history` ditambahkan pada setiap user yang mengalami perubahan (biasanya efek domino perubahan rank).
 
 ---
 
-## 3. Logika & Workflow
+## 3. Workflow & Trigger
 
-### A. Logika "Gaps" (+/- Poin)
-User ingin melihat naik/turun poin (Gap).
-*   **Cara Hitung**: `Gap = total_points - previous_points_daily`.
-*   **Di Frontend**: Jika `Gap > 0`, tampilkan dengan warna hijau (`+25 pts`). Jika `Gap < 0`, merah.
-*   **Reset**: Setiap jam 00:00, jalankan Cron Job untuk mengupdate `previous_points_daily` menjadi sama dengan `total_points` saat itu.
+### A. Trigger: Match Completed (`matches.js`)
+Saat match status berubah jadi `finished` atau `completed`:
+1.  **Hitung Poin**: 
+    *   **Menang**: +6 poin
+    *   **Imbang**: +2 poin
+    *   **Kalah**: -4 poin
+2.  **Upsert `user_statistics`**:
+    *   Cek apakah user sudah ada di `user_statistics`.
+    *   Jika belum, insert new row.
+    *   Jika sudah, update `total_points + new_points`, `total_wins + 1` (jika menang), `goals_for`, `goals_against`.
+    *   Recalculate `win_rate` dan `goal_difference`.
+3.  **Insert History**:
+    *   Insert row baru ke `user_statistics_history` untuk user terkait, mencatat poin & stats terbaru.
+3.  **Ranking Priority**:
+        1.  **Total Poin** (Tertinggi)
+        2.  **Win Rate** (Tertinggi)
+        3.  **Selisih Gol** (`goal_difference`) (Tertinggi)
+        4.  **Produktivitas Gol** (`goals_for`) (Tertinggi) - *Reward untuk permainan menyerang.*
 
-### B. Trigger Update Data
-1.  **Saat Match Selesai**:
-    *   System menghitung poin match (Win=3, Draw=1, etc).
-    *   Update `user_statistics`:
-        *   `total_points = total_points + new_points`
-        *   `total_wins = total_wins + 1` (jika menang)
-        *   Recalculate `win_rate`.
-2.  **Cron Job Harian (00:00)**:
-    *   Untuk setiap user, *insert* row baru ke `user_ranking_history` (snapshot hari kemarin).
-    *   Update `user_statistics`: Set `previous_points_daily` = `total_points`.
 
----
-
-## 4. Rencana Perubahan Code (Frontend)
-
-Sesuai instruksi "Jangan Eksekusi", bagian ini adalah panduan untuk tahap selanjutnya.
-
-### `src/pages/dashboard/Ranking.jsx`
-*   **Hapus**: `MOCK_RANKINGS`.
-*   **Ubah**: Gunakan `useFetch('/api/rankings')`.
-*   **Tampilan**:
-    *   Map data API ke UI.
-    *   Tampilkan Badge Tier dari data `subscription` (hasil JOIN).
-    *   Tampilkan indikator **Gap** di sebelah poin.
-
-### `src/pages/dashboard/Profile.jsx`
-*   **Tambah**: Komponen Chart (misal menggunakan `recharts`).
-*   **Fetch**: Endpoint baru `/api/users/:username/history` untuk data grafik.
+### B. Trigger: Cron Job (Jadwal Harian)
+(Hanya untuk cleanup atau reset gap harian jika diperlukan)
+1.  Update `previous_points_daily` (Snapshot Harian untuk logika Gap).
 
 ---
 
-## 5. Saran Tambahan (Saran Lain)
+## 4. API Endpoints
 
-1.  **Sistem Archive / Season**:
-    *   Agar user baru punya kesempatan mengejar user lama, pertimbangkan sistem **Season** (misal reset poin setiap 3 bulan). Poin lama disimpan di tabel `season_history`.
-2.  **Redis Caching**:
-    *   Untuk Ranking Top 100 yang sangat sering diakses, sangat disarankan menggunakan **Redis Cache** (cache query selama 5-10 menit) untuk mengurangi beban database.
-3.  **Lazy Loading**:
-    *   Jika user mencapai ribuan, jangan load semua sekaligus. Gunakan pagination (Load More) atau Virtual Scroller di `Ranking.jsx`.
+### A. `GET /api/rankings`
+*   Query `user_statistics`.
+*   JOIN `users` (ambil username, avatar).
+*   JOIN `user_subscriptions` (ambil tier badge).
+*   ORDER BY `total_points` DESC.
+*   Limit 100.
+
+### B. `GET /api/users/:username/stats`
+*   Untuk Profile page.
+*   Ambil data dari `user_statistics` berdasarkan user.
+*   Ambil data history untuk chart.
 
 ---
 
-**Status**: Plan siap dieksekusi.
+**Status**: Plan disetujui. Siap dieksekusi.

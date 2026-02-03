@@ -425,27 +425,33 @@ export default function UserMatchDetail() {
                                         <div className="space-y-3">
                                             {match.analysis?.headToHead?.length > 0 ? (
                                                 match.analysis.headToHead.map((h2h) => (
-                                                    <div key={h2h.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="flex items-center gap-2 min-w-[80px]">
-                                                                <span className={`font-bold text-sm truncate max-w-[100px] ${h2h.isHome ? 'text-blue-400' : 'text-red-400'}`} title={h2h.homeTeam}>
+                                                    <div key={h2h.id} className="flex flex-col sm:flex-row items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5 gap-2 sm:gap-0">
+                                                        {/* Match Result Row */}
+                                                        <div className="flex items-center justify-between w-full sm:w-auto sm:justify-start gap-2 sm:gap-3">
+                                                            {/* Home Team */}
+                                                            <div className="flex items-center gap-2 flex-1 sm:flex-initial sm:min-w-[80px] justify-end sm:justify-start">
+                                                                <span className={`font-bold text-sm truncate max-w-[80px] sm:max-w-[100px] ${h2h.isHome ? 'text-blue-400' : 'text-red-400'} text-right sm:text-left`} title={h2h.homeTeam}>
                                                                     {h2h.homeTeam}
                                                                 </span>
                                                             </div>
 
-                                                            <div className="px-2 py-1 bg-black/40 rounded text-sm font-mono text-gray-300">
+                                                            {/* Score */}
+                                                            <div className="px-2 py-1 bg-black/40 rounded text-xs sm:text-sm font-mono text-gray-300 whitespace-nowrap min-w-[50px] text-center">
                                                                 {h2h.homeScore} - {h2h.awayScore}
                                                             </div>
 
-                                                            <div className="flex items-center gap-2 min-w-[80px] justify-end">
-                                                                <span className={`font-bold text-sm truncate max-w-[100px] ${!h2h.isHome ? 'text-blue-400' : 'text-red-400'}`} title={h2h.awayTeam}>
+                                                            {/* Away Team */}
+                                                            <div className="flex items-center gap-2 flex-1 sm:flex-initial sm:min-w-[80px] justify-start sm:justify-end">
+                                                                <span className={`font-bold text-sm truncate max-w-[80px] sm:max-w-[100px] ${!h2h.isHome ? 'text-blue-400' : 'text-red-400'} text-left sm:text-right`} title={h2h.awayTeam}>
                                                                     {h2h.awayTeam}
                                                                 </span>
                                                             </div>
                                                         </div>
-                                                        <div className="text-right ml-4">
-                                                            <div className="text-xs text-neonGreen/80 truncate max-w-[120px]" title={h2h.tournament}>{h2h.tournament}</div>
-                                                            <div className="text-[10px] text-gray-500">{new Date(h2h.date).toLocaleDateString()}</div>
+
+                                                        {/* Info Row (Stacked on mobile) */}
+                                                        <div className="w-full sm:w-auto flex sm:block items-center justify-between sm:text-right text-xs gap-2 pt-1 sm:pt-0 border-t sm:border-t-0 border-white/5 sm:ml-4">
+                                                            <div className="text-neonGreen/80 truncate max-w-[120px] sm:max-w-[150px]" title={h2h.tournament}>{h2h.tournament}</div>
+                                                            <div className="text-gray-500">{new Date(h2h.date).toLocaleDateString()}</div>
                                                         </div>
                                                     </div>
                                                 ))

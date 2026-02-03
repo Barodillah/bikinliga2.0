@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Timer, User, Goal, Flag, Play, Square, Save, Clock, Trophy, ChevronRight, CheckCircle, RotateCcw, Brain, Percent, History, BarChart2, Search } from 'lucide-react'
+import { ArrowLeft, Timer, User, Goal, Flag, Play, Square, Save, Clock, Trophy, ChevronRight, CheckCircle, RotateCcw, Brain, Percent, History, BarChart2, Search, Loader2 } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
@@ -29,6 +29,7 @@ export default function MatchManagement() {
     // State
     const [match, setMatch] = useState(initialMatchData)
     const [loading, setLoading] = useState(true)
+    const [isActionLoading, setIsActionLoading] = useState(false) // New state for action loading
     const [isPlaying, setIsPlaying] = useState(false)
     const [matchTime, setMatchTime] = useState(0) // in seconds
     const [halfDuration, setHalfDuration] = useState(6) // default 6 minutes per half
@@ -39,6 +40,7 @@ export default function MatchManagement() {
     // New state for Previous Round Check
     const [showPreviousRoundModal, setShowPreviousRoundModal] = useState(false)
     const [previousRoundNumber, setPreviousRoundNumber] = useState(null)
+    const [loadingMessage, setLoadingMessage] = useState('') // Custom loading overlay message
 
 
     // Fetch Match Data Function
@@ -199,52 +201,19 @@ export default function MatchManagement() {
 
     const submitEvent = async () => {
         if (isSubmitting) return;
-        setIsSubmitting(true);
-        saveState()
+
         const finalPlayerName = isManualInput ? manualPlayerName : selectedPlayer
 
         if (!finalPlayerName) {
-            setIsSubmitting(false);
             return
         }
 
+        setIsSubmitting(true);
+
         const finalType = (eventType === 'goal' && goalType === 'Own Goal') ? 'own_goal' : eventType
 
-        const newEvent = {
-            id: Date.now(), // Temporary ID for optimistic UI
-            type: finalType,
-            team: selectedTeam,
-            player: finalPlayerName,
-            time: eventTime,
-            detail: eventType === 'goal' ? goalType : cardType
-        }
-
-        // Optimistic Update
-        setMatch(prev => {
-            const updates = { events: [...prev.events, newEvent].sort((a, b) => parseInt(a.time) - parseInt(b.time)) }
-            let homeScore = prev.homeScore
-            let awayScore = prev.awayScore
-
-            if (eventType === 'goal') {
-                if (selectedTeam === 'home') homeScore += 1
-                else awayScore += 1
-
-                updates.homeScore = homeScore
-                updates.awayScore = awayScore
-
-                // Trigger Celebration
-                setCelebrationData({
-                    player: finalPlayerName,
-                    teamName: selectedTeam === 'home' ? prev.homeTeam.name : prev.awayTeam.name,
-                    teamSide: selectedTeam
-                })
-                setShowGoalCelebration(true)
-            }
-            return { ...prev, ...updates }
-        })
-
         try {
-            // Sync to server (Create Event)
+            // 1. Sync to server (Create Event)
             await createEventServer({
                 type: finalType,
                 team: selectedTeam,
@@ -252,18 +221,34 @@ export default function MatchManagement() {
                 time: eventTime,
                 detail: eventType === 'goal' ? goalType : cardType
             })
-            // RELOAD DATA TO GET REAL IDs (Fixes Double Goal)
+
+            // 2. Success - Save State & Trigger Effects
+            saveState()
+
+            if (eventType === 'goal') {
+                // Trigger Celebration
+                setCelebrationData({
+                    player: finalPlayerName,
+                    teamName: selectedTeam === 'home' ? match.homeTeam.name : match.awayTeam.name,
+                    teamSide: selectedTeam
+                })
+                setShowGoalCelebration(true)
+            }
+
+            // 3. Reload Data to reflect changes
             await fetchMatchData()
+
+            // 4. Close Modal & Reset
+            setShowEventModal(false)
+            setSelectedPlayer('')
+            setManualPlayerName('')
+            setIsManualInput(false)
+
         } catch (error) {
             console.error("Submit failed", error)
         } finally {
             setIsSubmitting(false)
         }
-
-        setShowEventModal(false)
-        setSelectedPlayer('')
-        setManualPlayerName('')
-        setIsManualInput(false)
     }
 
     // Create Event on Server
@@ -402,27 +387,45 @@ export default function MatchManagement() {
     }
 
     // Handlers
-    const handleStartMatch = () => {
-        saveState()
-        setMatch(prev => ({ ...prev, status: '1st_half' }))
-        setMatchTime(0)
-        setIsPlaying(true)
-        updateMatchServer({ status: '1st_half' })
+    const handleStartMatch = async () => {
+        if (isActionLoading) return
+        setIsActionLoading(true)
+        try {
+            saveState()
+            setMatch(prev => ({ ...prev, status: '1st_half' }))
+            setMatchTime(0)
+            setIsPlaying(true)
+            await updateMatchServer({ status: '1st_half' })
+        } finally {
+            setIsActionLoading(false)
+        }
     }
 
-    const handleEndFirstHalf = () => {
-        saveState()
-        setMatch(prev => ({ ...prev, status: 'halftime' }))
-        setIsPlaying(false)
-        updateMatchServer({ status: 'halftime' })
+    const handleEndFirstHalf = async () => {
+        if (isActionLoading) return
+        setIsActionLoading(true)
+        try {
+            saveState()
+            setMatch(prev => ({ ...prev, status: 'halftime' }))
+            setIsPlaying(false)
+            await updateMatchServer({ status: 'halftime' })
+        } finally {
+            setIsActionLoading(false)
+        }
     }
 
-    const handleStartSecondHalf = () => {
-        saveState()
-        setMatch(prev => ({ ...prev, status: '2nd_half' }))
-        setMatchTime(45 * 60) // Start 2nd half at 45:00
-        setIsPlaying(true)
-        updateMatchServer({ status: '2nd_half' })
+    const handleStartSecondHalf = async () => {
+        if (isActionLoading) return
+        setIsActionLoading(true)
+        try {
+            saveState()
+            setMatch(prev => ({ ...prev, status: '2nd_half' }))
+            setMatchTime(45 * 60) // Start 2nd half at 45:00
+            setIsPlaying(true)
+            await updateMatchServer({ status: '2nd_half' })
+        } finally {
+            setIsActionLoading(false)
+        }
     }
 
     const handlePauseMatch = () => {
@@ -434,49 +437,61 @@ export default function MatchManagement() {
     }
 
     const handleRollback = async () => {
-        // Special case: Rollback from Fulltime Pending with empty history (e.g. after refresh)
-        if (historyRef.current.length === 0 && match.status === 'fulltime_pending') {
-            setMatch(prev => ({ ...prev, status: '2nd_half' }))
-            updateMatchServer({ status: '2nd_half' })
-            return
-        }
-
-        if (historyRef.current.length === 0) return
-
-        const previousState = historyRef.current.pop()
-
-        // Check if we need to rollback duplicate event on server
-        // Detect if the previous state had FEWER events than current
-        if (previousState.match.events.length < match.events.length) {
-            try {
-                await authFetch(`/api/matches/${matchId}/events/last`, {
-                    method: 'DELETE'
-                })
-            } catch (err) {
-                console.error("Server rollback failed", err)
+        if (isActionLoading) return
+        setIsActionLoading(true)
+        try {
+            // Special case: Rollback from Fulltime Pending with empty history (e.g. after refresh)
+            if (historyRef.current.length === 0 && match.status === 'fulltime_pending') {
+                setMatch(prev => ({ ...prev, status: '2nd_half' }))
+                await updateMatchServer({ status: '2nd_half' })
+                return
             }
-        }
 
-        setMatch(previousState.match)
-        setIsPlaying(previousState.isPlaying)
-        setMatchTime(previousState.matchTime)
-        setPenaltyScore(previousState.penaltyScore)
-        setPenaltyHistory(previousState.penaltyHistory)
-        setIsPenaltyFinished(previousState.isPenaltyFinished)
-        setWinner(previousState.winner)
+            if (historyRef.current.length === 0) return
 
-        // Also sync status to server if it changed (e.g. un-finish match)
-        if (previousState.match.status !== match.status) {
-            updateMatchServer({ status: previousState.match.status })
+            const previousState = historyRef.current.pop()
+
+            // Check if we need to rollback duplicate event on server
+            // Detect if the previous state had FEWER events than current
+            if (previousState.match.events.length < match.events.length) {
+                try {
+                    await authFetch(`/api/matches/${matchId}/events/last`, {
+                        method: 'DELETE'
+                    })
+                } catch (err) {
+                    console.error("Server rollback failed", err)
+                }
+            }
+
+            setMatch(previousState.match)
+            setIsPlaying(previousState.isPlaying)
+            setMatchTime(previousState.matchTime)
+            setPenaltyScore(previousState.penaltyScore)
+            setPenaltyHistory(previousState.penaltyHistory)
+            setIsPenaltyFinished(previousState.isPenaltyFinished)
+            setWinner(previousState.winner)
+
+            // Also sync status to server if it changed (e.g. un-finish match)
+            if (previousState.match.status !== match.status) {
+                await updateMatchServer({ status: previousState.match.status })
+            }
+        } finally {
+            setIsActionLoading(false)
         }
     }
 
 
-    const handleFinishMatch = () => {
-        saveState()
-        setIsPlaying(false)
-        setMatch(prev => ({ ...prev, status: 'fulltime_pending' }))
-        updateMatchServer({ status: 'fulltime_pending' })
+    const handleFinishMatch = async () => {
+        if (isActionLoading) return
+        setIsActionLoading(true)
+        try {
+            saveState()
+            setIsPlaying(false)
+            setMatch(prev => ({ ...prev, status: 'fulltime_pending' }))
+            await updateMatchServer({ status: 'fulltime_pending' })
+        } finally {
+            setIsActionLoading(false)
+        }
     }
 
     const [showConfirmModal, setShowConfirmModal] = useState(false)
@@ -504,24 +519,21 @@ export default function MatchManagement() {
             })
 
             if (success) {
-                setMatch(prev => ({ ...prev, status: 'completed' }))
+                // Show Loading Overlay
+                setLoadingMessage('Mengupdate Klasemen, Statistik & Ranking...')
 
-                // Determine Winner (Regular Time)
-                if (match.homeScore > match.awayScore) {
-                    setWinner(match.homeTeam.name)
-                } else if (match.awayScore > match.homeScore) {
-                    setWinner(match.awayTeam.name)
-                } else {
-                    setWinner('Draw')
-                }
-                setShowConfirmModal(false)
+                // Wait for DB consistency/Animation (2 seconds)
+                await new Promise(resolve => setTimeout(resolve, 2000))
+
+                // Reload Page
+                window.location.reload()
             } else {
                 toast.error('Gagal mengupdate status pertandingan')
+                setIsSubmitting(false)
             }
         } catch (error) {
             console.error('Error confirming match:', error)
             toast.error('Terjadi kesalahan saat konfirmasi')
-        } finally {
             setIsSubmitting(false)
         }
     }
@@ -544,23 +556,29 @@ export default function MatchManagement() {
 
     // ... existing render ...
 
-    const handlePenaltyUpdate = (team, isGoal) => {
-        saveState()
-        const newHistory = [...penaltyHistory, { team, isGoal }]
-        setPenaltyHistory(newHistory)
+    const handlePenaltyUpdate = async (team, isGoal) => {
+        if (isActionLoading) return
+        setIsActionLoading(true)
+        try {
+            saveState()
+            const newHistory = [...penaltyHistory, { team, isGoal }]
+            setPenaltyHistory(newHistory)
 
-        const newScore = { ...penaltyScore }
-        if (isGoal) {
-            newScore[team] += 1
+            const newScore = { ...penaltyScore }
+            if (isGoal) {
+                newScore[team] += 1
+            }
+            setPenaltyScore(newScore)
+
+            // Optimistic update to server
+            const updates = {}
+            if (team === 'home') updates.homePenaltyScore = newScore.home
+            else updates.awayPenaltyScore = newScore.away
+
+            await updateMatchServer(updates)
+        } finally {
+            setIsActionLoading(false)
         }
-        setPenaltyScore(newScore)
-
-        // Optimistic update to server
-        const updates = {}
-        if (team === 'home') updates.homePenaltyScore = newScore.home
-        else updates.awayPenaltyScore = newScore.away
-
-        updateMatchServer(updates)
     }
 
     const handleFinishPenalties = () => {
@@ -863,7 +881,7 @@ export default function MatchManagement() {
                     {/* Left: Home Actions */}
                     <div className="flex-1 flex justify-start">
                         {['1st_half', '2nd_half'].includes(match.status) && (
-                            <Button variant="secondary" onClick={() => handleAddEvent('goal', 'home')}>
+                            <Button variant="secondary" onClick={() => handleAddEvent('goal', 'home')} disabled={isActionLoading}>
                                 + Goal Home
                             </Button>
                         )}
@@ -894,20 +912,20 @@ export default function MatchManagement() {
 
                         <div className="flex flex-wrap justify-center gap-2">
                             {match.status === 'scheduled' && (
-                                <Button onClick={handleStartMatch} className="bg-neonGreen hover:bg-neonGreen/80 text-black">
-                                    <Play className="w-4 h-4 mr-2" /> Kick Off ({halfDuration}')
+                                <Button onClick={handleStartMatch} className="bg-neonGreen hover:bg-neonGreen/80 text-black" disabled={isActionLoading}>
+                                    {isActionLoading ? 'Loading...' : <><Play className="w-4 h-4 mr-2" /> Kick Off ({halfDuration}')</>}
                                 </Button>
                             )}
 
                             {match.status === '1st_half' && (
-                                <Button variant="outline" onClick={handleEndFirstHalf}>
-                                    <Timer className="w-4 h-4 mr-2" /> End 1st Half
+                                <Button variant="outline" onClick={handleEndFirstHalf} disabled={isActionLoading}>
+                                    {isActionLoading ? 'Loading...' : <><Timer className="w-4 h-4 mr-2" /> End 1st Half</>}
                                 </Button>
                             )}
 
                             {match.status === 'halftime' && (
-                                <Button className="bg-neonGreen text-black" onClick={handleStartSecondHalf}>
-                                    <Play className="w-4 h-4 mr-2" /> Start 2nd Half
+                                <Button className="bg-neonGreen text-black" onClick={handleStartSecondHalf} disabled={isActionLoading}>
+                                    {isActionLoading ? 'Loading...' : <><Play className="w-4 h-4 mr-2" /> Start 2nd Half</>}
                                 </Button>
                             )}
 
@@ -920,8 +938,8 @@ export default function MatchManagement() {
 
                             {/* Fulltime / Confirm */}
                             {(match.status === '1st_half' || match.status === '2nd_half' || match.status === 'halftime') && (
-                                <Button variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={handleFinishMatch}>
-                                    <Flag className="w-4 h-4 mr-2" /> Fulltime
+                                <Button variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={handleFinishMatch} disabled={isActionLoading}>
+                                    {isActionLoading ? 'Loading...' : <><Flag className="w-4 h-4 mr-2" /> Fulltime</>}
                                 </Button>
                             )}
                             {match.status === 'fulltime_pending' && (
@@ -995,8 +1013,8 @@ export default function MatchManagement() {
 
                             {/* Rollback - Available unless finished or completed */}
                             {match.status !== 'finished' && match.status !== 'completed' && match.status !== 'scheduled' && (
-                                <Button variant="ghost" className="text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10" onClick={handleRollback}>
-                                    <RotateCcw className="w-4 h-4 mr-2" /> Rollback
+                                <Button variant="ghost" className="text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10" onClick={handleRollback} disabled={isActionLoading}>
+                                    {isActionLoading ? 'Loading...' : <><RotateCcw className="w-4 h-4 mr-2" /> Rollback</>}
                                 </Button>
                             )}
 
@@ -1011,7 +1029,7 @@ export default function MatchManagement() {
                     {/* Right: Away Actions */}
                     <div className="flex-1 flex justify-end">
                         {['1st_half', '2nd_half'].includes(match.status) && (
-                            <Button variant="secondary" onClick={() => handleAddEvent('goal', 'away')}>
+                            <Button variant="secondary" onClick={() => handleAddEvent('goal', 'away')} disabled={isActionLoading}>
                                 + Goal Away
                             </Button>
                         )}
@@ -1048,13 +1066,15 @@ export default function MatchManagement() {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => handlePenaltyUpdate('home', true)}
-                                            className="w-10 h-10 rounded-full bg-neonGreen/20 hover:bg-neonGreen text-neonGreen hover:text-black flex items-center justify-center transition"
+                                            disabled={isActionLoading}
+                                            className="w-10 h-10 rounded-full bg-neonGreen/20 hover:bg-neonGreen text-neonGreen hover:text-black flex items-center justify-center transition disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <Goal className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={() => handlePenaltyUpdate('home', false)}
-                                            className="w-10 h-10 rounded-full bg-red-500/20 hover:bg-red-500 text-red-500 hover:text-white flex items-center justify-center transition"
+                                            disabled={isActionLoading}
+                                            className="w-10 h-10 rounded-full bg-red-500/20 hover:bg-red-500 text-red-500 hover:text-white flex items-center justify-center transition disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <Flag className="w-4 h-4" />
                                         </button>
@@ -1067,13 +1087,15 @@ export default function MatchManagement() {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => handlePenaltyUpdate('away', true)}
-                                            className="w-10 h-10 rounded-full bg-neonGreen/20 hover:bg-neonGreen text-neonGreen hover:text-black flex items-center justify-center transition"
+                                            disabled={isActionLoading}
+                                            className="w-10 h-10 rounded-full bg-neonGreen/20 hover:bg-neonGreen text-neonGreen hover:text-black flex items-center justify-center transition disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <Goal className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={() => handlePenaltyUpdate('away', false)}
-                                            className="w-10 h-10 rounded-full bg-red-500/20 hover:bg-red-500 text-red-500 hover:text-white flex items-center justify-center transition"
+                                            disabled={isActionLoading}
+                                            className="w-10 h-10 rounded-full bg-red-500/20 hover:bg-red-500 text-red-500 hover:text-white flex items-center justify-center transition disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <Flag className="w-4 h-4" />
                                         </button>
@@ -1172,29 +1194,33 @@ export default function MatchManagement() {
                                 <div className="space-y-3">
                                     {match.analysis?.headToHead?.length > 0 ? (
                                         match.analysis.headToHead.map((h2h) => (
-                                            <div key={h2h.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-                                                <div className="flex items-center gap-3">
-                                                    {/* Home in H2H context means the Home Team of THAT match, not necessarily current match home */}
-                                                    {/* But for clarity, we should probably stick to Left/Right alignment or keep it simple */}
-                                                    <div className="flex items-center gap-2 min-w-[80px]">
-                                                        <span className={`font-bold text-sm truncate max-w-[100px] ${h2h.isHome ? 'text-blue-400' : 'text-red-400'}`} title={h2h.homeTeam}>
+                                            <div key={h2h.id} className="flex flex-col sm:flex-row items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5 gap-2 sm:gap-0">
+                                                {/* Match Result Row */}
+                                                <div className="flex items-center justify-between w-full sm:w-auto sm:justify-start gap-2 sm:gap-3">
+                                                    {/* Home Team */}
+                                                    <div className="flex items-center gap-2 flex-1 sm:flex-initial sm:min-w-[80px] justify-end sm:justify-start">
+                                                        <span className={`font-bold text-sm truncate max-w-[80px] sm:max-w-[100px] ${h2h.isHome ? 'text-blue-400' : 'text-red-400'} text-right sm:text-left`} title={h2h.homeTeam}>
                                                             {h2h.homeTeam}
                                                         </span>
                                                     </div>
 
-                                                    <div className="px-2 py-1 bg-black/40 rounded text-sm font-mono text-gray-300">
+                                                    {/* Score */}
+                                                    <div className="px-2 py-1 bg-black/40 rounded text-xs sm:text-sm font-mono text-gray-300 whitespace-nowrap min-w-[50px] text-center">
                                                         {h2h.homeScore} - {h2h.awayScore}
                                                     </div>
 
-                                                    <div className="flex items-center gap-2 min-w-[80px] justify-end">
-                                                        <span className={`font-bold text-sm truncate max-w-[100px] ${!h2h.isHome ? 'text-blue-400' : 'text-red-400'}`} title={h2h.awayTeam}>
+                                                    {/* Away Team */}
+                                                    <div className="flex items-center gap-2 flex-1 sm:flex-initial sm:min-w-[80px] justify-start sm:justify-end">
+                                                        <span className={`font-bold text-sm truncate max-w-[80px] sm:max-w-[100px] ${!h2h.isHome ? 'text-blue-400' : 'text-red-400'} text-left sm:text-right`} title={h2h.awayTeam}>
                                                             {h2h.awayTeam}
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div className="text-right ml-4">
-                                                    <div className="text-xs text-neonGreen/80 truncate max-w-[120px]" title={h2h.tournament}>{h2h.tournament}</div>
-                                                    <div className="text-[10px] text-gray-500">{new Date(h2h.date).toLocaleDateString()}</div>
+
+                                                {/* Info Row (Stacked on mobile) */}
+                                                <div className="w-full sm:w-auto flex sm:block items-center justify-between sm:text-right text-xs gap-2 pt-1 sm:pt-0 border-t sm:border-t-0 border-white/5 sm:ml-4">
+                                                    <div className="text-neonGreen/80 truncate max-w-[120px] sm:max-w-[150px]" title={h2h.tournament}>{h2h.tournament}</div>
+                                                    <div className="text-gray-500">{new Date(h2h.date).toLocaleDateString()}</div>
                                                 </div>
                                             </div>
                                         ))
@@ -1373,7 +1399,9 @@ export default function MatchManagement() {
 
                                 <div className="flex gap-3 mt-6">
                                     <Button className="flex-1" variant="ghost" onClick={() => setShowEventModal(false)}>Batal</Button>
-                                    <Button className="flex-1 bg-neonGreen text-black" onClick={submitEvent} disabled={isManualInput ? !manualPlayerName : !selectedPlayer}>Simpan</Button>
+                                    <Button className="flex-1 bg-neonGreen text-black" onClick={submitEvent} disabled={isSubmitting || (isManualInput ? !manualPlayerName : !selectedPlayer)}>
+                                        {isSubmitting ? 'Loading...' : 'Simpan'}
+                                    </Button>
                                 </div>
                             </div>
                         </div>
@@ -1494,6 +1522,16 @@ export default function MatchManagement() {
                     </div>
                 )}
             </div>
+            {/* Custom Loading Overlay */}
+            {loadingMessage && (
+                <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+                    <Loader2 className="w-16 h-16 text-neonGreen animate-spin mb-6" />
+                    <h2 className="text-2xl md:text-3xl font-display font-bold text-white mb-2 animate-pulse text-center px-4">
+                        {loadingMessage}
+                    </h2>
+                    <p className="text-gray-400">Mohon tunggu sebentar...</p>
+                </div>
+            )}
         </div >
     )
 }
