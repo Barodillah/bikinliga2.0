@@ -114,7 +114,6 @@ export default function CommunityDetail() {
             const res = await authFetch('/api/posts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     content: postContent,
                     community_id: id,
@@ -472,6 +471,77 @@ export default function CommunityDetail() {
                                                 </div>
                                             </div>
                                             <p className="text-gray-200 mb-4 whitespace-pre-wrap">{post.content}</p>
+
+                                            {/* Shared Content Renderer */}
+                                            {post.shared_content_type !== 'none' && post.metadata && (
+                                                <div className="mb-4 bg-darkBg/50 p-3 rounded-lg border border-white/5">
+                                                    {post.shared_content_type === 'match' && (
+                                                        post.metadata?.tournament_id ? (
+                                                            <Link
+                                                                to={`/dashboard/competitions/${post.metadata.tournament_id}/view/match/${post.shared_content_id}`}
+                                                                className="block hover:bg-white/5 transition rounded p-1 -m-1"
+                                                            >
+                                                                <div className="text-sm text-gray-300">
+                                                                    <p className="font-bold mb-1 text-neonGreen">Match Result</p>
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span>{post.metadata.homeTeam}</span>
+                                                                        <span className="font-bold text-white">{post.metadata.homeScore} - {post.metadata.awayScore}</span>
+                                                                        <span>{post.metadata.awayTeam}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </Link>
+                                                        ) : (
+                                                            <div className="text-sm text-gray-300">
+                                                                <p className="font-bold mb-1 text-neonGreen">Match Result</p>
+                                                                <div className="flex justify-between items-center">
+                                                                    <span>{post.metadata.homeTeam}</span>
+                                                                    <span className="font-bold text-white">{post.metadata.homeScore} - {post.metadata.awayScore}</span>
+                                                                    <span>{post.metadata.awayTeam}</span>
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    )}
+                                                    {post.shared_content_type === 'tournament' && (
+                                                        <>
+                                                            {post.metadata.visibility === 'public' ? (
+                                                                <Link to={`/dashboard/competitions/${post.shared_content_id}/view`} className="block hover:bg-white/5 transition rounded p-1 -m-1">
+                                                                    <div className="text-sm text-gray-300">
+                                                                        <div className="flex justify-between items-start">
+                                                                            <p className="font-bold mb-1 text-neonPink">Tournament</p>
+                                                                            <Share2 className="w-3 h-3 text-gray-500" />
+                                                                        </div>
+                                                                        <p className="text-white font-medium">{post.metadata.name}</p>
+                                                                        <div className="flex gap-2 text-xs mt-1 flex-wrap">
+                                                                            <span>{post.metadata.type}</span>
+                                                                            {post.metadata.participants > 0 && (
+                                                                                <span>• {post.metadata.participants} peserta</span>
+                                                                            )}
+                                                                            {post.metadata.progress && (
+                                                                                <span>• {post.metadata.progress}</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </Link>
+                                                            ) : (
+                                                                <div className="text-sm text-gray-300">
+                                                                    <p className="font-bold mb-1 text-neonPink">Tournament</p>
+                                                                    <p className="text-white font-medium">{post.metadata.name}</p>
+                                                                    <div className="flex gap-2 text-xs mt-1 flex-wrap">
+                                                                        <span>{post.metadata.type}</span>
+                                                                        {post.metadata.participants > 0 && (
+                                                                            <span>• {post.metadata.participants} peserta</span>
+                                                                        )}
+                                                                        {post.metadata.progress && (
+                                                                            <span>• {post.metadata.progress}</span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
+
                                             {post.image_url && (
                                                 <div className="rounded-lg overflow-hidden mb-4 border border-white/10">
                                                     <img src={post.image_url} alt="Post content" className="w-full h-64 object-cover" />
@@ -614,6 +684,32 @@ export default function CommunityDetail() {
                                 ))
                             ) : (
                                 <div className="text-gray-500 text-sm">Tidak ada admin terdaftar</div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="bg-cardBg border border-white/10 rounded-xl p-4">
+                        <h2 className="font-bold text-white mb-4 flex items-center gap-2">
+                            <Users className="w-5 h-5 text-neonPink" />
+                            Member ({community.member_count || 0})
+                        </h2>
+                        <div className="space-y-3 max-h-64 overflow-y-auto">
+                            {community.members && community.members.length > 0 ? (
+                                community.members.map(member => (
+                                    <div key={member.id} className="flex items-center gap-3">
+                                        <img
+                                            src={member.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=random`}
+                                            className="w-8 h-8 rounded-full"
+                                            alt={member.name}
+                                        />
+                                        <div className="flex-1">
+                                            <div className="text-sm font-medium text-white">{member.name}</div>
+                                            <div className="text-xs text-gray-400">@{member.username}</div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-gray-500 text-sm">Belum ada member</div>
                             )}
                         </div>
                     </div>

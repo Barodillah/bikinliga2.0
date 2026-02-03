@@ -219,12 +219,23 @@ router.get('/:id', authenticateToken, async (req, res) => {
             WHERE cm.community_id = ? AND cm.role IN ('admin', 'moderator')
         `, [id]);
 
+        // Fetch All Members (excluding admins/mods to avoid duplicates in member card)
+        const [members] = await db.query(`
+            SELECT u.id, u.name, u.username, u.avatar_url, cm.role, cm.joined_at
+            FROM community_members cm
+            JOIN users u ON cm.user_id = u.id
+            WHERE cm.community_id = ? AND cm.status = 'active'
+            ORDER BY cm.joined_at DESC
+            LIMIT 50
+        `, [id]);
+
         res.json({
             success: true,
             data: {
                 ...community,
                 isJoined: !!community.is_joined,
-                admins: admins
+                admins: admins,
+                members: members
             }
         });
     } catch (error) {

@@ -111,7 +111,7 @@ export default function HowItWorks() {
                                     <p className="text-xs text-gray-400 mb-4">Bagikan link ini ke grup WhatsApp</p>
 
                                     <div className="bg-black/40 p-3 rounded border border-white/5 flex items-center justify-between mb-4">
-                                        <span className="text-xs text-neonGreen truncate">bikinliga.com/invite/xyz123</span>
+                                        <span className="text-xs text-neonGreen truncate">bikinliga.online/invite/xyz123</span>
                                         <Copy className="w-4 h-4 text-gray-400" />
                                     </div>
 

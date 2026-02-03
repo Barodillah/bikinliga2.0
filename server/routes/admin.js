@@ -164,4 +164,86 @@ router.delete('/users/:id', async (req, res) => {
     }
 });
 
+// Email Blast endpoint
+router.post('/email-blast', async (req, res) => {
+    const { recipients, subject, body } = req.body;
+
+    if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+        return res.status(400).json({ success: false, message: 'No recipients provided' });
+    }
+
+    if (!subject || !body) {
+        return res.status(400).json({ success: false, message: 'Subject and body are required' });
+    }
+
+    // Dynamic import of mail config
+    const { default: transporter } = await import('../config/mail.js');
+
+    const results = [];
+
+    for (const recipient of recipients) {
+        try {
+            // Replace {nama} placeholder with actual name
+            const personalizedBody = body.replace(/{nama}/gi, recipient.name || 'Pengguna');
+
+            const mailOptions = {
+                from: `"BikinLiga" <${process.env.MAIL_FROM_ADDRESS}>`,
+                to: recipient.email,
+                subject: subject,
+                html: `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #0a0a0a; color: #ffffff; margin: 0; padding: 20px; }
+                            .container { max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 40px; }
+                            .logo { text-align: center; margin-bottom: 30px; }
+                            .logo span { font-size: 28px; font-weight: bold; }
+                            .logo .pink { color: #FE00A6; }
+                            .logo .green { color: #02F702; }
+                            .content { font-size: 16px; line-height: 1.8; color: #e0e0e0; white-space: pre-wrap; }
+                            .cta { display: inline-block; margin-top: 30px; padding: 14px 32px; background: linear-gradient(135deg, #00ff87 0%, #00d9ff 100%); color: #000; font-weight: bold; text-decoration: none; border-radius: 8px; }
+                            .footer { margin-top: 40px; text-align: center; color: #666666; font-size: 12px; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="logo">
+                                <span class="green">Bikin<span class="pink">Liga</span></span>
+                            </div>
+                            <div class="content">${personalizedBody}</div>
+                            <div style="text-align: center;">
+                                <a href="https://bikinliga.online" class="cta">Kunjungi BikinLiga 2.0</a>
+                            </div>
+                            <div class="footer">
+                                <p>© 2026 BikinLiga. All rights reserved.</p>
+                                <p>Anda menerima email ini karena Anda terdaftar sebagai pengguna BikinLiga.</p>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                `
+            };
+
+            await transporter.sendMail(mailOptions);
+            results.push({ email: recipient.email, success: true });
+
+            // Small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+            console.error(`Failed to send email to ${recipient.email}:`, error.message);
+            results.push({ email: recipient.email, success: false, error: error.message });
+        }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    res.json({
+        success: true,
+        message: `Email blast completed. ${successCount} sent, ${failCount} failed.`,
+        results
+    });
+});
+
 export default router;

@@ -3,7 +3,7 @@ import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-do
 import {
     LayoutDashboard, Users, MessageSquare,
     BarChart2, History, Menu, X,
-    ChevronRight, Wallet, LogOut, ArrowLeft, Trophy
+    ChevronRight, Wallet, LogOut, ArrowLeft, Trophy, Mail
 } from 'lucide-react'
 import ChatWidget from '../components/ChatWidget'
 import { useAuth } from '../contexts/AuthContext'
@@ -13,6 +13,7 @@ const sidebarLinks = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard, exact: true },
     { name: 'Tournaments', href: '/admin/tournaments', icon: Trophy },
     { name: 'Users', href: '/admin/users', icon: Users },
+    { name: 'Email Blast', href: '/admin/email-blast', icon: Mail },
     { name: 'Complaint', href: '/admin/complaint', icon: MessageSquare },
     { name: 'Transaction', href: '/admin/transaction', icon: Wallet },
     { name: 'AI Analysis', href: '/admin/ai-analysis', icon: BarChart2 },
