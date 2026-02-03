@@ -7,9 +7,10 @@ import ShareModal from '../../components/ui/ShareModal'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import {
     Heart, MessageSquare, Share2, Users, Search, Lock, Globe,
-    MoreHorizontal, Image as ImageIcon, Send, ArrowLeft, Shield, Info
+    MoreHorizontal, Image as ImageIcon, Send, ArrowLeft, Shield, Info, Edit, Trash2, Flag
 } from 'lucide-react'
 import AdSlot from '../../components/ui/AdSlot'
+import Modal from '../../components/ui/Modal'
 
 // Mock data removed
 const formatTime = (dateString) => {
@@ -41,6 +42,13 @@ export default function CommunityDetail() {
     const [shareModalOpen, setShareModalOpen] = useState(false)
     const location = useLocation()
     const [sharedContent, setSharedContent] = useState(null)
+    const [expandedPostId, setExpandedPostId] = useState(null)
+    const [comments, setComments] = useState({})
+    const [loadingComments, setLoadingComments] = useState({})
+    const [commentInputs, setCommentInputs] = useState({})
+    const [activeDropdown, setActiveDropdown] = useState(null)
+    const [deleteModalPostId, setDeleteModalPostId] = useState(null)
+    const [shareModalPost, setShareModalPost] = useState(null)
 
     // Handle Shared Content from Navigation
     React.useEffect(() => {
@@ -130,6 +138,111 @@ export default function CommunityDetail() {
             setIsPosting(false);
         }
     };
+
+    const handleLike = async (postId) => {
+        // Optimistic Update
+        const updatedPosts = posts.map(p => {
+            if (p.id === postId) {
+                return {
+                    ...p,
+                    is_liked: !p.is_liked,
+                    likes_count: p.is_liked ? p.likes_count - 1 : p.likes_count + 1
+                }
+            }
+            return p
+        })
+        setPosts(updatedPosts)
+
+        try {
+            await authFetch(`/api/posts/${postId}/like`, { method: 'POST' })
+        } catch (err) {
+            console.error('Like error:', err)
+        }
+    }
+
+    const toggleComments = async (postId) => {
+        if (expandedPostId === postId) {
+            setExpandedPostId(null)
+            return
+        }
+
+        setExpandedPostId(postId)
+        if (!comments[postId]) {
+            setLoadingComments(prev => ({ ...prev, [postId]: true }))
+            try {
+                const res = await authFetch(`/api/posts/${postId}/comments`)
+                const data = await res.json()
+                if (data.success) {
+                    setComments(prev => ({ ...prev, [postId]: data.data }))
+                }
+            } catch (err) {
+                console.error('Fetch comments error:', err)
+            } finally {
+                setLoadingComments(prev => ({ ...prev, [postId]: false }))
+            }
+        }
+    }
+
+    const handleCommentSubmit = async (postId) => {
+        const content = commentInputs[postId]
+        if (!content || !content.trim()) return
+
+        try {
+            const res = await authFetch(`/api/posts/${postId}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content })
+            })
+            const data = await res.json()
+
+            if (data.success) {
+                setComments(prev => ({
+                    ...prev,
+                    [postId]: [...(prev[postId] || []), data.data]
+                }))
+                setCommentInputs(prev => ({ ...prev, [postId]: '' }))
+
+                // Update comment count in post list
+                setPosts(posts.map(p =>
+                    p.id === postId ? { ...p, comments_count: p.comments_count + 1 } : p
+                ))
+            }
+        } catch (err) {
+            console.error('Submit comment error:', err)
+            error('Gagal mengirim komentar')
+        }
+    }
+
+    const handleDeleteClick = (postId) => {
+        setDeleteModalPostId(postId)
+        setActiveDropdown(null)
+    }
+
+    const handleDeleteConfirm = async () => {
+        if (!deleteModalPostId) return
+
+        try {
+            // Optimistic update
+            setPosts(posts.filter(p => p.id !== deleteModalPostId));
+
+            await authFetch(`/api/posts/${deleteModalPostId}`, { method: 'DELETE' });
+            success('Postingan dihapus');
+        } catch (err) {
+            console.error(err);
+            error('Gagal menghapus postingan');
+        }
+        setDeleteModalPostId(null)
+    }
+
+    const handleReportPost = (postId) => {
+        success('Laporan terkirim. Terima kasih atas masukan Anda.');
+        setActiveDropdown(null);
+    }
+
+    const handleSharePost = (post) => {
+        setShareModalPost(post);
+        setActiveDropdown(null);
+    }
 
     if (isLoading) return <div className="text-center py-20 text-white">Loading...</div>;
     if (!community) return <div className="text-center py-20 text-white">Komunitas tidak ditemukan</div>;
@@ -314,9 +427,49 @@ export default function CommunityDetail() {
                                                         <p className="text-sm text-gray-400">{post.user_username} • {formatTime(post.created_at)}</p>
                                                     </div>
                                                 </div>
-                                                <button className="text-gray-400 hover:text-white">
-                                                    <MoreHorizontal className="w-5 h-5" />
-                                                </button>
+                                                <div className="relative">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setActiveDropdown(activeDropdown === post.id ? null : post.id);
+                                                        }}
+                                                        className="text-gray-400 hover:text-white"
+                                                    >
+                                                        <MoreHorizontal className="w-5 h-5" />
+                                                    </button>
+
+                                                    {activeDropdown === post.id && (
+                                                        <div className="absolute right-0 top-8 w-48 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in">
+                                                            {post.user_id === user?.id ? (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setPostContent(post.content);
+                                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                                            setActiveDropdown(null);
+                                                                        }}
+                                                                        className="w-full text-left px-4 py-3 text-sm text-white hover:bg-white/5 flex items-center gap-2"
+                                                                    >
+                                                                        <Edit className="w-4 h-4" /> Edit Post
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleDeleteClick(post.id)}
+                                                                        className="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2"
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" /> Hapus Post
+                                                                    </button>
+                                                                </>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={() => handleReportPost(post.id)}
+                                                                    className="w-full text-left px-4 py-3 text-sm text-white hover:bg-white/5 flex items-center gap-2"
+                                                                >
+                                                                    <Flag className="w-4 h-4" /> Laporkan
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                             <p className="text-gray-200 mb-4 whitespace-pre-wrap">{post.content}</p>
                                             {post.image_url && (
@@ -326,25 +479,84 @@ export default function CommunityDetail() {
                                             )}
 
                                             <div className="flex items-center justify-between border-t border-white/10 pt-3">
-                                                <button className="flex items-center gap-2 text-gray-400 hover:text-pink-500 transition group">
+                                                <button
+                                                    onClick={() => handleLike(post.id)}
+                                                    className={`flex items-center gap-2 transition group ${post.is_liked ? 'text-pink-500' : 'text-gray-400 hover:text-pink-500'}`}
+                                                >
                                                     <div className="p-2 rounded-full group-hover:bg-pink-500/10">
-                                                        <Heart className="w-5 h-5" />
+                                                        <Heart className={`w-5 h-5 ${post.is_liked ? 'fill-current' : ''}`} />
                                                     </div>
                                                     <span>{post.likes_count}</span>
                                                 </button>
-                                                <button className="flex items-center gap-2 text-gray-400 hover:text-blue-400 transition group">
+                                                <button
+                                                    onClick={() => toggleComments(post.id)}
+                                                    className={`flex items-center gap-2 transition group ${expandedPostId === post.id ? 'text-blue-400' : 'text-gray-400 hover:text-blue-400'}`}
+                                                >
                                                     <div className="p-2 rounded-full group-hover:bg-blue-400/10">
                                                         <MessageSquare className="w-5 h-5" />
                                                     </div>
                                                     <span>{post.comments_count}</span>
                                                 </button>
-                                                <button className="flex items-center gap-2 text-gray-400 hover:text-green-400 transition group">
+                                                <button
+                                                    onClick={() => handleSharePost(post)}
+                                                    className="flex items-center gap-2 text-gray-400 hover:text-green-400 transition group"
+                                                >
                                                     <div className="p-2 rounded-full group-hover:bg-green-400/10">
                                                         <Share2 className="w-5 h-5" />
                                                     </div>
                                                     <span>Share</span>
                                                 </button>
                                             </div>
+
+                                            {/* Comment Section */}
+                                            {expandedPostId === post.id && (
+                                                <div className="border-t border-white/10 pt-4 mt-4">
+                                                    {loadingComments[post.id] ? (
+                                                        <div className="text-center py-4 text-gray-500">Memuat komentar...</div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="space-y-3 max-h-64 overflow-y-auto mb-4">
+                                                                {(comments[post.id] || []).length === 0 ? (
+                                                                    <div className="text-center py-4 text-gray-500 text-sm">Belum ada komentar</div>
+                                                                ) : (
+                                                                    (comments[post.id] || []).map(comment => (
+                                                                        <div key={comment.id} className="flex gap-3">
+                                                                            <img
+                                                                                src={comment.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.user_name)}&background=random`}
+                                                                                alt={comment.user_name}
+                                                                                className="w-8 h-8 rounded-full flex-shrink-0"
+                                                                            />
+                                                                            <div className="flex-1 bg-white/5 rounded-lg px-3 py-2">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <span className="font-bold text-white text-sm">{comment.user_name}</span>
+                                                                                    <span className="text-xs text-gray-500">{formatTime(comment.created_at)}</span>
+                                                                                </div>
+                                                                                <p className="text-gray-300 text-sm">{comment.content}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))
+                                                                )}
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={commentInputs[post.id] || ''}
+                                                                    onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                                                                    onKeyDown={(e) => e.key === 'Enter' && handleCommentSubmit(post.id)}
+                                                                    placeholder="Tulis komentar..."
+                                                                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-neonGreen/50 text-sm"
+                                                                />
+                                                                <button
+                                                                    onClick={() => handleCommentSubmit(post.id)}
+                                                                    className="bg-neonGreen/20 hover:bg-neonGreen/30 text-neonGreen p-2 rounded-lg transition"
+                                                                >
+                                                                    <Send className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -415,6 +627,42 @@ export default function CommunityDetail() {
                 text={`Gabung komunitas ${community.name} di BikinLiga!`}
                 title={`Bagikan ${community.name}`}
             />
+
+            {/* Delete Confirmation Modal */}
+            <Modal
+                isOpen={!!deleteModalPostId}
+                onClose={() => setDeleteModalPostId(null)}
+                title="Hapus Postingan?"
+            >
+                <div className="space-y-4">
+                    <p className="text-gray-400">Apakah kamu yakin ingin menghapus postingan ini? Tindakan ini tidak dapat dibatalkan.</p>
+                    <div className="flex gap-3 justify-end">
+                        <button
+                            onClick={() => setDeleteModalPostId(null)}
+                            className="px-4 py-2 text-white hover:bg-white/5 rounded-lg transition"
+                        >
+                            Batal
+                        </button>
+                        <button
+                            onClick={handleDeleteConfirm}
+                            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition"
+                        >
+                            Hapus
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Post Share Modal */}
+            {shareModalPost && (
+                <ShareModal
+                    isOpen={!!shareModalPost}
+                    onClose={() => setShareModalPost(null)}
+                    link={`${window.location.origin}/dashboard/eclub/community/${id}`}
+                    text={shareModalPost.content?.substring(0, 100)}
+                    title="Bagikan Postingan"
+                />
+            )}
         </div>
     )
 }

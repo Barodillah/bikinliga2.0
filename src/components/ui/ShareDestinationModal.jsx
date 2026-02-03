@@ -19,23 +19,10 @@ export default function ShareDestinationModal({ isOpen, onClose, sharedContent }
     const fetchJoinedCommunities = async () => {
         setLoading(true);
         try {
-            // Fetch all communities and filter for joined ones (or use a dedicated endpoint if available)
-            // Assuming GET /api/communities returns a list, and we can check membership?
-            // Or typically checking /api/user/communities would be better.
-            // For now, let's try fetching all and filtering if the API supports it, or just showing all implies "Post to this community" logic might check membership later.
-            // Actually, best to fetch communities the user is a MEMBER of.
-            // Let's assume GET /api/communities returns all and we filter by some "is_joined" flag if the backend provides it, 
-            // OR we just fetch /api/communities and let user choose (and if not joined, maybe prompt to join?).
-            // But requirement says "community yg user sudah join".
-
-            // Let's try to query /api/communities?joined=true if supported, or fetch all.
             const res = await authFetch('/api/communities');
             const data = await res.json();
 
             if (data.success) {
-                // Filter client side if needed, assuming API returns `is_joined` field for the current user
-                // Based on EClub.jsx, it seems communities are just listed.
-                // Let's filter by `is_joined` boolean if it exists.
                 const joined = data.data.filter(c => c.is_joined === true || c.is_joined === 1);
                 setCommunities(joined);
             }
@@ -54,7 +41,7 @@ export default function ShareDestinationModal({ isOpen, onClose, sharedContent }
     };
 
     const handleShareToCommunity = (communityId) => {
-        navigate(`/dashboard/communities/${communityId}`, {
+        navigate(`/dashboard/eclub/community/${communityId}`, {
             state: { shared_content: sharedContent }
         });
         onClose();
