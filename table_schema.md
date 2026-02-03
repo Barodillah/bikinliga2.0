@@ -400,3 +400,5 @@ Request top up manual dengan bukti transfer.
 7.  **Matches -> Match Events**: One-to-Many. Setiap pertandingan punya banyak kejadian (gol, kartu).
 8.  **Tournaments -> Tournament Prizes**: One-to-One. Setiap turnamen punya 1 konfigurasi hadiah.
 9.  **AI Chat Sessions -> Messages**: One-to-Many. Setiap sesi punya banyak pesan.
+
+coba di vercel
