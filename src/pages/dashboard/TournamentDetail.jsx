@@ -20,6 +20,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import SearchableSelect from '../../components/ui/SearchableSelect'
 import UserBadge from '../../components/ui/UserBadge'
 import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
+import ShareModal from '../../components/ui/ShareModal'
 
 // Helper function for authenticated fetch
 const authFetch = (url, options = {}) => {
@@ -93,6 +94,7 @@ const leagueOptions = [
 // Draft Players List Component
 function DraftPlayerList({ players, tournamentId, navigate, onStatusUpdate, onEdit }) {
     const [filter, setFilter] = useState('all')
+    const [loadingStatus, setLoadingStatus] = useState({ playerId: null, action: null })
 
     const filteredPlayers = filter === 'all'
         ? players
@@ -219,17 +221,45 @@ function DraftPlayerList({ players, tournamentId, navigate, onStatusUpdate, onEd
                                                     size="sm"
                                                     variant="ghost"
                                                     className="text-green-400 hover:text-green-300"
-                                                    onClick={() => onStatusUpdate && onStatusUpdate(player.id, 'approved')}
+                                                    disabled={loadingStatus.playerId === player.id}
+                                                    onClick={async () => {
+                                                        if (onStatusUpdate) {
+                                                            setLoadingStatus({ playerId: player.id, action: 'approved' })
+                                                            try {
+                                                                await onStatusUpdate(player.id, 'approved')
+                                                            } finally {
+                                                                setLoadingStatus({ playerId: null, action: null })
+                                                            }
+                                                        }
+                                                    }}
                                                 >
-                                                    <Check className="w-4 h-4" />
+                                                    {loadingStatus.playerId === player.id && loadingStatus.action === 'approved' ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <Check className="w-4 h-4" />
+                                                    )}
                                                 </Button>
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
                                                     className="text-red-400 hover:text-red-300"
-                                                    onClick={() => onStatusUpdate && onStatusUpdate(player.id, 'rejected')}
+                                                    disabled={loadingStatus.playerId === player.id}
+                                                    onClick={async () => {
+                                                        if (onStatusUpdate) {
+                                                            setLoadingStatus({ playerId: player.id, action: 'rejected' })
+                                                            try {
+                                                                await onStatusUpdate(player.id, 'rejected')
+                                                            } finally {
+                                                                setLoadingStatus({ playerId: null, action: null })
+                                                            }
+                                                        }
+                                                    }}
                                                 >
-                                                    <XCircle className="w-4 h-4" />
+                                                    {loadingStatus.playerId === player.id && loadingStatus.action === 'rejected' ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <XCircle className="w-4 h-4" />
+                                                    )}
                                                 </Button>
                                             </div>
                                         )}
@@ -674,6 +704,7 @@ export default function TournamentDetail() {
     const [activeTab, setActiveTab] = useState('overview')
     const [copied, setCopied] = useState(false)
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
     // Data States
     const [matches, setMatches] = useState([])
@@ -1991,9 +2022,9 @@ export default function TournamentDetail() {
                         </div>
                     </div>
                     <div className="flex gap-2 sm:gap-3 flex-shrink-0">
-                        <Button variant="secondary" size="sm" onClick={copyShareLink}>
-                            {copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
-                            <span className="hidden sm:inline">{copied ? 'Tersalin!' : 'Share'}</span>
+                        <Button variant="secondary" size="sm" onClick={() => setIsShareModalOpen(true)}>
+                            <Share2 className="w-4 h-4" />
+                            <span className="hidden sm:inline">Share</span>
                         </Button>
                         {isDraft ? (
                             <Button variant="ghost" size="sm" onClick={() => navigate(`/dashboard/tournaments/${id}/settings`)}>
@@ -4038,6 +4069,15 @@ export default function TournamentDetail() {
                     </div>
                 </div>
             </Modal>
+
+            {/* Share Modal */}
+            <ShareModal
+                isOpen={isShareModalOpen}
+                onClose={() => setIsShareModalOpen(false)}
+                link={tournamentData?.shareLink}
+                text={`Lihat turnamen ${tournamentData?.name} di BikinLiga!`}
+                title="Bagikan Turnamen"
+            />
         </div>
     )
 }
