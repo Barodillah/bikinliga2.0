@@ -174,7 +174,7 @@ export default function TournamentPublicView() {
                             <Share2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" /> Share
                         </Button>
                         {isDraft && (
-                            <Link to={`/join/${tournament.id}`} className="flex-1 sm:flex-none">
+                            <Link to={`/login?redirect=/dashboard/competitions/${slug}/join`} className="flex-1 sm:flex-none">
                                 <Button className="w-full bg-neonGreen text-black hover:bg-neonGreen/80 text-xs py-2 h-9 sm:text-sm sm:h-10">
                                     Join Tournament
                                 </Button>
@@ -360,12 +360,12 @@ export default function TournamentPublicView() {
 
                                             <div className="text-right">
                                                 <span className={`text-xs font-bold px-2 py-1 rounded-full border ${player.status === 'confirmed' || player.status === 'approved'
-                                                        ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                                                        : player.status === 'pending'
-                                                            ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                                                            : player.status === 'rejected'
-                                                                ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                                                                : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                                                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                                                    : player.status === 'pending'
+                                                        ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                                                        : player.status === 'rejected'
+                                                            ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                                            : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
                                                     }`}>
                                                     {player.status || 'Pending'}
                                                 </span>

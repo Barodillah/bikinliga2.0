@@ -538,146 +538,167 @@ export default function JoinCompetition() {
                                             </div>
                                         </CardHeader>
                                         <CardContent>
-                                            <form onSubmit={handleSubmit} className="space-y-5">
-                                                {/* User Info Header */}
-                                                <div className="bg-white/5 border border-white/10 rounded-lg p-4 mb-4">
-                                                    <div className="flex items-center gap-3 mb-3 pb-3 border-b border-white/5">
-                                                        <div className="w-8 h-8 rounded-full bg-neonGreen/20 flex items-center justify-center text-neonGreen font-bold">
-                                                            {user?.name?.charAt(0)}
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-bold text-white">{user?.name}</p>
-                                                            <p className="text-xs text-gray-500">@{user?.username || 'user'}</p>
-                                                        </div>
+                                            {/* Login Required Check */}
+                                            {!user ? (
+                                                <div className="text-center py-12">
+                                                    <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-4">
+                                                        <ShieldCheck className="w-8 h-8 text-yellow-400" />
                                                     </div>
-                                                    <div className="text-xs text-gray-400 space-y-1">
-                                                        <div className="flex justify-between">
-                                                            <span>WhatsApp:</span>
-                                                            <span className="text-white">{user?.phone || user?.whatsapp || '-'}</span>
-                                                        </div>
-                                                        <div className="flex justify-between">
-                                                            <span>Email:</span>
-                                                            <span className="text-white">{user?.email}</span>
-                                                        </div>
+                                                    <h4 className="text-lg font-bold text-white mb-2">Login Diperlukan</h4>
+                                                    <p className="text-gray-400 text-sm mb-6 max-w-sm mx-auto">
+                                                        Anda harus login terlebih dahulu untuk mendaftar ke kompetisi ini.
+                                                    </p>
+                                                    <div className="flex justify-center">
+                                                        <Button
+                                                            onClick={() => navigate(`/login?redirect=/dashboard/competitions/${id}/join`)}
+                                                            icon={User}
+                                                        >
+                                                            Login Sekarang
+                                                        </Button>
                                                     </div>
                                                 </div>
-
-                                                {error && (
-                                                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
-                                                        {error}
-                                                    </div>
-                                                )}
-
-                                                {/* League Select */}
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Trophy className="w-4 h-4 text-neonGreen" />
-                                                            Pilih Liga
+                                            ) : (
+                                                <form onSubmit={handleSubmit} className="space-y-5">
+                                                    {/* User Info Header */}
+                                                    <div className="bg-white/5 border border-white/10 rounded-lg p-4 mb-4">
+                                                        <div className="flex items-center gap-3 mb-3 pb-3 border-b border-white/5">
+                                                            <div className="w-8 h-8 rounded-full bg-neonGreen/20 flex items-center justify-center text-neonGreen font-bold">
+                                                                {user?.name?.charAt(0)}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-bold text-white">{user?.name}</p>
+                                                                <p className="text-xs text-gray-500">@{user?.username || 'user'}</p>
+                                                            </div>
                                                         </div>
-                                                    </label>
-                                                    <SearchableSelect
-                                                        options={leagueOptions}
-                                                        value={formData.league}
-                                                        onChange={(e) => setFormData(prev => ({ ...prev, league: e.target.value }))}
-                                                        placeholder="Pilih Liga Asal Tim..."
-                                                    />
-                                                </div>
-
-                                                {/* Team Select */}
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Shield className="w-4 h-4 text-neonPink" />
-                                                            Pilih Tim
-                                                            {loadingTeams && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+                                                        <div className="text-xs text-gray-400 space-y-1">
+                                                            <div className="flex justify-between">
+                                                                <span>WhatsApp:</span>
+                                                                <span className="text-white">{user?.phone || user?.whatsapp || '-'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between">
+                                                                <span>Email:</span>
+                                                                <span className="text-white">{user?.email}</span>
+                                                            </div>
                                                         </div>
-                                                    </label>
-                                                    <SearchableSelect
-                                                        options={teamOptions}
-                                                        value={formData.teamId}
-                                                        onChange={handleTeamChange}
-                                                        placeholder={loadingTeams ? 'Memuat tim...' : 'Pilih Tim...'}
-                                                        disabled={!formData.league || loadingTeams}
-                                                    />
-
-                                                    {/* Editable Team Name */}
-                                                    <div className="mt-3">
-                                                        <Input
-                                                            label={
-                                                                <div className="flex items-center gap-2">
-                                                                    <Shield className="w-4 h-4 text-neonPink" />
-                                                                    Nama Tim
-                                                                </div>
-                                                            }
-                                                            placeholder="Nama tim akan muncul di sini..."
-                                                            value={formData.team}
-                                                            onChange={(e) => setFormData(prev => ({
-                                                                ...prev,
-                                                                team: e.target.value.replace(/\b\w/g, char => char.toUpperCase())
-                                                            }))}
-                                                        />
                                                     </div>
-                                                    {/* Show selected team logo */}
-                                                    {formData.teamLogo && formData.team && (
-                                                        <div className="mt-3 flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
-                                                            <img
-                                                                src={formData.teamLogo}
-                                                                alt={formData.team}
-                                                                className="w-10 h-10 object-contain"
-                                                                onError={(e) => {
-                                                                    // Try alternate logo format on error
-                                                                    const formattedId = String(formData.teamId).padStart(6, '0')
-                                                                    let newUrl = ''
 
-                                                                    // Fallback chain: _r_w_l -> _f_l -> _r_l
-                                                                    if (e.target.src.includes('_r_w_l')) {
-                                                                        newUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_f_l.png.webp`
-                                                                    } else if (e.target.src.includes('_f_l')) {
-                                                                        newUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_r_l.png.webp`
-                                                                    }
-
-                                                                    if (newUrl) {
-                                                                        e.target.src = newUrl
-                                                                        // IMPORTANT: Update state so the valid URL is saved!
-                                                                        setFormData(prev => ({ ...prev, teamLogo: newUrl }))
-                                                                    }
-                                                                }}
-                                                            />
-                                                            <span className="font-medium">{formData.team}</span>
+                                                    {error && (
+                                                        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+                                                            {error}
                                                         </div>
                                                     )}
-                                                </div>
 
-                                                {/* Submit Buttons */}
+                                                    {/* League Select */}
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <Trophy className="w-4 h-4 text-neonGreen" />
+                                                                Pilih Liga
+                                                            </div>
+                                                        </label>
+                                                        <SearchableSelect
+                                                            options={leagueOptions}
+                                                            value={formData.league}
+                                                            onChange={(e) => setFormData(prev => ({ ...prev, league: e.target.value }))}
+                                                            placeholder="Pilih Liga Asal Tim..."
+                                                        />
+                                                    </div>
 
-                                                {/* Submit Buttons */}
-                                                <div className="flex gap-3 pt-4">
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        className="flex-1"
-                                                        onClick={() => isPublic ? navigate('/') : navigate('/dashboard/competitions')}
-                                                    >
-                                                        Batal
-                                                    </Button>
-                                                    <Button
-                                                        type="submit"
-                                                        className="flex-1"
-                                                        disabled={isSubmitting || loadingTeams}
-                                                        icon={Sparkles}
-                                                    >
-                                                        {isSubmitting ? (
-                                                            <>
-                                                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                                                Mendaftar...
-                                                            </>
-                                                        ) : (
-                                                            'Daftar Sekarang'
+                                                    {/* Team Select */}
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <Shield className="w-4 h-4 text-neonPink" />
+                                                                Pilih Tim
+                                                                {loadingTeams && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+                                                            </div>
+                                                        </label>
+                                                        <SearchableSelect
+                                                            options={teamOptions}
+                                                            value={formData.teamId}
+                                                            onChange={handleTeamChange}
+                                                            placeholder={loadingTeams ? 'Memuat tim...' : 'Pilih Tim...'}
+                                                            disabled={!formData.league || loadingTeams}
+                                                        />
+
+                                                        {/* Editable Team Name */}
+                                                        <div className="mt-3">
+                                                            <Input
+                                                                label={
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Shield className="w-4 h-4 text-neonPink" />
+                                                                        Nama Tim
+                                                                    </div>
+                                                                }
+                                                                placeholder="Nama tim akan muncul di sini..."
+                                                                value={formData.team}
+                                                                onChange={(e) => setFormData(prev => ({
+                                                                    ...prev,
+                                                                    team: e.target.value.replace(/\b\w/g, char => char.toUpperCase())
+                                                                }))}
+                                                            />
+                                                        </div>
+                                                        {/* Show selected team logo */}
+                                                        {formData.teamLogo && formData.team && (
+                                                            <div className="mt-3 flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                                                                <img
+                                                                    src={formData.teamLogo}
+                                                                    alt={formData.team}
+                                                                    className="w-10 h-10 object-contain"
+                                                                    onError={(e) => {
+                                                                        // Try alternate logo format on error
+                                                                        const formattedId = String(formData.teamId).padStart(6, '0')
+                                                                        let newUrl = ''
+
+                                                                        // Fallback chain: _r_w_l -> _f_l -> _r_l
+                                                                        if (e.target.src.includes('_r_w_l')) {
+                                                                            newUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_f_l.png.webp`
+                                                                        } else if (e.target.src.includes('_f_l')) {
+                                                                            newUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_r_l.png.webp`
+                                                                        }
+
+                                                                        if (newUrl) {
+                                                                            e.target.src = newUrl
+                                                                            // IMPORTANT: Update state so the valid URL is saved!
+                                                                            setFormData(prev => ({ ...prev, teamLogo: newUrl }))
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <span className="font-medium">{formData.team}</span>
+                                                            </div>
                                                         )}
-                                                    </Button>
-                                                </div>
-                                            </form>
+                                                    </div>
+
+                                                    {/* Submit Buttons */}
+
+                                                    {/* Submit Buttons */}
+                                                    <div className="flex gap-3 pt-4">
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            className="flex-1"
+                                                            onClick={() => isPublic ? navigate('/') : navigate('/dashboard/competitions')}
+                                                        >
+                                                            Batal
+                                                        </Button>
+                                                        <Button
+                                                            type="submit"
+                                                            className="flex-1"
+                                                            disabled={isSubmitting || loadingTeams}
+                                                            icon={Sparkles}
+                                                        >
+                                                            {isSubmitting ? (
+                                                                <>
+                                                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                                                    Mendaftar...
+                                                                </>
+                                                            ) : (
+                                                                'Daftar Sekarang'
+                                                            )}
+                                                        </Button>
+                                                    </div>
+                                                </form>
+                                            )}
                                         </CardContent>
                                     </Card>
                                 )}
