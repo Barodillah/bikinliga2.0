@@ -1,15 +1,18 @@
-import React from 'react'
+import React, { forwardRef } from 'react'
 
-export default function Card({ children, className = '', hover = true, ...props }) {
+const Card = forwardRef(function Card({ children, className = '', hover = true, ...props }, ref) {
     return (
         <div
+            ref={ref}
             className={`glass-panel rounded-2xl ${hover ? 'hover:border-white/20 transition-all duration-300' : ''} ${className}`}
             {...props}
         >
             {children}
         </div>
     )
-}
+})
+
+export default Card
 
 export function CardHeader({ children, className = '' }) {
     return (

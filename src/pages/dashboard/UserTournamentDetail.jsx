@@ -197,8 +197,8 @@ export default function UserTournamentDetail() {
                 if (!dataTour.success) throw new Error(dataTour.message)
                 setTournamentData(dataTour.data)
 
-                // If tournament is draft and user is not the creator, redirect to join page
-                if (dataTour.data.status === 'draft' && String(dataTour.data.organizer_id) !== String(user.id)) {
+                // If tournament is draft, redirect to join page for registration
+                if (dataTour.data.status === 'draft') {
                     navigate(`/dashboard/competitions/${id}/join`)
                     return
                 }

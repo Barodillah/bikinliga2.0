@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Calendar, Plus, Filter } from 'lucide-react'
+import { ArrowLeft, Calendar, Plus, Filter, Download, Loader2 } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import MatchCard from '../../components/tournament/MatchCard'
@@ -8,6 +8,7 @@ import Modal from '../../components/ui/Modal'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import AdSlot from '../../components/ui/AdSlot'
+import { exportToImage } from '../../utils/exportImage'
 
 const matchweeks = [
     {
@@ -42,6 +43,25 @@ export default function Fixtures() {
     const [selectedMatch, setSelectedMatch] = useState(null)
     const [homeScore, setHomeScore] = useState('')
     const [awayScore, setAwayScore] = useState('')
+
+    // Export functionality
+    const matchweekRefs = useRef({})
+    const [exportLoading, setExportLoading] = useState(null)
+
+    const handleExport = async (week) => {
+        const ref = matchweekRefs.current[week]
+        if (ref) {
+            setExportLoading(week)
+            try {
+                await exportToImage(ref, `matchweek_${week}_${Date.now()}.png`, {
+                    backgroundColor: '#0a0a0a',
+                    padding: 30,
+                })
+            } finally {
+                setExportLoading(null)
+            }
+        }
+    }
 
     const handleInputScore = (match) => {
         setSelectedMatch(match)
@@ -80,7 +100,10 @@ export default function Fixtures() {
             {/* Matchweeks */}
             {matchweeks.map((mw, index) => (
                 <React.Fragment key={mw.week}>
-                    <Card className="p-6">
+                    <Card
+                        className="p-6"
+                        ref={el => matchweekRefs.current[mw.week] = el}
+                    >
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
                                 <Calendar className="w-5 h-5 text-neonPink" />
@@ -89,7 +112,23 @@ export default function Fixtures() {
                                     <div className="text-sm text-gray-500">{mw.date}</div>
                                 </div>
                             </div>
-                            <span className="text-sm text-gray-400">{mw.matches.length} pertandingan</span>
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm text-gray-400 hidden sm:inline">{mw.matches.length} pertandingan</span>
+                                <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    disabled={exportLoading === mw.week}
+                                    onClick={() => handleExport(mw.week)}
+                                    className="h-8"
+                                >
+                                    {exportLoading === mw.week ? (
+                                        <Loader2 className="w-3 h-3 animate-spin mr-1.5" />
+                                    ) : (
+                                        <Download className="w-3 h-3 mr-1.5" />
+                                    )}
+                                    Export
+                                </Button>
+                            </div>
                         </div>
                         <div className="space-y-3">
                             {mw.matches.map((match) => (

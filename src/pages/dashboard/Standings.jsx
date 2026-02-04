@@ -1,14 +1,28 @@
-import React from 'react'
+import React, { useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Download, Trophy } from 'lucide-react'
+import { ArrowLeft, Download, Trophy, Loader2 } from 'lucide-react'
 import Card, { CardHeader, CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import StandingsTable from '../../components/tournament/StandingsTable'
 import AdSlot from '../../components/ui/AdSlot'
+import { exportStandingsToImage } from '../../utils/exportImage'
 
 export default function Standings() {
     const { id } = useParams()
     const navigate = useNavigate()
+    const standingsRef = useRef(null)
+    const [exportLoading, setExportLoading] = useState(false)
+
+    const handleExport = async () => {
+        if (standingsRef.current) {
+            setExportLoading(true)
+            try {
+                await exportStandingsToImage(standingsRef.current, 'klasemen')
+            } finally {
+                setExportLoading(false)
+            }
+        }
+    }
 
     return (
         <div className="space-y-6">
@@ -24,11 +38,19 @@ export default function Standings() {
                         <h1 className="text-2xl md:text-3xl font-display font-bold">Klasemen</h1>
                         <p className="text-gray-400 mt-1">Warkop Cup Season 5</p>
                     </div>
-                    <Button variant="secondary" icon={Download}>Export Gambar</Button>
+                    <Button
+                        variant="secondary"
+                        icon={exportLoading ? Loader2 : Download}
+                        disabled={exportLoading}
+                        onClick={handleExport}
+                        className={exportLoading ? '[&_svg]:animate-spin' : ''}
+                    >
+                        Export Gambar
+                    </Button>
                 </div>
             </div>
 
-            <Card hover={false}>
+            <Card hover={false} ref={standingsRef}>
                 <CardHeader>
                     <div className="flex items-center gap-3">
                         <Trophy className="w-5 h-5 text-neonGreen" />

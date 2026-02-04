@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
-import { Trophy, Users, Calendar, BarChart2, Settings, Share2, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2, Gift, DollarSign, Percent, Save, Loader2, User, Phone, Shield, Sparkles, Medal, Crown, Target, ListFilter, MessageSquare, MessageCircle, Send, ChevronDown, UserCheck, ShieldCheck } from 'lucide-react'
+import { Trophy, Users, Calendar, BarChart2, Settings, Share2, Download, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2, Gift, DollarSign, Percent, Save, Loader2, User, Phone, Shield, Sparkles, Medal, Crown, Target, ListFilter, MessageSquare, MessageCircle, Send, ChevronDown, UserCheck, ShieldCheck } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Modal from '../../components/ui/Modal'
@@ -21,6 +21,7 @@ import SearchableSelect from '../../components/ui/SearchableSelect'
 import UserBadge from '../../components/ui/UserBadge'
 import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
 import ShareModal from '../../components/ui/ShareModal'
+import { exportStandingsToImage, exportBracketToImage, exportToImage } from '../../utils/exportImage'
 
 // Helper function for authenticated fetch
 const authFetch = (url, options = {}) => {
@@ -714,6 +715,12 @@ export default function TournamentDetail() {
     const [statistics, setStatistics] = useState(null)
     const [statisticsLoading, setStatisticsLoading] = useState(false)
     const [winnerData, setWinnerData] = useState(null)
+
+    // Export Image Refs
+    const standingsRef = useRef(null)
+    const bracketRef = useRef(null)
+    const fixturesRefs = useRef({})
+    const [exportLoading, setExportLoading] = useState(null) // 'standings' | 'bracket' | 'round_X' | null
 
     // Participant Management State
     const [editingParticipant, setEditingParticipant] = useState(null)
@@ -2983,10 +2990,29 @@ export default function TournamentDetail() {
             {/* Standings - Liga only */}
             {
                 activeTab === 'standings' && isLeague && (
-                    <Card hover={false}>
+                    <Card hover={false} ref={standingsRef}>
                         <CardHeader className="flex items-center justify-between">
                             <h3 className="font-display font-bold">Klasemen Liga</h3>
-                            <Button variant="ghost" size="sm">Export Gambar</Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={exportLoading === 'standings'}
+                                onClick={async () => {
+                                    if (standingsRef.current) {
+                                        setExportLoading('standings')
+                                        try {
+                                            await exportStandingsToImage(standingsRef.current, tournamentData?.name || 'tournament')
+                                        } finally {
+                                            setExportLoading(null)
+                                        }
+                                    }
+                                }}
+                            >
+                                {exportLoading === 'standings' ? (
+                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                ) : null}
+                                Export Gambar
+                            </Button>
                         </CardHeader>
                         <CardContent className="p-0">
                             <StandingsTable standings={standings} />
@@ -3024,14 +3050,33 @@ export default function TournamentDetail() {
             {/* Bracket - Knockout & Group+KO */}
             {
                 activeTab === 'bracket' && (isKnockout || isGroupKO) && (
-                    <Card hover={false}>
+                    <Card hover={false} ref={bracketRef}>
                         <CardHeader className="flex items-center justify-between">
                             <h3 className="font-display font-bold flex items-center gap-2">
                                 <GitMerge className="w-5 h-5 text-neonPink" />
                                 {isGroupKO ? 'Knockout Stage' : 'Tournament Bracket'}
                             </h3>
                             <div className="flex items-center gap-2">
-                                <Button variant="ghost" size="sm">Export Gambar</Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={exportLoading === 'bracket'}
+                                    onClick={async () => {
+                                        if (bracketRef.current) {
+                                            setExportLoading('bracket')
+                                            try {
+                                                await exportBracketToImage(bracketRef.current, tournamentData?.name || 'tournament')
+                                            } finally {
+                                                setExportLoading(null)
+                                            }
+                                        }
+                                    }}
+                                >
+                                    {exportLoading === 'bracket' ? (
+                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                    ) : null}
+                                    Export Gambar
+                                </Button>
                             </div>
                         </CardHeader>
                         <CardContent className="p-0">
@@ -3239,7 +3284,11 @@ export default function TournamentDetail() {
                                     acc[roundKey].push(match);
                                     return acc;
                                 }, {})).map(([round, roundMatches]) => (
-                                    <div key={round} className="space-y-4">
+                                    <div
+                                        key={round}
+                                        className="space-y-4 p-4 rounded-xl transition-colors hover:bg-white/5"
+                                        ref={el => fixturesRefs.current[round] = el}
+                                    >
                                         <div className="flex items-center gap-4">
                                             <div className="h-px bg-white/10 flex-1"></div>
                                             <h3 className="font-display font-bold text-neonGreen">
@@ -3257,6 +3306,32 @@ export default function TournamentDetail() {
                                                     return `Round ${round}`;
                                                 })()}
                                             </h3>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-gray-500 hover:text-white"
+                                                disabled={exportLoading === `round_${round}`}
+                                                onClick={async () => {
+                                                    const ref = fixturesRefs.current[round]
+                                                    if (ref) {
+                                                        setExportLoading(`round_${round}`)
+                                                        try {
+                                                            await exportToImage(ref, `fixtures_round_${round}_${Date.now()}.png`, {
+                                                                backgroundColor: '#0a0a0a',
+                                                                padding: 30,
+                                                            })
+                                                        } finally {
+                                                            setExportLoading(null)
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                {exportLoading === `round_${round}` ? (
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                ) : (
+                                                    <Download className="w-3 h-3" />
+                                                )}
+                                            </Button>
                                             <div className="h-px bg-white/10 flex-1"></div>
                                         </div>
                                         <div className="grid md:grid-cols-2 gap-4">

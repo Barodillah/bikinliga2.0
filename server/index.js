@@ -15,6 +15,7 @@ import communityRoutes from './routes/communities.js';
 import postRoutes from './routes/posts.js';
 import chatbotRoutes from './routes/chatbot.js';
 import complaintsRoutes from './routes/complaints.js';
+import metaRoutes from './routes/meta.js';
 import { initDatabase } from './config/db.js';
 
 const app = express();
@@ -28,6 +29,9 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Meta routes for social media crawlers (must be before API routes)
+app.use('/', metaRoutes);
 
 // Routes
 app.use('/api/auth', authRoutes);
