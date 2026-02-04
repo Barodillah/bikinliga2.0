@@ -261,28 +261,87 @@ export default function TournamentPublicView() {
 
                     {/* MATCHES TAB */}
                     {activeTab === 'matches' && (
-                        <div className="space-y-4">
+                        <div className="space-y-8">
                             {matches.length === 0 ? (
                                 <div className="text-center py-12 text-gray-500">Belum ada jadwal pertandingan</div>
                             ) : (
-                                matches.map((match) => (
-                                    <Link key={match.id} to={`/t/${slug}/match/${match.id}`}>
-                                        <Card className="hover:border-neonGreen/30 transition group cursor-pointer h-full">
-                                            <CardContent className="p-4 sm:p-6 flex items-center justify-between">
-                                                <div className="flex-1 text-right font-bold text-gray-300 sm:text-lg truncate">{match.home_team_name || match.home_player_name}</div>
-                                                <div className="px-4 sm:px-8 flex flex-col items-center min-w-[100px]">
-                                                    <span className="text-2xl sm:text-3xl font-display font-bold text-white group-hover:text-neonGreen transition">
-                                                        {match.status === 'completed' || match.status === 'finished' ? `${match.home_score} - ${match.away_score}` : 'VS'}
-                                                    </span>
-                                                    <span className="text-[10px] text-gray-500 bg-white/10 px-2 py-0.5 rounded mt-1 uppercase tracking-tighter">
-                                                        {match.status === 'completed' ? 'Full Time' : match.status === 'live' ? 'Live' : 'Scheduled'}
-                                                    </span>
-                                                </div>
-                                                <div className="flex-1 text-left font-bold text-gray-300 sm:text-lg truncate">{match.away_team_name || match.away_player_name}</div>
-                                            </CardContent>
-                                        </Card>
-                                    </Link>
-                                ))
+                                Object.entries(matches.reduce((acc, match) => {
+                                    const roundKey = match.round || 1;
+                                    if (!acc[roundKey]) acc[roundKey] = [];
+                                    acc[roundKey].push(match);
+                                    return acc;
+                                }, {}))
+                                    .sort(([a], [b]) => Number(a) - Number(b))
+                                    .map(([round, roundMatches]) => (
+                                        <div key={round} className="space-y-4 p-4 rounded-xl transition-colors hover:bg-white/5 border border-transparent hover:border-white/5">
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-px bg-white/10 flex-1"></div>
+                                                <h3 className="font-display font-bold text-neonGreen">
+                                                    {(() => {
+                                                        const isLeague = tournament.type === 'league';
+                                                        if (isLeague) return `Matchday ${round}`;
+
+                                                        const maxRound = Math.max(...matches.map(m => Number(m.round) || 0));
+                                                        const r = parseInt(round);
+
+                                                        if (r === maxRound) return 'Final';
+                                                        if (r === maxRound - 1) return 'Semi Final';
+                                                        return `Round ${round}`;
+                                                    })()}
+                                                </h3>
+                                                <div className="h-px bg-white/10 flex-1"></div>
+                                            </div>
+                                            <div className="space-y-3">
+                                                {roundMatches
+                                                    .map(m => {
+                                                        let d = {};
+                                                        try { d = typeof m.details === 'string' ? JSON.parse(m.details) : m.details || {}; } catch (e) { }
+                                                        return { ...m, _details: d };
+                                                    })
+                                                    .sort((a, b) => (a._details.leg || 0) - (b._details.leg || 0))
+                                                    .map(match => {
+                                                        let roundName = '';
+                                                        if (match._details.is3rdPlace) roundName = 'Perebutan Juara 3';
+
+                                                        return (
+                                                            <div key={match.id} className="space-y-2">
+                                                                {roundName && (
+                                                                    <div className="text-[10px] uppercase tracking-widest font-bold text-gray-500 px-1">
+                                                                        {roundName}
+                                                                    </div>
+                                                                )}
+                                                                <Link to={`/t/${slug}/match/${match.id}`}>
+                                                                    <Card className="hover:border-neonGreen/30 transition group cursor-pointer h-full">
+                                                                        <CardContent className="p-3 sm:p-4 flex items-center justify-between">
+                                                                            <div className="flex-1 text-right overflow-hidden">
+                                                                                <div className="font-bold text-gray-300 text-xs sm:text-base truncate">{match.home_team_name || match.home_player_name}</div>
+                                                                                {match.home_team_name && match.home_player_name && (
+                                                                                    <div className="text-[10px] text-gray-500 truncate">{match.home_player_name}</div>
+                                                                                )}
+                                                                            </div>
+                                                                            <div className="px-2 sm:px-6 flex flex-col items-center min-w-[60px] sm:min-w-[80px]">
+                                                                                <span className="text-xl sm:text-2xl font-display font-bold text-white group-hover:text-neonGreen transition">
+                                                                                    {match.status === 'completed' || match.status === 'finished' ? `${match.home_score} - ${match.away_score}` : 'VS'}
+                                                                                </span>
+                                                                                <span className="text-[9px] sm:text-[10px] text-gray-500 bg-white/10 px-1.5 py-0.5 rounded mt-1 uppercase tracking-tighter">
+                                                                                    {match.status === 'completed' ? 'FT' : match.status === 'live' ? 'Live' : 'vs'}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="flex-1 text-left overflow-hidden">
+                                                                                <div className="font-bold text-gray-300 text-xs sm:text-base truncate">{match.away_team_name || match.away_player_name}</div>
+                                                                                {match.away_team_name && match.away_player_name && (
+                                                                                    <div className="text-[10px] text-gray-500 truncate">{match.away_player_name}</div>
+                                                                                )}
+                                                                            </div>
+                                                                        </CardContent>
+                                                                    </Card>
+                                                                </Link>
+                                                            </div>
+                                                        );
+                                                    })}
+                                            </div>
+                                        </div>
+                                    ))
                             )}
                         </div>
                     )}

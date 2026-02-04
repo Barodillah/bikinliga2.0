@@ -8,7 +8,7 @@ console.log('✅ Meta routes loaded');
 
 // Base URL for production
 const BASE_URL = process.env.BASE_URL || process.env.VITE_BASE_URL || 'https://bikinliga.online';
-const DEFAULT_IMAGE = `${BASE_URL}/og-default.jpg`;
+const DEFAULT_IMAGE = `${BASE_URL}/favicon.png`;
 const SITE_NAME = 'BikinLiga';
 
 // Social media crawler User-Agent patterns
