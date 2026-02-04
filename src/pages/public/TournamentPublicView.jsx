@@ -133,7 +133,7 @@ export default function TournamentPublicView() {
                 {/* Cover Image */}
                 <div className="h-64 sm:h-80 w-full overflow-hidden">
                     <img
-                        src={tournament.cover || 'https://images.unsplash.com/photo-1522770179533-24471fcdba45?auto=format&fit=crop&q=80&w=1200'}
+                        src={tournament.cover || 'https://wallpapercave.com/wp/wp15783723.jpg'}
                         alt="Cover"
                         className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
                     />
