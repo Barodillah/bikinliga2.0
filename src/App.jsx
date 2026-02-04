@@ -33,6 +33,8 @@ import TournamentPublicView from './pages/public/TournamentPublicView'
 import MatchPublicView from './pages/public/MatchPublicView'
 import PublicPostDetail from './pages/public/PublicPostDetail';
 import PublicCommunityDetail from './pages/public/PublicCommunityDetail';
+import TermsPage from './pages/public/TermsPage'
+import PrivacyPage from './pages/public/PrivacyPage'
 import UserTournamentDetail from './pages/dashboard/UserTournamentDetail'
 import UserMatchDetail from './pages/dashboard/UserMatchDetail'
 import UserNewsDetail from './pages/dashboard/UserNewsDetail'
@@ -58,6 +60,8 @@ function App() {
                     <Routes>
                         {/* Landing Page */}
                         <Route path="/" element={<LandingPage />} />
+                        <Route path="/terms" element={<TermsPage />} />
+                        <Route path="/privacy" element={<PrivacyPage />} />
 
                         {/* Auth Pages - Guest Only */}
                         <Route path="/login" element={

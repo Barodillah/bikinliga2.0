@@ -48,33 +48,33 @@ export default function Footer() {
                     <div>
                         <h4 className="font-bold text-white mb-4">Dukungan</h4>
                         <ul className="space-y-2 text-sm text-gray-500">
-                            {['Pusat Bantuan', 'Komunitas Discord', 'Tutorial Video', 'Kontak Kami'].map(item => (
-                                <li key={item}>
-                                    <a href="#" className="hover:text-neonGreen transition">{item}</a>
-                                </li>
-                            ))}
+                            <li>
+                                <Link to="/terms" className="hover:text-neonGreen transition">Syarat & Ketentuan</Link>
+                            </li>
+                            <li>
+                                <Link to="/privacy" className="hover:text-neonGreen transition">Privacy Policy</Link>
+                            </li>
+                            <li>
+                                <a href="https://chat.whatsapp.com/IixJt1jmzTj8KITMMH0nsr" target="_blank" rel="noopener noreferrer" className="hover:text-neonGreen transition">Komunitas</a>
+                            </li>
+                            <li>
+                                <a href="#" className="hover:text-neonGreen transition">Tutorial Video</a>
+                            </li>
                         </ul>
                     </div>
 
-                    {/* Newsletter */}
+                    {/* Contact */}
                     <div>
-                        <h4 className="font-bold text-white mb-4">Newsletter</h4>
-                        <form onSubmit={handleSubscribe} className="flex flex-col gap-2">
-                            <input
-                                type="email"
-                                placeholder="Email kamu"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                                className="bg-white/5 border border-white/10 rounded px-4 py-2 text-sm focus:outline-none focus:border-neonGreen text-white"
-                            />
-                            <button
-                                type="submit"
-                                className="bg-neonGreen text-black font-bold text-sm py-2 rounded hover:bg-[#00c400] transition"
-                            >
-                                Subscribe
-                            </button>
-                        </form>
+                        <h4 className="font-bold text-white mb-4">Kontak</h4>
+                        <ul className="space-y-2 text-sm text-gray-500">
+                            <li>
+                                <a href="mailto:gmail@bikinliga.online" className="hover:text-neonGreen transition">gmail@bikinliga.online</a>
+                            </li>
+                            <li>
+                                <a href="https://wa.me/6281999934451" target="_blank" rel="noopener noreferrer" className="hover:text-neonGreen transition">0819-9993-4451</a>
+                            </li>
+                            <li>Bogor, Indonesia</li>
+                        </ul>
                     </div>
                 </div>
 
