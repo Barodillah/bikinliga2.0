@@ -285,11 +285,19 @@ router.get('/public/:username', async (req, res) => {
     try {
         const { username } = req.params;
         const cleanUsername = username.replace('@', '');
+        console.log('DEBUG PUBLIC: Requested username:', username, 'Clean:', cleanUsername);
 
         // 1. Get User Details
         const users = await query(
-            `SELECT u.id, u.name, u.username, u.avatar_url, u.created_at, up.bio, up.city,
+            `SELECT u.id, u.name, u.username, u.email, u.avatar_url, u.created_at, up.bio, up.city, up.preferences,
              (SELECT COUNT(*) FROM participants p WHERE p.user_id = u.id) as total_tournaments,
+             (
+                SELECT c.name 
+                FROM community_members cm
+                JOIN communities c ON cm.community_id = c.id
+                WHERE cm.user_id = u.id AND cm.status = 'active'
+                ORDER BY cm.joined_at DESC LIMIT 1
+             ) as community_name,
              (
                 SELECT sp.name 
                 FROM user_subscriptions us 
@@ -302,6 +310,8 @@ router.get('/public/:username', async (req, res) => {
              WHERE u.username = ?`,
             [cleanUsername]
         );
+
+        console.log('DEBUG PUBLIC: Found users:', users.length);
 
         if (users.length === 0) {
             return res.status(404).json({ success: false, message: 'User not found' });
@@ -373,15 +383,33 @@ router.get('/public/:username', async (req, res) => {
         // Process Tier
         const tier = (user.tier_name || 'free').toLowerCase().replace(' ', '_');
 
+        // Privacy Check
+        let preferences = user.preferences || {};
+        console.log('DEBUG PUBLIC: Raw preferences:', preferences, typeof preferences);
+
+        if (typeof preferences === 'string') {
+            try {
+                preferences = JSON.parse(preferences);
+                console.log('DEBUG PUBLIC: Parsed preferences:', preferences);
+            } catch (e) {
+                console.error('Failed to parse user preferences in public profile:', e);
+                preferences = {};
+            }
+        }
+
+        const showEmail = preferences.showEmail === true; // Default false if undefined
+        console.log('DEBUG PUBLIC: showEmail:', showEmail, 'User Email:', user.email);
+
         res.json({
             success: true,
             data: {
                 id: user.id,
                 name: user.name,
                 username: `@${user.username}`,
+                email: showEmail ? user.email : null,
                 avatar: user.avatar_url,
                 bio: user.bio || 'Tidak ada bio.',
-                team: 'Free Agent', // Placeholder, could be derived if teams were strict entities
+                team: user.community_name || 'Free Agent', // Use fetched community name or default
                 role: 'Player', // Placeholder
                 tier: tier, // Added Tier
                 joinDate: new Date(user.created_at).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
@@ -391,7 +419,8 @@ router.get('/public/:username', async (req, res) => {
                 recentMatchesDetails: recentMatches, // Full details if needed later
                 totalTournaments: user.total_tournaments || 0,
                 joinedTournaments: joinedTournaments,
-                socials: {} // Placeholder
+                socials: {}, // Placeholder
+                preferences: preferences // Send preferences to frontend so it can hide other sections
             }
         });
 

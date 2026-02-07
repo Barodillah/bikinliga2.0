@@ -1,5 +1,6 @@
 import express from 'express';
 import { query } from '../config/db.js';
+import { unlockAchievement } from '../utils/achievements.js';
 
 const router = express.Router();
 
@@ -109,6 +110,18 @@ router.put('/users/:id', async (req, res) => {
             }
         }
 
+        // Handle verification update (if provided)
+        if (req.body.is_verified === true || req.body.is_verified === 'true') {
+            await query('UPDATE users SET is_verified = TRUE WHERE id = ?', [userId]);
+            await unlockAchievement(userId, 'social_verified');
+        } else if (req.body.is_verified === false || req.body.is_verified === 'false') {
+            await query('UPDATE users SET is_verified = FALSE WHERE id = ?', [userId]);
+        }
+
+        // Trigger Achievement: Subscription
+        if (subscription_plan === 'captain') await unlockAchievement(userId, 'sub_captain');
+        if (subscription_plan === 'pro_league') await unlockAchievement(userId, 'sub_pro');
+
         res.json({ success: true, message: 'User updated successfully' });
     } catch (error) {
         console.error('Update User Error:', error);
@@ -144,7 +157,23 @@ router.post('/users/:id/wallet', async (req, res) => {
             [wallet.id, type, amount, category, reason || 'Admin adjustment']
         );
 
+
         res.json({ success: true, message: 'Wallet adjusted successfully' });
+
+        // Trigger Achievement: Economy
+        if (amount > 0) {
+            // Check First Blood (First Topup)
+            const [txCount] = await query('SELECT COUNT(*) as count FROM transactions WHERE wallet_id = ? AND type = "topup"', [wallet.id]);
+            if (txCount[0].count === 1) { // 1 because we just inserted it
+                await unlockAchievement(userId, 'eco_first_topup');
+            }
+
+            // Check High Roller (Balance >= 1000)
+            const [updatedWallet] = await query('SELECT balance FROM wallets WHERE id = ?', [wallet.id]);
+            if (updatedWallet[0].balance >= 1000) {
+                await unlockAchievement(userId, 'eco_wealthy');
+            }
+        }
     } catch (error) {
         console.error('Wallet Adjustment Error:', error);
         res.status(500).json({ success: false, message: 'Failed to adjust wallet' });

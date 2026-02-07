@@ -8,10 +8,13 @@ import AdSlot from '../../components/ui/AdSlot'
 
 import UserBadge from '../../components/ui/UserBadge'
 import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
+import WhatsAppModal from '../../components/modals/WhatsAppModal'
 
 import { authFetch } from '../../utils/api'
+import { useAuth } from '../../contexts/AuthContext'
 
 export default function Competitions() {
+    const { user } = useAuth()
     const navigate = useNavigate()
     const [competitions, setCompetitions] = useState([])
     const [highlighted, setHighlighted] = useState(null)
@@ -20,6 +23,14 @@ export default function Competitions() {
     const [viewMode, setViewMode] = useState('grid')
     const [searchParams] = useSearchParams()
     const [filterType, setFilterType] = useState(searchParams.get('tab') === 'participating' ? 'participating' : 'all')
+
+    const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
+
+    useEffect(() => {
+        if (user && !user.phone) {
+            setShowWhatsAppModal(true)
+        }
+    }, [user])
 
     useEffect(() => {
         const fetchData = async () => {
@@ -504,6 +515,11 @@ export default function Competitions() {
                     </div>
                 )
             }
+            <WhatsAppModal
+                isOpen={showWhatsAppModal}
+                onClose={() => setShowWhatsAppModal(false)}
+                onCancel={() => navigate('/dashboard')}
+            />
         </div >
     )
 }

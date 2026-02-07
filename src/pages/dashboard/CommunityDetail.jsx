@@ -39,6 +39,8 @@ export default function CommunityDetail() {
     const [postContent, setPostContent] = useState('')
     const [isPosting, setIsPosting] = useState(false)
     const [isJoining, setIsJoining] = useState(false)
+    const [isLeaving, setIsLeaving] = useState(false)
+    const [leaveModalOpen, setLeaveModalOpen] = useState(false)
     const [shareModalOpen, setShareModalOpen] = useState(false)
     const location = useLocation()
     const [sharedContent, setSharedContent] = useState(null)
@@ -104,6 +106,32 @@ export default function CommunityDetail() {
             error('Gagal bergabung');
         } finally {
             setIsJoining(false);
+        }
+    };
+
+    const handleLeaveClick = () => {
+        if (!community) return;
+        setLeaveModalOpen(true);
+    };
+
+    const handleLeaveConfirm = async () => {
+        if (!community) return;
+        setIsLeaving(true);
+        try {
+            const res = await authFetch(`/api/communities/${id}/leave`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                setCommunity({ ...community, isJoined: false, member_count: Math.max(0, community.member_count - 1) });
+                success(data.message);
+            } else {
+                error(data.message);
+            }
+        } catch (err) {
+            console.error(err);
+            error('Gagal keluar komunitas');
+        } finally {
+            setIsLeaving(false);
+            setLeaveModalOpen(false);
         }
     };
 
@@ -305,20 +333,32 @@ export default function CommunityDetail() {
                         >
                             <Share2 className="w-5 h-5" />
                         </button>
-                        <button
-                            onClick={handleJoin}
-                            disabled={community.isJoined || isJoining}
-                            className={`w-full md:w-auto px-6 py-2.5 rounded-lg font-bold transition flex items-center justify-center gap-2 ${community.isJoined
-                                ? 'bg-white/5 text-white hover:bg-white/10 border border-white/10 cursor-default'
-                                : 'bg-gradient-to-r from-neonGreen to-neonPink text-black hover:opacity-90 disabled:opacity-50'
-                                }`}
-                        >
-                            {community.isJoined ? (
-                                <>Bergabung ✓</>
+                        {community.isJoined ? (
+                            community.creator_id === user?.id ? (
+                                <button
+                                    disabled
+                                    className="w-full md:w-auto px-6 py-2.5 rounded-lg font-bold bg-white/5 text-gray-400 border border-white/10 cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    Owner
+                                </button>
                             ) : (
-                                <>{isJoining ? 'Memproses...' : 'Gabung Komunitas'}</>
-                            )}
-                        </button>
+                                <button
+                                    onClick={handleLeaveClick}
+                                    disabled={isLeaving}
+                                    className="w-full md:w-auto px-6 py-2.5 rounded-lg font-bold transition flex items-center justify-center gap-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
+                                >
+                                    {isLeaving ? 'Memproses...' : 'Keluar Komunitas'}
+                                </button>
+                            )
+                        ) : (
+                            <button
+                                onClick={handleJoin}
+                                disabled={isJoining}
+                                className="w-full md:w-auto px-6 py-2.5 rounded-lg font-bold transition flex items-center justify-center gap-2 bg-gradient-to-r from-neonGreen to-neonPink text-black hover:opacity-90 disabled:opacity-50"
+                            >
+                                {isJoining ? 'Memproses...' : 'Gabung Komunitas'}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -749,7 +789,6 @@ export default function CommunityDetail() {
                 </div>
             </Modal>
 
-            {/* Post Share Modal */}
             {shareModalPost && (
                 <ShareModal
                     isOpen={!!shareModalPost}
@@ -759,6 +798,40 @@ export default function CommunityDetail() {
                     title="Bagikan Postingan"
                 />
             )}
+
+            {/* Leave Community Confirmation Modal */}
+            <Modal
+                isOpen={leaveModalOpen}
+                onClose={() => setLeaveModalOpen(false)}
+                title="Keluar Komunitas?"
+            >
+                <div className="space-y-4">
+                    <p className="text-gray-400">Apakah Anda yakin ingin keluar dari komunitas <span className="text-white font-bold">{community.name}</span>? Anda tidak akan lagi menerima notifikasi atau bisa memposting di komunitas ini.</p>
+                    <div className="flex gap-3 justify-end">
+                        <button
+                            onClick={() => setLeaveModalOpen(false)}
+                            className="px-4 py-2 text-white hover:bg-white/5 rounded-lg transition"
+                            disabled={isLeaving}
+                        >
+                            Batal
+                        </button>
+                        <button
+                            onClick={handleLeaveConfirm}
+                            disabled={isLeaving}
+                            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition flex items-center gap-2"
+                        >
+                            {isLeaving ? (
+                                <>
+                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Memproses...
+                                </>
+                            ) : (
+                                'Keluar'
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     )
 }

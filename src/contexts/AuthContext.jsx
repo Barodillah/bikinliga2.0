@@ -270,6 +270,7 @@ export function AuthProvider({ children }) {
 
     const value = {
         user,
+        setUser,
         subscription,
         wallet,
         loading,

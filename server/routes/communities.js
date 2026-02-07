@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../config/db.js';
 import { authMiddleware as authenticateToken } from '../middleware/auth.js';
+import { unlockAchievement } from '../utils/achievements.js';
 
 const router = express.Router();
 
@@ -111,6 +112,9 @@ router.post('/', authenticateToken, async (req, res) => {
             INSERT INTO community_members (community_id, user_id, role, status)
             VALUES (?, ?, 'admin', 'active')
         `, [communityId, userId]);
+
+        // Trigger Achievement: Community Founder
+        await unlockAchievement(userId, 'comm_founder');
 
         await connection.commit();
 
@@ -272,6 +276,11 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
 
         await db.query(`INSERT INTO community_members (community_id, user_id, role, status) VALUES (?, ?, 'member', ?)`, [id, userId, status]);
 
+        if (status === 'active') {
+            // Trigger Achievement: Team Player
+            await unlockAchievement(userId, 'comm_member');
+        }
+
         // Update member count cache in communities table if needed, or rely on count query
 
         res.json({ success: true, message: status === 'active' ? 'Berhasil bergabung' : 'Permintaan bergabung dikirim' });
@@ -281,6 +290,39 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Sudah bergabung / request pending' });
         }
         console.error('Join community error:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+});
+
+// Leave Community
+router.post('/:id/leave', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        // Check if community exists
+        const [communities] = await db.query('SELECT creator_id FROM communities WHERE id = ?', [id]);
+        if (communities.length === 0) return res.status(404).json({ success: false, message: 'Community not found' });
+
+        const community = communities[0];
+
+        // Prevent creator from leaving
+        if (community.creator_id === userId) {
+            return res.status(400).json({ success: false, message: 'Creator tidak dapat keluar dari komunitas. Silakan bubarkan komunitas jika ingin menghapus.' });
+        }
+
+        // Check membership
+        const [existing] = await db.query('SELECT id FROM community_members WHERE community_id = ? AND user_id = ?', [id, userId]);
+        if (existing.length === 0) {
+            return res.status(400).json({ success: false, message: 'Anda bukan anggota komunitas ini' });
+        }
+
+        // Remove member
+        await db.query('DELETE FROM community_members WHERE community_id = ? AND user_id = ?', [id, userId]);
+
+        res.json({ success: true, message: 'Berhasil keluar dari komunitas' });
+    } catch (error) {
+        console.error('Leave community error:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 });

@@ -16,6 +16,7 @@ import postRoutes from './routes/posts.js';
 import chatbotRoutes from './routes/chatbot.js';
 import complaintsRoutes from './routes/complaints.js';
 import metaRoutes from './routes/meta.js';
+import achievementsRoutes from './routes/achievements.js';
 import { initDatabase } from './config/db.js';
 
 const app = express();
@@ -47,6 +48,7 @@ app.use('/api/communities', communityRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/chat', chatbotRoutes);
 app.use('/api/complaints', complaintsRoutes);
+app.use('/api/achievements', achievementsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -76,8 +78,16 @@ export default app;
 import { fileURLToPath } from 'url';
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const PORT = process.env.PORT || 3001;
-    app.listen(PORT, '0.0.0.0', () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
         console.log(`🚀 Server running on http://localhost:${PORT}`);
         console.log(`➜  Network: http://${process.env.HOST_IP || '0.0.0.0'}:${PORT}/`);
+    });
+
+    server.on('error', (e) => {
+        if (e.code === 'EADDRINUSE') {
+            console.error('❌ Port ' + PORT + ' is already in use!');
+        } else {
+            console.error('❌ Server error:', e);
+        }
     });
 }

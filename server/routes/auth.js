@@ -5,6 +5,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { query, getConnection } from '../config/db.js';
 import { sendOTPEmail } from '../config/mail.js';
 import { generateToken, authMiddleware } from '../middleware/auth.js';
+import { unlockAchievement } from '../utils/achievements.js';
 
 const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -130,6 +131,14 @@ router.post('/verify-otp', async (req, res) => {
             );
 
             await connection.commit();
+
+            // Trigger Achievement: Early Adopter
+            // Check if before 1 April 2026
+            if (new Date() < new Date('2026-04-01')) {
+                // We need to call this OUTSIDE the transaction loop mostly or just ensure it handles its own errors
+                // unlockAchievement uses its own pool usually, so it's safe.
+                await unlockAchievement(userId, 'early_adopter');
+            }
 
             // Get user data
             const users = await query('SELECT * FROM users WHERE id = ?', [userId]);
@@ -388,6 +397,11 @@ router.post('/google', async (req, res) => {
 
                 await connection.commit();
 
+                // Trigger Achievement: Early Adopter
+                if (new Date() < new Date('2026-04-01')) {
+                    await unlockAchievement(userId, 'early_adopter');
+                }
+
                 users = await query('SELECT * FROM users WHERE id = ?', [userId]);
             } catch (error) {
                 await connection.rollback();
@@ -466,13 +480,25 @@ router.get('/me', authMiddleware, async (req, res) => {
         );
         const subscription = subscriptions.length > 0 ? { ...subscriptions[0], plan: subscriptions[0].plan_name } : null;
 
-        // Fetch user profiles for bio
-        const [profiles] = await query('SELECT bio FROM user_profiles WHERE user_id = ?', [req.user.id]);
+        // Fetch user profiles for bio and preferences
+        const [profiles] = await query('SELECT bio, preferences FROM user_profiles WHERE user_id = ?', [req.user.id]);
+        console.log('GET /me: profiles data from DB:', profiles);
+
+        // Fetch user stats
+        const [stats] = await query('SELECT total_points, total_wins, total_matches FROM user_statistics WHERE user_id = ?', [req.user.id]);
+        const userStats = stats || { total_points: 0, total_wins: 0, total_matches: 0 };
+
+        const winRate = userStats.total_matches > 0
+            ? Math.round((userStats.total_wins / userStats.total_matches) * 100) + '%'
+            : '0%';
 
         const [users] = await query('SELECT password FROM users WHERE id = ?', [req.user.id]);
 
-        // Attach bio to users object for convenience in the response construction below
-        if (profiles) users.bio = profiles.bio;
+        // Attach bio and preferences to users object for convenience in the response construction below
+        if (profiles) {
+            users.bio = profiles.bio;
+            users.preferences = profiles.preferences;
+        }
 
         res.json({
             success: true,
@@ -486,10 +512,14 @@ router.get('/me', authMiddleware, async (req, res) => {
                     phone: req.user.phone,
                     avatar_url: req.user.avatar_url,
                     role: req.user.role,
+                    stats: userStats,
+                    winRate: winRate,
                     needsUsername: !req.user.username,
                     needsCoinClaim: !req.user.has_claimed_login_coin,
                     hasPassword: !!users?.password,
-                    bio: users?.bio || ''
+                    hasPassword: !!users?.password,
+                    bio: users?.bio || '',
+                    preferences: users?.preferences || null
                 }
             }
         });
@@ -658,6 +688,51 @@ router.put('/profile', authMiddleware, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Terjadi kesalahan saat memperbarui profil'
+        });
+    }
+});
+
+
+
+// PUT /api/auth/preferences - Update user preferences
+router.put('/preferences', authMiddleware, async (req, res) => {
+    try {
+        const { preferences } = req.body;
+        const userId = req.user.id;
+
+        console.log('--- PUT /api/auth/preferences ---');
+        console.log('User ID:', userId);
+        console.log('Received Preferences:', preferences);
+
+        if (!preferences) {
+            return res.status(400).json({
+                success: false,
+                message: 'Preferences data required'
+            });
+        }
+
+        const preferencesJson = JSON.stringify(preferences);
+        console.log('Saving JSON:', preferencesJson);
+
+        const result = await query(
+            `INSERT INTO user_profiles (user_id, preferences) VALUES (?, ?) 
+             ON DUPLICATE KEY UPDATE preferences = VALUES(preferences)`,
+            [userId, preferencesJson]
+        );
+
+        console.log('Update Result:', result);
+
+        res.json({
+            success: true,
+            message: 'Preferences updated successfully',
+            data: { preferences }
+        });
+
+    } catch (error) {
+        console.error('Update preferences error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update preferences'
         });
     }
 });

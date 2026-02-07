@@ -3871,7 +3871,7 @@ export default function TournamentDetail() {
                                     <div>
                                         <h4 className="font-bold text-blue-400">Ikut Serta dalam Kompetisi</h4>
                                         <p className="text-sm text-gray-400">
-                                            Anda bisa mendaftarkan tim Anda sendiri ke dalam turnamen ini.
+                                            Anda bisa mendaftarkan diri Anda sendiri ke dalam turnamen ini.
                                         </p>
                                     </div>
                                 </div>

@@ -14,6 +14,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import UserBadge from '../../components/ui/UserBadge'
 import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
 import ShareDestinationModal from '../../components/ui/ShareDestinationModal'
+import WhatsAppModal from '../../components/modals/WhatsAppModal'
 
 // League options from eFootball DB API (2025 Update)
 const leagueOptions = [
@@ -71,6 +72,14 @@ export default function JoinCompetition() {
         teamLogo: '',
     })
     const [activeTab, setActiveTab] = useState('register')
+
+    const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
+
+    useEffect(() => {
+        if (user && !user.phone) {
+            setShowWhatsAppModal(true)
+        }
+    }, [user])
 
     const isJoined = participants.some(p => p.user_id === user?.id)
 
@@ -913,6 +922,11 @@ export default function JoinCompetition() {
                 isOpen={shareModalOpen}
                 onClose={() => setShareModalOpen(false)}
                 sharedContent={sharedContent}
+            />
+            <WhatsAppModal
+                isOpen={showWhatsAppModal}
+                onClose={() => setShowWhatsAppModal(false)}
+                onCancel={() => navigate('/dashboard/competitions')}
             />
         </>
     )
