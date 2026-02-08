@@ -2,7 +2,56 @@ import express from 'express';
 import { query } from '../config/db.js';
 import { unlockAchievement } from '../utils/achievements.js';
 
+import { createNotification, createBulkNotifications } from '../utils/notifications.js';
+import { logActivity } from '../utils/activity.js';
+
 const router = express.Router();
+
+import os from 'os';
+
+// Get dashboard statistics
+router.get('/dashboard-stats', async (req, res) => {
+    try {
+        const statsQuery = `
+            SELECT 
+                (SELECT COUNT(*) FROM users) as total_users,
+                (SELECT COUNT(*) FROM complaints WHERE status IN ('open', 'in_progress')) as active_complaints,
+                (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'topup' AND status = 'success') as total_revenue,
+                (SELECT COUNT(*) FROM tournaments) as total_tournaments,
+                (SELECT COUNT(*) FROM matches) as total_matches,
+                (SELECT COUNT(*) FROM user_subscriptions WHERE status = 'active') as active_subscriptions,
+                (SELECT COUNT(*) FROM users WHERE DATE(created_at) = CURDATE()) as new_users_today
+        `;
+
+        const [stats] = await query(statsQuery);
+
+        // System Metrics Calculation
+        const totalMem = os.totalmem();
+        const freeMem = os.freemem();
+        const usedMem = totalMem - freeMem;
+        const memUsagePercent = Math.round((usedMem / totalMem) * 100);
+
+        let healthStatus = 'Stable';
+        if (memUsagePercent > 90) {
+            healthStatus = 'Critical';
+        } else if (memUsagePercent > 70) {
+            healthStatus = 'High Load';
+        }
+
+        res.json({
+            success: true,
+            data: {
+                ...stats,
+                system_health: healthStatus,
+                server_load: memUsagePercent,
+                db_usage: 45 // Placeholder as requested, or could be real query count if available
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch dashboard stats' });
+    }
+});
 
 // Get all users with stats
 router.get('/users', async (req, res) => {
@@ -123,6 +172,11 @@ router.put('/users/:id', async (req, res) => {
         if (subscription_plan === 'pro_league') await unlockAchievement(userId, 'sub_pro');
 
         res.json({ success: true, message: 'User updated successfully' });
+
+        // Log Activity
+        if (req.user && req.user.id) {
+            await logActivity(req.user.id, 'Admin Update User', `Admin updated user ${userId} role/sub`, userId, 'user');
+        }
     } catch (error) {
         console.error('Update User Error:', error);
         res.status(500).json({ success: false, message: 'Failed to update user' });
@@ -157,6 +211,15 @@ router.post('/users/:id/wallet', async (req, res) => {
             [wallet.id, type, amount, category, reason || 'Admin adjustment']
         );
 
+        // NOTIFICATION: Coin Adjustment
+        await createNotification(
+            userId,
+            'coin_adjustment',
+            amount > 0 ? 'Penambahan Koin 💰' : 'Pengurangan Koin 💸',
+            `Admin menyesuaikan saldo Anda sebesar ${amount > 0 ? '+' : ''}${amount}. Alasan: ${reason || '-'}`,
+            { amount: amount, reason: reason }
+        );
+
 
         res.json({ success: true, message: 'Wallet adjusted successfully' });
 
@@ -187,6 +250,10 @@ router.delete('/users/:id', async (req, res) => {
         // Cascading deletes handled by foreign keys ideally, but manual cleanup ensures safety
         await query('DELETE FROM users WHERE id = ?', [userId]);
         res.json({ success: true, message: 'User deleted successfully' });
+
+        if (req.user && req.user.id) {
+            await logActivity(req.user.id, 'Admin Delete User', `Admin deleted user ${userId}`, userId, 'user');
+        }
     } catch (error) {
         console.error('Delete User Error:', error);
         res.status(500).json({ success: false, message: 'Failed to delete user' });
@@ -273,6 +340,84 @@ router.post('/email-blast', async (req, res) => {
         message: `Email blast completed. ${successCount} sent, ${failCount} failed.`,
         results
     });
+});
+
+// Get System History
+router.get('/history', async (req, res) => {
+    try {
+        const sql = `
+            SELECT 
+                l.id,
+                l.action,
+                l.description,
+                l.created_at,
+                l.reference_id,
+                l.reference_type,
+                u.name as user_name,
+                u.email as user_email,
+                u.avatar_url as user_avatar,
+                u.role as user_role
+            FROM user_logs l
+            JOIN users u ON l.user_id = u.id
+            ORDER BY l.created_at DESC
+            LIMIT 100
+        `;
+
+        const logs = await query(sql);
+
+        // Format relative time if needed, or let frontend handle it
+        res.json({ success: true, data: logs });
+    } catch (error) {
+        console.error('Error fetching history:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch history' });
+    }
+});
+
+// Admin Announcement
+router.post('/announcements', async (req, res) => {
+    try {
+        const { title, message, target_user_id } = req.body;
+
+        if (!title || !message) {
+            return res.status(400).json({ success: false, message: 'Title and message are required' });
+        }
+
+        if (target_user_id) {
+            // Single User
+            await createNotification(
+                target_user_id,
+                'admin_announcement',
+                title,
+                message,
+                { from: 'admin' }
+            );
+        } else {
+            // All Users (Bulk)
+            // Fetch all user IDs (WARNING: Heavy for large user base, but okay for MVP/small scale)
+            const users = await query('SELECT id FROM users');
+            const userIds = users.map(u => u.id);
+
+            // Chunking if too large? createBulkNotifications handles array.
+            // But let's limit it or chunk it inside the utils if needed.
+            // For now, pass all.
+            await createBulkNotifications(
+                userIds,
+                'admin_announcement',
+                title,
+                message,
+                { from: 'admin' }
+            );
+        }
+
+        res.json({ success: true, message: 'Announcement sent successfully' });
+
+        if (req.user && req.user.id) {
+            await logActivity(req.user.id, 'Admin Announcement', `Admin sent announcement: ${title}`, null, 'system');
+        }
+    } catch (error) {
+        console.error('Announcement Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to send announcement' });
+    }
 });
 
 export default router;

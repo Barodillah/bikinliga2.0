@@ -2,6 +2,8 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import db from '../config/db.js';
 import { authMiddleware as authenticateToken, optionalAuth } from '../middleware/auth.js';
+import { createNotification } from '../utils/notifications.js';
+import { logActivity } from '../utils/activity.js';
 
 const router = express.Router();
 // const log = (msg) => fs.appendFileSync('debug.txt', `${new Date().toISOString()} - ${msg}\n`);
@@ -419,6 +421,10 @@ router.post('/:id/events', authenticateToken, async (req, res) => {
         );
 
         await connection.commit();
+
+        // Log Activity
+        await logActivity(req.user.id, 'Add Match Event', `User added event: ${type} (${detail || ''})`, id, 'match');
+
         res.json({ success: true, message: 'Event recorded', eventId });
 
     } catch (error) {
@@ -472,6 +478,10 @@ router.delete('/:id/events/last', authenticateToken, async (req, res) => {
         await connection.query('DELETE FROM match_events WHERE id = ?', [lastEvent.id]);
 
         await connection.commit();
+
+        // Log Activity
+        await logActivity(req.user.id, 'Rollback Event', `User rolled back event: ${lastEvent.type}`, id, 'match');
+
         res.json({ success: true, message: 'Event rolled back' });
 
     } catch (error) {
@@ -569,6 +579,9 @@ router.patch('/:id', authenticateToken, async (req, res) => {
             );
         }
 
+        // Log Activity
+        await logActivity(req.user.id, 'Update Match', `User updated match status/score`, id, 'match');
+
         // 3. Logic for Auto-Events
         // Transition: Scheduled -> Live (specifically 1st_half) => Kickoff
         if (status === 'live' && currentMatch.status === 'scheduled' && period === '1st_half') {
@@ -578,6 +591,23 @@ router.patch('/:id', authenticateToken, async (req, res) => {
                  VALUES (?, ?, ?, 'kickoff', 0, 'home')`, // home/away doesn't matter for kickoff really, default home
                 [eventId, currentMatch.tournament_id, id]
             );
+
+            // NOTIFICATION: Kickoff
+            // Fetch participants to get user_ids
+            const [users] = await connection.query(
+                `SELECT user_id FROM participants WHERE id IN (?, ?) AND user_id IS NOT NULL`,
+                [currentMatch.home_participant_id, currentMatch.away_participant_id]
+            );
+
+            for (const u of users) {
+                await createNotification(
+                    u.user_id,
+                    'match_scheduled', // Reusing this or use a new 'match_started' type
+                    'Pertandingan Dimulai! ⚽',
+                    `Pertandingan Anda telah dimulai. Good luck!`,
+                    { match_id: id, tournament_id: currentMatch.tournament_id }
+                    , connection);
+            }
         }
 
         // Transition: Not Completed -> Fulltime (either via period or status)
@@ -599,6 +629,40 @@ router.patch('/:id', authenticateToken, async (req, res) => {
                      VALUES (?, ?, ?, 'fulltime', 90, 'home')`,
                     [eventId, currentMatch.tournament_id, id]
                 );
+
+                // NOTIFICATION: Match Completed
+                // Fetch participants to get user_ids
+                const [users] = await connection.query(
+                    `SELECT user_id FROM participants WHERE id IN (?, ?) AND user_id IS NOT NULL`,
+                    [currentMatch.home_participant_id, currentMatch.away_participant_id]
+                );
+
+                const resultTitle = homeScore > awayScore ? 'Anda Menang! 🎉' : (awayScore > homeScore ? 'Anda Kalah 😔' : 'Seri 🤝');
+                // Note: The title needs to be customized per user, but for simplicity sending a generic result first or custom loop
+
+                for (const u of users) {
+                    // Determine result for this specific user
+                    // We need to know if u.user_id belongs to home or away
+                    const [pRows] = await connection.query('SELECT id FROM participants WHERE user_id = ? AND id IN (?, ?)', [u.user_id, currentMatch.home_participant_id, currentMatch.away_participant_id]);
+                    if (pRows.length > 0) {
+                        const pid = pRows[0].id;
+                        const isHome = pid === currentMatch.home_participant_id;
+
+                        let myLabel = 'Seri';
+                        if (homeScore > awayScore) myLabel = isHome ? 'Menang' : 'Kalah';
+                        else if (awayScore > homeScore) myLabel = isHome ? 'Kalah' : 'Menang';
+
+                        const emoji = myLabel === 'Menang' ? '🎉' : (myLabel === 'Kalah' ? '😔' : '🤝');
+
+                        await createNotification(
+                            u.user_id,
+                            'match_completed',
+                            `Pertandingan Selesai - ${myLabel} ${emoji}`,
+                            `Skor Akhir: ${homeScore} - ${awayScore}`,
+                            { match_id: id, tournament_id: currentMatch.tournament_id }
+                            , connection);
+                    }
+                }
 
                 // --- START: Update User Statistics (Ranking) ---
                 try {

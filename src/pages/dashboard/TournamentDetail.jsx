@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
-import { Trophy, Users, Calendar, BarChart2, Settings, Share2, Download, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2, Gift, DollarSign, Percent, Save, Loader2, User, Phone, Shield, Sparkles, Medal, Crown, Target, ListFilter, MessageSquare, MessageCircle, Send, ChevronDown, UserCheck, ShieldCheck } from 'lucide-react'
+import { Trophy, Users, Calendar, BarChart2, Settings, Share2, Download, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2, Gift, DollarSign, Percent, Save, Loader2, User, Phone, Shield, Sparkles, Medal, Crown, Target, ListFilter, MessageSquare, MessageCircle, Send, ChevronDown, UserCheck, ShieldCheck, Mail } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Modal from '../../components/ui/Modal'
@@ -21,7 +21,8 @@ import SearchableSelect from '../../components/ui/SearchableSelect'
 import UserBadge from '../../components/ui/UserBadge'
 import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
 import ShareModal from '../../components/ui/ShareModal'
-import { exportStandingsToImage, exportBracketToImage, exportToImage } from '../../utils/exportImage'
+import InviteUserModal from '../../components/tournament/InviteUserModal'
+import { exportStandingsToImage, exportBracketToImage, exportToImage, exportTopScorersToImage } from '../../utils/exportImage'
 
 // Helper function for authenticated fetch
 const authFetch = (url, options = {}) => {
@@ -93,9 +94,10 @@ const leagueOptions = [
 
 // Sample draft players data
 // Draft Players List Component
-function DraftPlayerList({ players, tournamentId, navigate, onStatusUpdate, onEdit }) {
+function DraftPlayerList({ players, tournamentId, navigate, onStatusUpdate, onEdit, onInvite, isPrivate }) {
     const [filter, setFilter] = useState('all')
     const [loadingStatus, setLoadingStatus] = useState({ playerId: null, action: null })
+    const [reinviteModal, setReinviteModal] = useState({ isOpen: false, player: null })
 
     const filteredPlayers = filter === 'all'
         ? players
@@ -110,13 +112,20 @@ function DraftPlayerList({ players, tournamentId, navigate, onStatusUpdate, onEd
                     </span>
                 )
             case 'rejected':
+            case 'declined':
                 return (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-400">
-                        <XCircle className="w-3 h-3" /> Rejected
+                        <XCircle className="w-3 h-3" /> {status === 'declined' ? 'Declined' : 'Rejected'}
                     </span>
                 )
             case 'pending':
             case 'queued':
+            case 'invited':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400">
+                        <Mail className="w-3 h-3" /> Diundang
+                    </span>
+                )
             default:
                 return (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400">
@@ -128,150 +137,203 @@ function DraftPlayerList({ players, tournamentId, navigate, onStatusUpdate, onEd
 
     const statusCounts = {
         all: players.length,
+        invited: players.filter(p => p.status === 'invited').length,
         pending: players.filter(p => p.status === 'pending' || p.status === 'queued').length,
         approved: players.filter(p => p.status === 'approved').length,
         rejected: players.filter(p => p.status === 'rejected').length,
+        declined: players.filter(p => p.status === 'declined').length,
     }
 
     return (
-        <Card hover={false}>
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h3 className="font-display font-bold flex items-center gap-2">
-                        <Users className="w-5 h-5 text-neonGreen" />
-                        Daftar Pendaftar
-                    </h3>
-                    <p className="text-sm text-gray-400 mt-1">Kelola pemain yang mendaftar di turnamen ini</p>
-                </div>
-                <Button size="sm" onClick={() => navigate(`/dashboard/tournaments/${tournamentId}/players/add`)}>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Tambah Pemain
-                </Button>
-            </CardHeader>
-            <CardContent>
-                {/* Filter Tabs */}
-                <div className="flex flex-wrap gap-2 mb-4 pb-4 border-b border-white/10">
-                    {['all', 'pending', 'approved', 'rejected'].map((status) => (
-                        <button
-                            key={status}
-                            onClick={() => setFilter(status)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${filter === status
-                                ? 'bg-neonGreen/20 text-neonGreen'
-                                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                                }`}
-                        >
-                            {status === 'all' ? 'Semua' : status.charAt(0).toUpperCase() + status.slice(1)}
-                            <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-xs bg-white/10">
-                                {statusCounts[status]}
-                            </span>
-                        </button>
-                    ))}
-                </div>
-
-                {/* Players List */}
-                {filteredPlayers.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                        <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                        <p>Belum ada pemain dengan status ini</p>
+        <>
+            <Card hover={false}>
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h3 className="font-display font-bold flex items-center gap-2">
+                            <Users className="w-5 h-5 text-neonGreen" />
+                            Daftar Pendaftar
+                        </h3>
+                        <p className="text-sm text-gray-400 mt-1">Kelola pemain yang mendaftar di turnamen ini</p>
                     </div>
-                ) : (
-                    <div className="space-y-3">
-                        {filteredPlayers.map((player) => (
-                            <div key={player.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                                <div className="flex items-center gap-4 w-full sm:w-auto">
-                                    {player.logo_url ? (
-                                        <img src={player.logo_url} alt={player.name} className="w-10 h-10 rounded-lg object-contain" />
-                                    ) : (
-                                        <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 font-bold">
-                                            {player.team_name?.charAt(0) || player.name?.charAt(0)}
-                                        </div>
-                                    )}
-                                    <div>
-                                        <h4 className="font-bold text-white">{player.team_name || 'No Team'}</h4>
-                                        <div className="flex items-center gap-1">
-                                            <p className="text-sm text-gray-400">{player.name}</p>
-                                            {(player.tier || player.user?.tier) && (
-                                                <UserBadge
-                                                    tier={player.tier || player.user?.tier}
-                                                    size="sm"
-                                                    className="scale-75 origin-left"
-                                                />
-                                            )}
-                                        </div>
-                                        {(player.username || player.user?.username) && (
-                                            <p className="text-xs text-neonGreen mt-0.5">@{player.username || player.user?.username}</p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-4 w-full sm:w-auto justify-end">
-                                    <div className="text-right hidden sm:block">
-                                        {getStatusBadge(player.status)}
-                                        <p className="text-xs text-gray-500 mt-2">{formatDate(player.created_at)}</p>
-                                    </div>
-
-                                    <div className="flex items-center gap-1 border-l border-white/10 pl-4 ml-2">
-                                        <Button variant="ghost" size="sm" onClick={() => onEdit && onEdit(player)}>
-                                            <Edit className="w-4 h-4" />
-                                        </Button>
-
-                                        {/* Action Buttons for Pending */}
-                                        {player.status === 'pending' && (
-                                            <div className="flex gap-1">
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="text-green-400 hover:text-green-300"
-                                                    disabled={loadingStatus.playerId === player.id}
-                                                    onClick={async () => {
-                                                        if (onStatusUpdate) {
-                                                            setLoadingStatus({ playerId: player.id, action: 'approved' })
-                                                            try {
-                                                                await onStatusUpdate(player.id, 'approved')
-                                                            } finally {
-                                                                setLoadingStatus({ playerId: null, action: null })
-                                                            }
-                                                        }
-                                                    }}
-                                                >
-                                                    {loadingStatus.playerId === player.id && loadingStatus.action === 'approved' ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                    ) : (
-                                                        <Check className="w-4 h-4" />
-                                                    )}
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="text-red-400 hover:text-red-300"
-                                                    disabled={loadingStatus.playerId === player.id}
-                                                    onClick={async () => {
-                                                        if (onStatusUpdate) {
-                                                            setLoadingStatus({ playerId: player.id, action: 'rejected' })
-                                                            try {
-                                                                await onStatusUpdate(player.id, 'rejected')
-                                                            } finally {
-                                                                setLoadingStatus({ playerId: null, action: null })
-                                                            }
-                                                        }
-                                                    }}
-                                                >
-                                                    {loadingStatus.playerId === player.id && loadingStatus.action === 'rejected' ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                    ) : (
-                                                        <XCircle className="w-4 h-4" />
-                                                    )}
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        <Button size="sm" onClick={() => navigate(`/dashboard/tournaments/${tournamentId}/players/add`)} className="w-full sm:w-auto justify-center">
+                            <UserPlus className="w-4 h-4 mr-2" />
+                            Tambah Pemain
+                        </Button>
+                        {isPrivate && (
+                            <Button size="sm" variant="outline" onClick={onInvite} className="w-full sm:w-auto justify-center">
+                                <Mail className="w-4 h-4 mr-2" />
+                                Undang User
+                            </Button>
+                        )}
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {/* Filter Tabs */}
+                    <div className="flex flex-wrap gap-2 mb-4 pb-4 border-b border-white/10">
+                        {['all', ...(isPrivate ? ['invited'] : []), 'pending', 'approved', 'rejected', ...(isPrivate ? ['declined'] : [])].map((status) => (
+                            <button
+                                key={status}
+                                onClick={() => setFilter(status)}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${filter === status
+                                    ? 'bg-neonGreen/20 text-neonGreen'
+                                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                                    }`}
+                            >
+                                {status === 'all' ? 'Semua' : status.charAt(0).toUpperCase() + status.slice(1)}
+                                <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-xs bg-white/10">
+                                    {statusCounts[status]}
+                                </span>
+                            </button>
                         ))}
                     </div>
-                )}
-            </CardContent>
-        </Card>
+
+                    {/* Players List */}
+                    {filteredPlayers.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                            <p>Belum ada pemain dengan status ini</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {filteredPlayers.map((player) => (
+                                <div key={player.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                                        {player.logo_url ? (
+                                            <img src={player.logo_url} alt={player.name} className="w-10 h-10 rounded-lg object-contain" />
+                                        ) : (
+                                            <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 font-bold">
+                                                {player.team_name?.charAt(0) || player.name?.charAt(0)}
+                                            </div>
+                                        )}
+                                        <div>
+                                            <h4 className="font-bold text-white">{player.team_name || 'No Team'}</h4>
+                                            <div className="flex items-center gap-1">
+                                                <p className="text-sm text-gray-400">{player.name}</p>
+                                                {(player.tier || player.user?.tier) && (
+                                                    <UserBadge
+                                                        tier={player.tier || player.user?.tier}
+                                                        size="sm"
+                                                        className="scale-75 origin-left"
+                                                    />
+                                                )}
+                                            </div>
+                                            {(player.username || player.user?.username) && (
+                                                <p className="text-xs text-neonGreen mt-0.5">@{player.username || player.user?.username}</p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-4 w-full sm:w-auto justify-end">
+                                        <div className="text-right hidden sm:block">
+                                            {getStatusBadge(player.status)}
+                                            <p className="text-xs text-gray-500 mt-2">{formatDate(player.created_at)}</p>
+                                        </div>
+
+                                        <div className="flex items-center gap-1 border-l border-white/10 pl-4 ml-2">
+                                            {player.status !== 'invited' && player.status !== 'declined' && (
+                                                <Button variant="ghost" size="sm" onClick={() => onEdit && onEdit(player)}>
+                                                    <Edit className="w-4 h-4" />
+                                                </Button>
+                                            )}
+
+                                            {/* Action Buttons for Pending */}
+                                            {player.status === 'pending' && (
+                                                <div className="flex gap-1">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-green-400 hover:text-green-300"
+                                                        disabled={loadingStatus.playerId === player.id}
+                                                        onClick={async () => {
+                                                            if (onStatusUpdate) {
+                                                                setLoadingStatus({ playerId: player.id, action: 'approved' })
+                                                                try {
+                                                                    await onStatusUpdate(player.id, 'approved')
+                                                                } finally {
+                                                                    setLoadingStatus({ playerId: null, action: null })
+                                                                }
+                                                            }
+                                                        }}
+                                                    >
+                                                        {loadingStatus.playerId === player.id && loadingStatus.action === 'approved' ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <Check className="w-4 h-4" />
+                                                        )}
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-red-400 hover:text-red-300"
+                                                        disabled={loadingStatus.playerId === player.id}
+                                                        onClick={async () => {
+                                                            if (onStatusUpdate) {
+                                                                setLoadingStatus({ playerId: player.id, action: 'rejected' })
+                                                                try {
+                                                                    await onStatusUpdate(player.id, 'rejected')
+                                                                } finally {
+                                                                    setLoadingStatus({ playerId: null, action: null })
+                                                                }
+                                                            }
+                                                        }}
+                                                    >
+                                                        {loadingStatus.playerId === player.id && loadingStatus.action === 'rejected' ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <XCircle className="w-4 h-4" />
+                                                        )}
+                                                    </Button>
+                                                </div>
+                                            )}
+
+                                            {/* Reinvite Button for Declined */}
+                                            {player.status === 'declined' && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="text-blue-400 hover:text-blue-300"
+                                                    disabled={loadingStatus.playerId === player.id}
+                                                    onClick={() => setReinviteModal({ isOpen: true, player })}
+                                                >
+                                                    {loadingStatus.playerId === player.id && loadingStatus.action === 'reinvite' ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <Mail className="w-4 h-4" />
+                                                    )}
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Reinvite Confirmation Modal - Outside Card to prevent clipping */}
+            <ConfirmationModal
+                isOpen={reinviteModal.isOpen}
+                onClose={() => setReinviteModal({ isOpen: false, player: null })}
+                onConfirm={async () => {
+                    if (onStatusUpdate && reinviteModal.player) {
+                        setLoadingStatus({ playerId: reinviteModal.player.id, action: 'reinvite' })
+                        try {
+                            await onStatusUpdate(reinviteModal.player.id, 'invited')
+                        } finally {
+                            setLoadingStatus({ playerId: null, action: null })
+                            setReinviteModal({ isOpen: false, player: null })
+                        }
+                    }
+                }}
+                title="Undang Ulang Peserta"
+                message={`Apakah Anda yakin ingin mengundang ulang ${reinviteModal.player?.name || 'peserta ini'}? Mereka akan menerima notifikasi undangan baru.`}
+                confirmText="Undang Ulang"
+                variant="primary"
+                isLoading={loadingStatus.action === 'reinvite'}
+            />
+        </>
     )
 }
 
@@ -706,6 +768,7 @@ export default function TournamentDetail() {
     const [copied, setCopied] = useState(false)
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
     const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+    const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
 
     // Data States
     const [matches, setMatches] = useState([])
@@ -719,6 +782,7 @@ export default function TournamentDetail() {
     // Export Image Refs
     const standingsRef = useRef(null)
     const bracketRef = useRef(null)
+    const topScorersRef = useRef(null)
     const fixturesRefs = useRef({})
     const [exportLoading, setExportLoading] = useState(null) // 'standings' | 'bracket' | 'round_X' | null
 
@@ -827,6 +891,7 @@ export default function TournamentDetail() {
         home: { name: '???', logo: null },
         away: { name: '???', logo: null }
     })
+    const [filterStatus, setFilterStatus] = useState('all')
 
     // LOGIC HANDLERS & HELPERS
     const calculatePrizePool = () => {
@@ -1991,6 +2056,18 @@ export default function TournamentDetail() {
         }
     }
 
+    if (!tournamentData) {
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <Loader2 className="w-10 h-10 animate-spin text-neonGreen" />
+            </div>
+        )
+    }
+
+    const statusCounts = {
+        invited: tournamentData?.participants?.filter(p => p.status === 'invited').length || 0
+    }
+
     return (
         <div className="space-y-4 md:space-y-6 overflow-x-hidden">
             {/* Header */}
@@ -2136,7 +2213,7 @@ export default function TournamentDetail() {
                     <Card className="p-3 sm:p-4 text-center">
                         <Clock className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-yellow-400" />
                         <div className="text-xl sm:text-2xl font-display font-bold">
-                            {(tournamentData.participants || []).filter(p => p.status === 'pending').length}
+                            {(tournamentData.participants || []).filter(p => p.status === 'pending' || p.status === 'invited').length}
                         </div>
                         <div className="text-xs text-gray-500">Menunggu</div>
                     </Card>
@@ -2150,7 +2227,7 @@ export default function TournamentDetail() {
                     <Card className="p-3 sm:p-4 text-center">
                         <XCircle className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-red-400" />
                         <div className="text-xl sm:text-2xl font-display font-bold">
-                            {(tournamentData.participants || []).filter(p => p.status === 'rejected').length}
+                            {(tournamentData.participants || []).filter(p => p.status === 'rejected' || p.status === 'declined').length}
                         </div>
                         <div className="text-xs text-gray-500">Ditolak</div>
                     </Card>
@@ -2230,10 +2307,10 @@ export default function TournamentDetail() {
             {
                 activeTab === 'news' && (
                     <div className="space-y-4 animate-fadeIn">
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                             <h3 className="font-display font-bold text-lg">Berita & Pengumuman</h3>
                             {tournamentData.organizer_id === user?.id && (
-                                <Button size="sm" onClick={handleOpenCreateNews}>
+                                <Button size="sm" onClick={handleOpenCreateNews} className="w-full sm:w-auto justify-center">
                                     <Plus className="w-4 h-4 mr-2" />
                                     Tambah Berita
                                 </Button>
@@ -3418,7 +3495,24 @@ export default function TournamentDetail() {
                             <h3 className="font-display font-bold text-lg">Top Scorers</h3>
                             <div className="text-sm text-gray-400">Total: {topScorers.length} players</div>
                         </div>
-                        <TopScorerList scorers={topScorers} />
+                        <TopScorerList
+                            scorers={topScorers}
+                            ref={topScorersRef}
+                            onExport={async () => {
+                                if (topScorersRef.current) {
+                                    setExportLoading('top_scorers')
+                                    try {
+                                        await exportTopScorersToImage(topScorersRef.current, tournamentData?.name || 'tournament')
+                                        // showSuccess('Top Scorer berhasil diexport!') // Optional: Add success toast if desired, though export usually speaks for itself
+                                    } catch (error) {
+                                        console.error('Export failed:', error)
+                                        // showError('Gagal mengexport gambar.') // Optional: Add error toast
+                                    } finally {
+                                        setExportLoading(null)
+                                    }
+                                }
+                            }}
+                        />
                     </div>
                 )
             }
@@ -3863,9 +3957,9 @@ export default function TournamentDetail() {
 
                         {/* Owner Join Alert */}
                         {isDraft && isOrganizer && !(tournamentData.participants || []).some(p => p.user_id === user?.id) && (
-                            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 flex items-center justify-between gap-4 animate-fadeIn">
+                            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fadeIn">
                                 <div className="flex items-start gap-3">
-                                    <div className="p-2 bg-blue-500/20 rounded-lg">
+                                    <div className="p-2 bg-blue-500/20 rounded-lg shrink-0">
                                         <User className="w-5 h-5 text-blue-400" />
                                     </div>
                                     <div>
@@ -3875,8 +3969,8 @@ export default function TournamentDetail() {
                                         </p>
                                     </div>
                                 </div>
-                                <Link to={`/dashboard/competitions/${tournamentData.slug || id}/join`}>
-                                    <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white border-none whitespace-nowrap">
+                                <Link to={`/dashboard/competitions/${tournamentData.slug || id}/join`} className="w-full sm:w-auto">
+                                    <Button size="sm" className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white border-none whitespace-nowrap justify-center">
                                         Gabung Kompetisi
                                     </Button>
                                 </Link>
@@ -3890,6 +3984,8 @@ export default function TournamentDetail() {
                                 navigate={navigate}
                                 onStatusUpdate={handleStatusUpdate}
                                 onEdit={handleEditParticipant}
+                                isPrivate={tournamentData.visibility === 'private'}
+                                onInvite={() => setIsInviteModalOpen(true)}
                             />
                         ) : (
                             <Card hover={false}>
@@ -4144,6 +4240,12 @@ export default function TournamentDetail() {
                     </div>
                 </div>
             </Modal>
+
+            <InviteUserModal
+                isOpen={isInviteModalOpen}
+                onClose={() => setIsInviteModalOpen(false)}
+                tournamentId={id}
+            />
 
             {/* Share Modal */}
             <ShareModal

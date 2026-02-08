@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../config/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { authMiddleware as authenticateToken } from '../middleware/auth.js';
+import { logActivity } from '../utils/activity.js';
 
 const router = express.Router();
 
@@ -200,7 +201,7 @@ router.post('/message', authenticateToken, async (req, res) => {
 
         // Fetch User Context (Tournaments, etc) WITH MORE DETAILS
         // 1. Hosted Tournaments (Organizer)
-        const [hostedTournaments] = await query(
+        const hostedTournaments = await query(
             `SELECT name, type, status, 
                     current_participants, max_participants, 
                     DATE_FORMAT(start_date, '%d %M %Y') as start_date, 
@@ -219,7 +220,7 @@ router.post('/message', authenticateToken, async (req, res) => {
         );
 
         // 2. Joined as Team Manager (Participants)
-        const [joinedTeams] = await query(
+        const joinedTeams = await query(
             `SELECT t.name as tournament_name, t.status as tournament_status, 
                     p.name as team_name, p.status as participation_status,
                     DATE_FORMAT(t.start_date, '%d %M %Y') as start_date
@@ -231,7 +232,7 @@ router.post('/message', authenticateToken, async (req, res) => {
         );
 
         // 3. Joined as Player (Players)
-        const [joinedPlayer] = await query(
+        const joinedPlayer = await query(
             `SELECT t.name as tournament_name, pl.team_name, pl.position, pl.jersey_number
              FROM players pl
              JOIN tournaments t ON pl.tournament_id = t.id
@@ -241,8 +242,8 @@ router.post('/message', authenticateToken, async (req, res) => {
         );
 
         // Fetch User Wallet & Subscription
-        const [wallet] = await query('SELECT balance FROM wallets WHERE user_id = ?', [userId]);
-        const [subscription] = await query(
+        const wallet = await query('SELECT balance FROM wallets WHERE user_id = ?', [userId]);
+        const subscription = await query(
             `SELECT sp.name as plan_name, us.status, DATE_FORMAT(us.end_date, '%d %M %Y') as end_date
              FROM user_subscriptions us
              JOIN subscription_plans sp ON us.plan_id = sp.id
@@ -254,8 +255,8 @@ router.post('/message', authenticateToken, async (req, res) => {
         let contextString = `\n\n=== DATA KONTEKS PENGGUNA TERKINI ===\n`;
         contextString += `[PROFIL]\n`;
         contextString += `- User ID: ${userId}\n`;
-        contextString += `- Paket: ${subscription ? `${subscription.plan_name} (Berakhir: ${subscription.end_date})` : 'Free'}\n`;
-        contextString += `- Saldo Koin: ${wallet ? Number(wallet.balance).toLocaleString('id-ID') : 0}\n`;
+        contextString += `- Paket: ${subscription?.[0] ? `${subscription[0].plan_name} (Berakhir: ${subscription[0].end_date})` : 'Free'}\n`;
+        contextString += `- Saldo Koin: ${wallet?.[0] ? Number(wallet[0].balance).toLocaleString('id-ID') : 0}\n`;
 
         if (Array.isArray(hostedTournaments) && hostedTournaments.length > 0) {
             contextString += `\n[TURNAMEN YANG DIKELOLA (Organizer)]\n`;
@@ -291,11 +292,6 @@ router.post('/message', authenticateToken, async (req, res) => {
         contextString += `=====================================\n`;
 
         // Build messages array for OpenRouter
-        const userContentWithContext = `INFO KONTEKS SYSTEM (Hidden from user):\n${contextString}\n\nPERTANYAAN USER:\n${content}`;
-
-        // Instead of modifying system prompt which is static, we can prepend context to the latest user message 
-        // OR append to system prompt. Appending to system prompt is cleaner contextually.
-
         const messages = [
             { role: 'system', content: SYSTEM_PROMPT + contextString },
             ...history.map(msg => ({ role: msg.role, content: msg.content }))
@@ -346,6 +342,9 @@ router.post('/message', authenticateToken, async (req, res) => {
         // Update session timestamp
         await query('UPDATE chat_sessions SET updated_at = NOW() WHERE id = ?', [sessionId]);
 
+        // Log Activity
+        await logActivity(userId, 'Ask AI', 'User asked a question to AI Assistant', sessionId, 'chat_session');
+
         res.json({
             success: true,
             data: {
@@ -370,221 +369,3 @@ router.post('/message', authenticateToken, async (req, res) => {
 });
 
 export default router;
-
-// Analyze tournament and provide AI insights
-router.post('/analyze', authenticateToken, async (req, res) => {
-    try {
-        const { tournamentId, message, sessionId } = req.body;
-        const userId = req.user.id;
-
-        if (!tournamentId || !message) {
-            return res.status(400).json({ success: false, message: 'Tournament ID and message are required' });
-        }
-
-        // 1. Check Subscription Plan
-        const [subscription] = await query(
-            `SELECT sp.name as plan_name, us.status, sp.id as plan_id
-             FROM user_subscriptions us
-             JOIN subscription_plans sp ON us.plan_id = sp.id
-             WHERE us.user_id = ? AND us.status = 'active'
-             LIMIT 1`,
-            [userId]
-        );
-
-        const planName = subscription ? subscription.plan_name.toLowerCase() : 'free';
-
-        // Subscription Logic
-        if (planName === 'free') {
-            return res.status(403).json({
-                success: false,
-                code: 'PLAN_FREE',
-                message: 'Fitur ini hanya tersedia untuk member. Silakan upgrade paket Anda.'
-            });
-        }
-
-        if (planName.includes('captain')) { // Assuming 'Captain' or 'captain'
-            // Check daily limit (2 per day)
-            const [dailyUsage] = await query(
-                `SELECT COUNT(*) as count 
-                 FROM chat_messages cm
-                 JOIN chat_sessions cs ON cm.session_id = cs.id
-                 WHERE cs.user_id = ? 
-                 AND cm.role = 'user' 
-                 AND cs.title LIKE 'Analysis:%'
-                 AND DATE(cm.created_at) = CURDATE()`,
-                [userId]
-            );
-
-            if (dailyUsage.count >= 2) {
-                return res.status(403).json({
-                    success: false,
-                    code: 'LIMIT_REACHED',
-                    message: 'Kuota harian Anda habis. Upgrade ke Pro League untuk akses unlimited.'
-                });
-            }
-        }
-
-        // Pro League is unlimited, continue...
-
-        // 2. Handle Session
-        let activeSessionId = sessionId;
-        if (!activeSessionId) {
-            // Check if there is an existing session for this tournament today
-            const [existingSession] = await query(
-                `SELECT id FROM chat_sessions 
-                 WHERE user_id = ? AND title = ? 
-                 ORDER BY updated_at DESC LIMIT 1`,
-                [userId, `Analysis: Tournament #${tournamentId}`]
-            );
-
-            if (existingSession) {
-                activeSessionId = existingSession.id;
-            } else {
-                // Create new session
-                activeSessionId = uuidv4();
-                await query(
-                    'INSERT INTO chat_sessions (id, user_id, title) VALUES (?, ?, ?)',
-                    [activeSessionId, userId, `Analysis: Tournament #${tournamentId}`]
-                );
-            }
-        }
-
-        // 3. Gather Tournament Context
-        // Basic Info
-        const tournamentsList = await query('SELECT * FROM tournaments WHERE id = ? OR slug = ?', [tournamentId, tournamentId]);
-        const tournament = tournamentsList[0];
-
-        if (!tournament) {
-            console.error(`Tournament not found: ${tournamentId}`);
-            throw new Error('Tournament not found');
-        }
-
-        const realTournamentId = tournament.id;
-
-        // Standings (Points, Win Rate, etc)
-        const standings = await query(
-            `SELECT * FROM standings WHERE tournament_id = ? ORDER BY points DESC, goal_difference DESC LIMIT 10`,
-            [realTournamentId]
-        );
-
-        // Completed Matches
-        const matches = await query(
-            `SELECT * FROM matches 
-             WHERE tournament_id = ? AND (status = 'completed' OR status = 'finished')
-             ORDER BY start_time DESC LIMIT 20`,
-            [realTournamentId]
-        );
-
-        // Top Scorers
-        const topScorers = await query(
-            `SELECT 
-                me.player_name,
-                p.name as team_name, 
-                COUNT(me.id) as goals
-             FROM match_events me
-             LEFT JOIN participants p ON me.participant_id = p.id
-             WHERE me.tournament_id = ? 
-               AND me.type IN ('goal', 'penalty_goal')
-             GROUP BY me.player_name, me.participant_id
-             ORDER BY goals DESC
-             LIMIT 5`,
-            [realTournamentId]
-        );
-
-        // Format Context for AI
-        let contextData = `DATA TURNAMEN: ${tournament.name}\n`;
-        contextData += `Tipe: ${tournament.type}, Format: ${tournament.match_format}\n\n`;
-
-        contextData += `KLASEMEN (Top 10):\n`;
-        standings.forEach((s, i) => {
-            contextData += `${i + 1}. ${s.team_name || s.player_name}: ${s.points} Poin, Main: ${s.played}, Menang: ${s.won}, Seri: ${s.drawn}, Kalah: ${s.lost}, Gol: ${s.goals_for}:${s.goals_against}\n`;
-        });
-
-        contextData += `\nPERTANDINGAN TERAKHIR:\n`;
-        matches.forEach(m => {
-            const home = m.home_team_name || m.home_player_name;
-            const away = m.away_team_name || m.away_player_name;
-            contextData += `- ${home} ${m.home_score} vs ${m.away_score} ${away}\n`;
-        });
-
-        contextData += `\nTOP SCORERS:\n`;
-        topScorers.forEach((p, i) => {
-            contextData += `${i + 1}. ${p.player_name} (${p.team_name}) - ${p.goals} Gol\n`;
-        });
-
-        const ANALYSIS_SYSTEM_PROMPT = `Anda adalah AI Analis Turnamen Sepak Bola/Futsal Profesional. 
-Tugas Anda adalah memberikan analisis mendalam, prediksi, dan insight tactical berdasarkan data statistik yang diberikan.
-Gunakan gaya bahasa komentator atau analis olahraga profesional (seperti Bung Binder atau Coach Justin) namun tetap sopan dan membantu.
-Jawablah pertanyaan user berdasarkan data di atas. Jika data tidak cukup, berikan asumsi logis berdasarkan tren performa (menang/kalah).`;
-
-        // 4. Send to AI
-        // Get conversation history
-        const history = await query(
-            'SELECT role, content FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC LIMIT 10',
-            [activeSessionId]
-        );
-
-        const messages = [
-            { role: 'system', content: ANALYSIS_SYSTEM_PROMPT + '\n\n' + contextData },
-            ...history.map(msg => ({ role: msg.role, content: msg.content })),
-            { role: 'user', content: message }
-        ];
-
-        // Call OpenRouter API
-        const apiKey = process.env.VITE_OPENROUTER_API_KEY;
-        const model = process.env.VITE_OPENROUTER_MODEL || 'google/gemini-2.5-flash-lite';
-
-        const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': 'https://bikinliga.online',
-                'X-Title': 'Tourney Analyst'
-            },
-            body: JSON.stringify({
-                model: model,
-                messages: messages,
-                max_tokens: 1024,
-                temperature: 0.7
-            })
-        });
-
-        if (!openRouterResponse.ok) {
-            const err = await openRouterResponse.text();
-            console.error("AI Error", err);
-            throw new Error('AI Service Unavailable');
-        }
-
-        const aiData = await openRouterResponse.json();
-        const aiContent = aiData.choices?.[0]?.message?.content || 'Maaf, analisis tidak tersedia.';
-
-        // 5. Save Messages
-        const userMsgId = uuidv4();
-        await query(
-            'INSERT INTO chat_messages (id, session_id, role, content) VALUES (?, ?, ?, ?)',
-            [userMsgId, activeSessionId, 'user', message]
-        );
-
-        const aiMsgId = uuidv4();
-        await query(
-            'INSERT INTO chat_messages (id, session_id, role, content) VALUES (?, ?, ?, ?)',
-            [aiMsgId, activeSessionId, 'assistant', aiContent]
-        );
-
-        res.json({
-            success: true,
-            sessionId: activeSessionId,
-            data: {
-                id: aiMsgId,
-                role: 'assistant',
-                content: aiContent,
-                created_at: new Date()
-            }
-        });
-
-    } catch (error) {
-        console.error('Analyze Error:', error);
-        res.status(500).json({ success: false, message: `Gagal melakukan analisis: ${error.message}` });
-    }
-});

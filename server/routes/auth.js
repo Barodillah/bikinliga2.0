@@ -6,6 +6,7 @@ import { query, getConnection } from '../config/db.js';
 import { sendOTPEmail } from '../config/mail.js';
 import { generateToken, authMiddleware } from '../middleware/auth.js';
 import { unlockAchievement } from '../utils/achievements.js';
+import { logActivity } from '../utils/activity.js';
 
 const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -139,6 +140,9 @@ router.post('/verify-otp', async (req, res) => {
                 // unlockAchievement uses its own pool usually, so it's safe.
                 await unlockAchievement(userId, 'early_adopter');
             }
+
+            // Log Activity
+            await logActivity(userId, 'Register', 'User completed registration via Email OTP', userId, 'user');
 
             // Get user data
             const users = await query('SELECT * FROM users WHERE id = ?', [userId]);
@@ -299,6 +303,10 @@ router.post('/login', async (req, res) => {
 
         const token = generateToken(user.id);
 
+        // Log Activity (Login)
+        await logActivity(user.id, 'Login', 'User logged in via Email/Password', user.id, 'user');
+
+
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -402,6 +410,9 @@ router.post('/google', async (req, res) => {
                     await unlockAchievement(userId, 'early_adopter');
                 }
 
+                // Log Activity
+                await logActivity(userId, 'Register', 'User registered via Google', userId, 'user');
+
                 users = await query('SELECT * FROM users WHERE id = ?', [userId]);
             } catch (error) {
                 await connection.rollback();
@@ -413,6 +424,10 @@ router.post('/google', async (req, res) => {
             // Link Google account or update existing user info (avatar, google_id)
             await query('UPDATE users SET google_id = ?, avatar_url = ?, auth_provider = ? WHERE id = ?',
                 [googleId, picture, 'google', users[0].id]);
+
+            // Log Activity (Login)
+            await logActivity(users[0].id, 'Login', 'User logged in via Google', users[0].id, 'user');
+
             users = await query('SELECT * FROM users WHERE id = ?', [users[0].id]);
         }
 
@@ -595,6 +610,9 @@ router.put('/password', authMiddleware, async (req, res) => {
             data: { hasPassword: true }
         });
 
+        // Log Activity
+        await logActivity(userId, 'Update Password', 'User updated their password', userId, 'user');
+
     } catch (error) {
         console.error('Update password error:', error);
         res.status(500).json({
@@ -675,13 +693,12 @@ router.put('/profile', authMiddleware, async (req, res) => {
             message: 'Profil berhasil diperbarui',
             data: {
                 user: {
-                    id: userId,
-                    name,
-                    username,
-                    phone
                 }
             }
         });
+
+        // Log Activity
+        await logActivity(userId, 'Update Profile', `User updated profile: ${name} (${username})`, userId, 'user');
 
     } catch (error) {
         console.error('Update profile error:', error);
@@ -727,6 +744,9 @@ router.put('/preferences', authMiddleware, async (req, res) => {
             message: 'Preferences updated successfully',
             data: { preferences }
         });
+
+        // Log Activity
+        await logActivity(userId, 'Update Preferences', 'User updated their preferences', userId, 'user');
 
     } catch (error) {
         console.error('Update preferences error:', error);

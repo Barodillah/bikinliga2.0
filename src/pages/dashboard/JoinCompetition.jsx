@@ -1,8 +1,8 @@
 ﻿import React, { useState, useEffect } from 'react'
 import { authFetch } from '../../utils/api'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
-import { ArrowLeft, Loader2, User, Phone, Shield, Trophy, Users, Calendar, Sparkles, ShieldCheck, Newspaper, ClipboardList, MessageSquare, MessageCircle, ChevronDown, Send, CheckCircle, XCircle, Clock, Trash2, Edit, Share2 } from 'lucide-react'
-import Card, { CardHeader, CardContent } from '../../components/ui/Card'
+import { ArrowLeft, Loader2, User, Phone, Shield, Trophy, Users, Calendar, Sparkles, ShieldCheck, Newspaper, ClipboardList, MessageSquare, MessageCircle, ChevronDown, Send, CheckCircle, XCircle, Clock, Trash2, Edit, Share2, Mail, ImagePlus } from 'lucide-react'
+import Card, { CardHeader, CardContent, CardTitle, CardDescription } from '../../components/ui/Card'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
@@ -15,6 +15,7 @@ import UserBadge from '../../components/ui/UserBadge'
 import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
 import ShareDestinationModal from '../../components/ui/ShareDestinationModal'
 import WhatsAppModal from '../../components/modals/WhatsAppModal'
+import ConfirmationModal from '../../components/ui/ConfirmationModal'
 
 // League options from eFootball DB API (2025 Update)
 const leagueOptions = [
@@ -71,9 +72,13 @@ export default function JoinCompetition() {
         teamId: '',
         teamLogo: '',
     })
+
+    // Invite Acceptance State - leveraging existing formData
+    const [loading, setLoading] = useState(false)
     const [activeTab, setActiveTab] = useState('register')
 
     const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
+    const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
 
     useEffect(() => {
         if (user && !user.phone) {
@@ -88,6 +93,11 @@ export default function JoinCompetition() {
     useEffect(() => {
         if (isJoined && competitionData) {
             const myParticipant = participants.find(p => p.user_id === user?.id)
+
+            // If invited, stay here to show invite UI
+            if (myParticipant?.status === 'invited') {
+                return
+            }
 
             // Only redirect to view if tournament is NOT in draft mode
             // If draft, stay here (so they see the "Waiting for start" or similar state implicitly by being in Join page)
@@ -115,63 +125,25 @@ export default function JoinCompetition() {
 
     const [error, setError] = useState('')
 
-    // Edit Modal State
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-    const [editingParticipant, setEditingParticipant] = useState(null)
+    const teamOptions = [
+        { value: '', label: loadingTeams ? 'Memuat tim...' : 'Pilih Tim...' },
+        ...teams.map(team => ({
+            value: String(team.id),
+            label: team.name
+        }))
+    ]
 
-    const handleEditClick = (player) => {
-        setEditingParticipant(player)
-        setIsEditModalOpen(true)
+    const handleTeamChange = (e) => {
+        const selectedTeamId = e.target.value
+        const selectedTeam = teams.find(t => String(t.id) === selectedTeamId)
+
+        setFormData(prev => ({
+            ...prev,
+            team: selectedTeam?.name || '',
+            teamId: selectedTeamId,
+            teamLogo: selectedTeam?.logo || ''
+        }))
     }
-
-    const handleSaveParticipant = async (participantId, updateData) => {
-        try {
-            const res = await authFetch(`/api/tournaments/${id}/participants/${participantId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updateData)
-            })
-            const data = await res.json()
-            if (data.success) {
-                showSuccess('Data tim berhasil diperbarui')
-                setIsEditModalOpen(false)
-                // Refresh data
-                const resList = await authFetch(`/api/tournaments/${id}`)
-                const dataList = await resList.json()
-                if (dataList.success) {
-                    setParticipants(dataList.data.participants || [])
-                }
-            } else {
-                showError(data.message || 'Gagal memperbarui data')
-            }
-        } catch (err) {
-            console.error(err)
-            showError('Terjadi kesalahan saat menyimpan data')
-        }
-    }
-
-    // Fetch Competition and Participants data
-    useEffect(() => {
-        const fetchCompetition = async () => {
-            try {
-                setLoadingData(true)
-                const res = await authFetch(`/api/tournaments/${id}`)
-                const data = await res.json()
-                if (data.success) {
-                    setCompetitionData(data.data)
-                    setParticipants(data.data.participants || [])
-                } else {
-                    setError('Gagal memuat data kompetisi.')
-                }
-            } catch (error) {
-                console.error('Error fetching competition:', error)
-                navigate('/dashboard/competitions')
-            } finally {
-                setLoadingData(false)
-            }
-        }
-        if (id) fetchCompetition()
-    }, [id, navigate])
 
     // Fetch teams when league changes
     useEffect(() => {
@@ -235,17 +207,189 @@ export default function JoinCompetition() {
         fetchTeams()
     }, [formData.league])
 
-    const handleTeamChange = (e) => {
-        const selectedTeamId = e.target.value
-        const selectedTeam = teams.find(t => String(t.id) === selectedTeamId)
+    // Edit Modal State
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+    const [editingParticipant, setEditingParticipant] = useState(null)
 
-        setFormData(prev => ({
-            ...prev,
-            team: selectedTeam?.name || '',
-            teamId: selectedTeamId,
-            teamLogo: selectedTeam?.logo || ''
-        }))
+    const handleEditClick = (player) => {
+        setEditingParticipant(player)
+        setIsEditModalOpen(true)
     }
+
+    const handleSaveParticipant = async (participantId, updateData) => {
+        try {
+            const res = await authFetch(`/api/tournaments/${id}/participants/${participantId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updateData)
+            })
+            const data = await res.json()
+            if (data.success) {
+                showSuccess('Data tim berhasil diperbarui')
+                setIsEditModalOpen(false)
+                // Refresh data
+                const resList = await authFetch(`/api/tournaments/${id}`)
+                const dataList = await resList.json()
+                if (dataList.success) {
+                    setParticipants(dataList.data.participants || [])
+                }
+            } else {
+                showError(data.message || 'Gagal memperbarui data')
+            }
+        } catch (err) {
+            console.error(err)
+            showError('Terjadi kesalahan saat menyimpan data')
+        }
+    }
+
+    // Fetch Competition and Participants data
+    useEffect(() => {
+        const fetchCompetition = async () => {
+            try {
+                setLoadingData(true)
+                const res = await authFetch(`/api/tournaments/${id}`)
+                const data = await res.json()
+                if (data.success) {
+                    setCompetitionData(data.data)
+                    setParticipants(data.data.participants || [])
+                } else {
+                    setError('Gagal memuat data kompetisi.')
+                }
+            } catch (error) {
+                console.error('Error fetching competition:', error)
+                navigate('/dashboard/competitions')
+            } finally {
+                setLoadingData(false)
+            }
+        }
+        if (id) fetchCompetition()
+    }, [id, navigate])
+
+    useEffect(() => {
+        if (activeTab === 'news' && id) {
+            const fetchNews = async () => {
+                setIsNewsLoading(true)
+                try {
+                    const response = await authFetch(`/api/tournaments/${id}/news`)
+                    const data = await response.json()
+                    if (data.success) {
+                        setNewsList(data.data)
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch news:', err)
+                } finally {
+                    setIsNewsLoading(false)
+                }
+            }
+            fetchNews()
+        }
+    }, [activeTab, id])
+
+    const isInvited = participants.find(p => p.user_id === user?.id && p.status === 'invited')
+
+    const handleAcceptInvite = async (e) => {
+        e.preventDefault()
+        if (!formData.team) {
+            showError('Mohon lengkapi semua data required (*)')
+            return
+        }
+
+        setLoading(true)
+        try {
+            const myParticipant = participants.find(p => p.user_id === user?.id)
+            const response = await authFetch(`/api/tournaments/${id}/participants/${myParticipant.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    status: 'pending', // Changing status to pending means accepting
+                    team_name: formData.team,
+                    phone: user?.phone || user?.whatsapp || '-',
+                    logo_url: formData.teamLogo
+                })
+            })
+
+            const result = await response.json()
+
+            if (result.success) {
+                showSuccess('Undangan berhasil diterima! Menunggu persetujuan final penyelenggara.')
+                // Refresh data
+                const event = new CustomEvent('tournamentUpdated')
+                window.dispatchEvent(event)
+                navigate(`/dashboard/competitions/${id}/view`)
+            } else {
+                showError(result.message || 'Gagal menerima undangan')
+            }
+        } catch (err) {
+            console.error('Error accepting invite:', err)
+            showError('Terjadi kesalahan saat menerima undangan')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleRejectInvite = () => {
+        setIsRejectModalOpen(true)
+    }
+
+    const confirmReject = async () => {
+        setLoading(true)
+        try {
+            const myParticipant = participants.find(p => p.user_id === user?.id)
+            const response = await authFetch(`/api/tournaments/${id}/participants/${myParticipant.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    status: 'declined'
+                })
+            })
+
+            const result = await response.json()
+
+            if (result.success) {
+                showSuccess('Undangan telah ditolak')
+                navigate('/dashboard/competitions')
+            } else {
+                showError(result.message || 'Gagal menolak undangan')
+            }
+        } catch (err) {
+            console.error('Error rejecting invite:', err)
+            showError('Terjadi kesalahan saat menolak undangan')
+        } finally {
+            setLoading(false)
+            setIsRejectModalOpen(false)
+        }
+    }
+
+    if (loadingData) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+            </div>
+        )
+    }
+
+    if (error) {
+        return (
+            <div className="text-center py-12">
+                <p className="text-red-500 mb-4">{error}</p>
+                <Button onClick={() => navigate('/dashboard/competitions')}>
+                    Kembali
+                </Button>
+            </div>
+        )
+    }
+
+    if (!competitionData) return null
+
+
+
+
+
+
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -294,13 +438,7 @@ export default function JoinCompetition() {
         }
     }
 
-    const teamOptions = [
-        { value: '', label: loadingTeams ? 'Memuat tim...' : 'Pilih Tim...' },
-        ...teams.map(team => ({
-            value: String(team.id),
-            label: team.name
-        }))
-    ]
+
 
     const formatDate = (dateString) => {
         if (!dateString) return '-'
@@ -318,7 +456,8 @@ export default function JoinCompetition() {
         switch (String(status).toLowerCase()) {
             case 'approved': return 'bg-green-500/20 text-green-400 border border-green-500/30'
             case 'pending': return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-            case 'rejected': return 'bg-red-500/20 text-red-400 border border-red-500/30'
+            case 'rejected':
+            case 'declined': return 'bg-red-500/20 text-red-400 border border-red-500/30'
             case 'disqualified': return 'bg-red-500/20 text-red-400 border border-red-500/30'
             default: return 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
         }
@@ -369,25 +508,7 @@ export default function JoinCompetition() {
         }
     }
 
-    useEffect(() => {
-        if (activeTab === 'news' && id) {
-            const fetchNews = async () => {
-                setIsNewsLoading(true)
-                try {
-                    const response = await authFetch(`/api/tournaments/${id}/news`)
-                    const data = await response.json()
-                    if (data.success) {
-                        setNewsList(data.data)
-                    }
-                } catch (err) {
-                    console.error('Failed to fetch news:', err)
-                } finally {
-                    setIsNewsLoading(false)
-                }
-            }
-            fetchNews()
-        }
-    }, [activeTab, id])
+
 
     const isMemberOfTournament = participants.some(p => String(p.user_id) === String(user?.id))
     const isOrganizer = competitionData && user && String(competitionData.organizer_id) === String(user.id)
@@ -413,6 +534,16 @@ export default function JoinCompetition() {
 
     return (
         <>
+            <ConfirmationModal
+                isOpen={isRejectModalOpen}
+                onClose={() => setIsRejectModalOpen(false)}
+                onConfirm={confirmReject}
+                title="Tolak Undangan"
+                message="Apakah Anda yakin ingin menolak undangan ini? Anda tidak akan dapat bergabung kecuali diundang kembali."
+                confirmText="Tolak Undangan"
+                variant="danger"
+                isLoading={loading}
+            />
             {isPublic && <Navbar />}
             <div className={`space-y-6 mx-auto w-full ${isPublic ? 'pt-24 px-4 md:px-8' : ''}`}>
                 {/* Header */}
@@ -506,13 +637,13 @@ export default function JoinCompetition() {
 
                             {/* Tab Navigation */}
                             <div className="flex items-center gap-2 border-b border-white/10 overflow-x-auto mt-6">
-                                {!isJoined && (
+                                {(!isJoined || isInvited) && (
                                     <button
                                         onClick={() => setActiveTab('register')}
-                                        className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === 'register' ? 'border-neonGreen text-neonGreen' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
+                                        className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === 'register' ? (isInvited ? 'border-orange-500 text-orange-500' : 'border-neonGreen text-neonGreen') : 'border-transparent text-gray-400 hover:text-gray-200'}`}
                                     >
-                                        <User className="w-4 h-4" />
-                                        Form Pendaftaran
+                                        {isInvited ? <Mail className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                                        {isInvited ? 'Undangan' : 'Form Pendaftaran'}
                                     </button>
                                 )}
                                 <button
@@ -534,15 +665,15 @@ export default function JoinCompetition() {
                             {/* Tab Content */}
                             <div className="min-h-[400px] mt-6">
                                 {activeTab === 'register' && (
-                                    <Card hover={false}>
+                                    <Card hover={false} className={isInvited ? "border-orange-500/50 bg-orange-500/5" : ""}>
                                         <CardHeader>
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
-                                                    <User className="w-5 h-5 text-neonGreen" />
+                                                <div className={`w-10 h-10 rounded-lg ${isInvited ? 'bg-orange-500/20 text-orange-500' : 'bg-white/5 text-neonGreen'} flex items-center justify-center`}>
+                                                    {isInvited ? <Mail className="w-5 h-5" /> : <User className="w-5 h-5" />}
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-display font-bold">Data Pendaftar</h3>
-                                                    <p className="text-sm text-gray-400">Lengkapi data diri dan tim untuk mendaftar</p>
+                                                    <h3 className={`font-display font-bold ${isInvited ? 'text-orange-500' : ''}`}>{isInvited ? 'Undangan Kompetisi' : 'Data Pendaftar'}</h3>
+                                                    <p className="text-sm text-gray-400">{isInvited ? 'Terima undangan untuk bergabung' : 'Lengkapi data diri dan tim untuk mendaftar'}</p>
                                                 </div>
                                             </div>
                                         </CardHeader>
@@ -566,6 +697,137 @@ export default function JoinCompetition() {
                                                         </Button>
                                                     </div>
                                                 </div>
+                                            ) : isInvited ? (
+                                                <form onSubmit={handleAcceptInvite} className="space-y-5">
+                                                    {/* User Info Header - Copied from Register Form */}
+                                                    <div className="bg-white/5 border border-white/10 rounded-lg p-4 mb-4">
+                                                        <div className="flex items-center gap-3 mb-3 pb-3 border-b border-white/5">
+                                                            <div className="w-8 h-8 rounded-full bg-neonGreen/20 flex items-center justify-center text-neonGreen font-bold">
+                                                                {user?.name?.charAt(0)}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-bold text-white">{user?.name}</p>
+                                                                <p className="text-xs text-gray-500">@{user?.username || 'user'}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-xs text-gray-400 space-y-1">
+                                                            <div className="flex justify-between">
+                                                                <span>WhatsApp:</span>
+                                                                <span className="text-white">{user?.phone || user?.whatsapp || '-'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between">
+                                                                <span>Email:</span>
+                                                                <span className="text-white">{user?.email}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* League Select */}
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <Trophy className="w-4 h-4 text-neonGreen" />
+                                                                Pilih Liga
+                                                            </div>
+                                                        </label>
+                                                        <SearchableSelect
+                                                            options={leagueOptions}
+                                                            value={formData.league}
+                                                            onChange={(e) => setFormData(prev => ({ ...prev, league: e.target.value }))}
+                                                            placeholder="Pilih Liga Asal Tim..."
+                                                        />
+                                                    </div>
+
+                                                    {/* Team Select */}
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <Shield className="w-4 h-4 text-neonPink" />
+                                                                Pilih Tim
+                                                                {loadingTeams && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+                                                            </div>
+                                                        </label>
+                                                        <SearchableSelect
+                                                            options={teamOptions}
+                                                            value={formData.teamId}
+                                                            onChange={handleTeamChange}
+                                                            placeholder={loadingTeams ? 'Memuat tim...' : 'Pilih Tim...'}
+                                                            disabled={!formData.league || loadingTeams}
+                                                        />
+
+                                                        {/* Editable Team Name */}
+                                                        <div className="mt-3">
+                                                            <Input
+                                                                label={
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Shield className="w-4 h-4 text-neonPink" />
+                                                                        Nama Tim
+                                                                    </div>
+                                                                }
+                                                                placeholder="Nama tim akan muncul di sini..."
+                                                                value={formData.team}
+                                                                onChange={(e) => setFormData(prev => ({
+                                                                    ...prev,
+                                                                    team: e.target.value.replace(/\b\w/g, char => char.toUpperCase())
+                                                                }))}
+                                                            />
+                                                        </div>
+                                                        {/* Show selected team logo */}
+                                                        {formData.teamLogo && formData.team && (
+                                                            <div className="mt-3 flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                                                                <img
+                                                                    src={formData.teamLogo}
+                                                                    alt={formData.team}
+                                                                    className="w-10 h-10 object-contain"
+                                                                    onError={(e) => {
+                                                                        const formattedId = String(formData.teamId).padStart(6, '0')
+                                                                        let newUrl = ''
+
+                                                                        // Fallback chain similar to register form: _r_w_l -> _f_l -> _r_l
+                                                                        if (e.target.src.includes('_r_w_l')) {
+                                                                            newUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_f_l.png.webp`
+                                                                        } else if (e.target.src.includes('_f_l')) {
+                                                                            newUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_r_l.png.webp`
+                                                                        }
+
+                                                                        if (newUrl) {
+                                                                            e.target.src = newUrl
+                                                                            // IMPORTANT: Update state so the valid URL is saved!
+                                                                            setFormData(prev => ({ ...prev, teamLogo: newUrl }))
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <span className="font-medium">{formData.team}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-800">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={handleRejectInvite}
+                                                            className="border-red-500/50 text-red-500 hover:bg-red-500/10"
+                                                            disabled={loading}
+                                                        >
+                                                            Tolak Undangan
+                                                        </Button>
+                                                        <Button
+                                                            type="submit"
+                                                            className="bg-orange-600 hover:bg-orange-700 text-white min-w-[150px]"
+                                                            disabled={loading || isSubmitting}
+                                                        >
+                                                            {loading ? (
+                                                                <span className="flex items-center">
+                                                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                                                    Memproses...
+                                                                </span>
+                                                            ) : (
+                                                                'Terima Undangan'
+                                                            )}
+                                                        </Button>
+                                                    </div>
+                                                </form>
                                             ) : (
                                                 <form onSubmit={handleSubmit} className="space-y-5">
                                                     {/* User Info Header */}

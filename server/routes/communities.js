@@ -2,6 +2,8 @@ import express from 'express';
 import db from '../config/db.js';
 import { authMiddleware as authenticateToken } from '../middleware/auth.js';
 import { unlockAchievement } from '../utils/achievements.js';
+import { logActivity } from '../utils/activity.js';
+import { createNotification } from '../utils/notifications.js';
 
 const router = express.Router();
 
@@ -112,6 +114,8 @@ router.post('/', authenticateToken, async (req, res) => {
             INSERT INTO community_members (community_id, user_id, role, status)
             VALUES (?, ?, 'admin', 'active')
         `, [communityId, userId]);
+
+        // NOTIFICATION: None needed for self-creation
 
         // Trigger Achievement: Community Founder
         await unlockAchievement(userId, 'comm_founder');
@@ -279,6 +283,28 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
         if (status === 'active') {
             // Trigger Achievement: Team Player
             await unlockAchievement(userId, 'comm_member');
+        }
+
+        // Log Activity
+        await logActivity(userId, 'Join Community', `User joined community: ${community.type}`, id, 'community');
+
+        // NOTIFICATION TRIGGERS
+        if (status === 'pending') {
+            // Notify Admins
+            const [admins] = await db.query(
+                `SELECT user_id FROM community_members WHERE community_id = ? AND role IN ('admin', 'moderator')`,
+                [id]
+            );
+
+            for (const admin of admins) {
+                await createNotification(
+                    admin.user_id,
+                    'community_join_request',
+                    'Permintaan Bergabung',
+                    `Seseorang mendaftar ke komunitas ${community.type === 'private' ? 'Private' : ''}`,
+                    { community_id: id }
+                );
+            }
         }
 
         // Update member count cache in communities table if needed, or rely on count query

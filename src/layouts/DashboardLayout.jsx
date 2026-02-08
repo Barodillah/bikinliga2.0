@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import axios from 'axios'
 import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
     Trophy, LayoutDashboard, List, Plus, Users, Tv,
@@ -27,6 +28,46 @@ export default function DashboardLayout() {
     const location = useLocation()
     const navigate = useNavigate()
     const { logout, user, wallet, subscription } = useAuth()
+
+    const [notifications, setNotifications] = useState([])
+    const [unreadCount, setUnreadCount] = useState(0)
+
+    // Fetch Notifications
+    const fetchNotifications = async () => {
+        if (!user) return
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get('/api/notifications?limit=5&unread_only=false', {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            if (response.data.success) {
+                setNotifications(response.data.data)
+                setUnreadCount(response.data.unreadCount)
+            }
+        } catch (error) {
+            console.error('Failed to fetch notifications:', error)
+        }
+    }
+
+    useEffect(() => {
+        fetchNotifications()
+        // Optional: Poll every minute
+        const interval = setInterval(fetchNotifications, 60000)
+        return () => clearInterval(interval)
+    }, [user])
+
+    const handleMarkAllRead = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.patch('/api/notifications/read-all', {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+            setUnreadCount(0)
+        } catch (error) {
+            console.error('Failed to mark all as read:', error)
+        }
+    }
 
     const [activeSidebarOverride, setActiveSidebarOverride] = useState(null)
 
@@ -77,30 +118,66 @@ export default function DashboardLayout() {
 
     const subStyle = getSubscriptionStyle(subscription?.plan)
 
-    // Mock notifications
-    const notifications = [
-        {
-            id: 1,
-            title: 'Turnamen Baru',
-            message: 'Turnamen "Mobile Legends Season 5" telah dibuka pendaftaran.',
-            time: '2 jam yang lalu',
-            unread: true
-        },
-        {
-            id: 2,
-            title: 'Pembayaran Diterima',
-            message: 'Top up sebesar 500 coin telah berhasil.',
-            time: '5 jam yang lalu',
-            unread: true
-        },
-        {
-            id: 3,
-            title: 'Jadwal Pertandingan',
-            message: 'Pertandingan tim Anda dijadwalkan besok pukul 19:00.',
-            time: '1 hari yang lalu',
-            unread: false
+
+
+    const getNotificationLink = (notification) => {
+        const { type, data } = notification;
+        switch (type) {
+            case 'tournament_join_request':
+                return `/dashboard/tournaments/${data.tournament_id}`;
+            case 'tournament_join_approved':
+            case 'tournament_join_rejected':
+            case 'tournament_started':
+                return `/dashboard/competitions/${data.tournament_id}/view`;
+            case 'tournament_invite':
+                return `/dashboard/competitions/${data.tournament_id}/join`;
+            case 'tournament_news':
+                return `/dashboard/competitions/${data.tournament_id}/view`;
+            case 'match_scheduled':
+            case 'match_completed':
+                if (data.tournament_id && data.match_id) {
+                    return `/dashboard/competitions/${data.tournament_id}/view/match/${data.match_id}`;
+                }
+                return '#';
+            case 'community_join_request':
+            case 'community_join_approved':
+                return `/dashboard/eclub/community/${data.community_id}`;
+            case 'post_like':
+            case 'post_comment':
+                return `/post/${data.post_id}`;
+            case 'complaint_update':
+                return `/dashboard/settings`;
+            case 'coin_adjustment':
+                return `/dashboard/topup`;
+            default:
+                return '#';
         }
-    ]
+    };
+
+    const handleNotificationClick = async (notification) => {
+        // Mark as read
+        if (!notification.is_read) {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.patch(`/api/notifications/${notification.id}/read`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n));
+                setUnreadCount(prev => Math.max(0, prev - 1));
+            } catch (error) {
+                console.error('Failed to mark as read:', error);
+            }
+        }
+
+        const link = getNotificationLink(notification);
+        setNotificationsOpen(false); // Close dropdown
+        if (link && link !== '#') {
+            navigate(link);
+        } else {
+            // Default to list if no link
+            navigate('/dashboard/notifications');
+        }
+    };
 
     const isActive = (href, exact = false, exclude = []) => {
         if (activeSidebarOverride) {
@@ -335,7 +412,7 @@ export default function DashboardLayout() {
                                 className="text-gray-400 hover:text-white transition relative mr-2 p-1 rounded-full hover:bg-white/5"
                             >
                                 <Bell className="w-6 h-6" />
-                                {notifications.some(n => n.unread) && (
+                                {unreadCount > 0 && (
                                     <span className="absolute top-0 right-0 h-3 w-3 rounded-full bg-neonPink border-2 border-cardBg flex items-center justify-center"></span>
                                 )}
                             </button>
@@ -351,30 +428,45 @@ export default function DashboardLayout() {
                                         <div className="w-[90vw] max-w-sm bg-cardBg border border-white/10 rounded-xl shadow-xl overflow-hidden pointer-events-auto md:absolute md:top-full md:left-auto md:right-0 md:w-80 md:mt-2">
                                             <div className="p-3 border-b border-white/10 flex items-center justify-between bg-white/5">
                                                 <h3 className="font-medium text-white">Notifikasi</h3>
-                                                <span className="text-xs text-neonPink cursor-pointer hover:underline">
+                                                <span
+                                                    onClick={handleMarkAllRead}
+                                                    className="text-xs text-neonPink cursor-pointer hover:underline"
+                                                >
                                                     Tandai dibaca
                                                 </span>
                                             </div>
                                             <div className="max-h-96 overflow-y-auto">
-                                                {notifications.map((notification) => (
-                                                    <div
-                                                        key={notification.id}
-                                                        className={`p-4 border-b border-white/5 hover:bg-white/5 transition cursor-pointer ${notification.unread ? 'bg-white/[0.02]' : ''}`}
-                                                    >
-                                                        <div className="flex justify-between items-start mb-1">
-                                                            <h4 className={`text-sm font-medium ${notification.unread ? 'text-white' : 'text-gray-400'}`}>
-                                                                {notification.title}
-                                                            </h4>
-                                                            <span className="text-[10px] text-gray-500">{notification.time}</span>
+                                                {notifications.length === 0 ? (
+                                                    <div className="p-4 text-center text-gray-500 text-xs">Tidak ada notifikasi</div>
+                                                ) : (
+                                                    notifications.map((notification) => (
+                                                        <div
+                                                            key={notification.id}
+                                                            onClick={() => handleNotificationClick(notification)}
+                                                            className={`p-4 border-b border-white/5 hover:bg-white/5 transition cursor-pointer ${!notification.is_read ? 'bg-white/[0.02]' : ''}`}
+                                                        >
+                                                            <div className="flex justify-between items-start mb-1">
+                                                                <h4 className={`text-sm font-medium ${!notification.is_read ? 'text-white' : 'text-gray-400'}`}>
+                                                                    {notification.title}
+                                                                </h4>
+                                                                {/* Helper to format time relative or just display raw if helper missing in layout */}
+                                                                <span className="text-[10px] text-gray-500">Baru saja</span>
+                                                            </div>
+                                                            <p className="text-xs text-gray-400 line-clamp-2">
+                                                                {notification.message}
+                                                            </p>
                                                         </div>
-                                                        <p className="text-xs text-gray-400 line-clamp-2">
-                                                            {notification.message}
-                                                        </p>
-                                                    </div>
-                                                ))}
+                                                    ))
+                                                )}
                                             </div>
                                             <div className="p-2 text-center border-t border-white/10 bg-white/5">
-                                                <button className="text-xs text-neonGreen hover:text-white transition">
+                                                <button
+                                                    onClick={() => {
+                                                        setNotificationsOpen(false);
+                                                        navigate('/dashboard/notifications');
+                                                    }}
+                                                    className="text-xs text-neonGreen hover:text-white transition"
+                                                >
                                                     Lihat Semua
                                                 </button>
                                             </div>

@@ -2,6 +2,8 @@ import express from 'express';
 import { query } from '../config/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { authMiddleware as authenticateToken } from '../middleware/auth.js';
+import { createNotification } from '../utils/notifications.js';
+import { logActivity } from '../utils/activity.js';
 
 const router = express.Router();
 
@@ -117,6 +119,10 @@ router.post('/', authenticateToken, async (req, res) => {
             message: 'Complaint submitted successfully',
             data: { id: complaintId }
         });
+
+        // Log Activity
+        await logActivity(userId, 'Create Complaint', `User submitted complaint: ${subject}`, complaintId, 'complaint');
+
     } catch (error) {
         console.error('Create Complaint Error:', error);
         res.status(500).json({ success: false, message: 'Failed to submit complaint' });
@@ -164,6 +170,24 @@ router.put('/:id', authenticateToken, async (req, res) => {
         );
 
         res.json({ success: true, message: 'Complaint updated successfully' });
+
+        // Log Activity
+        if (req.user && req.user.id) {
+            await logActivity(req.user.id, 'Update Complaint', `Admin updated complaint ${complaintId} status to ${status}`, complaintId, 'complaint');
+        }
+
+        // NOTIFICATION: Complaint Update
+        // Fetch user_id
+        const [comp] = await query('SELECT user_id, subject FROM complaints WHERE id = ?', [complaintId]);
+        if (comp.length > 0) {
+            await createNotification(
+                comp[0].user_id,
+                'complaint_update',
+                'Update Laporan',
+                `Status laporan "${comp[0].subject}" telah diperbarui menjadi: ${status}`,
+                { complaint_id: complaintId, status: status }
+            );
+        }
     } catch (error) {
         console.error('Update Complaint Error:', error);
         res.status(500).json({ success: false, message: 'Failed to update complaint' });

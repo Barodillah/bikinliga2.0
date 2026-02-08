@@ -24,6 +24,7 @@ import Ranking from './pages/dashboard/Ranking'
 import Settings from './pages/dashboard/Settings'
 import Profile from './pages/dashboard/Profile'
 import MyProfile from './pages/dashboard/MyProfile'
+import Notifications from './pages/dashboard/Notifications'
 import Competitions from './pages/dashboard/Competitions'
 import Stream from './pages/dashboard/Stream'
 import StreamDetail from './pages/dashboard/StreamDetail'
@@ -143,7 +144,8 @@ function App() {
                             <Route path="profile/:username" element={<Profile />} />
                             <Route path="my-profile" element={<MyProfile />} />
 
-                            <Route path="my-profile" element={<MyProfile />} />
+
+                            <Route path="notifications" element={<Notifications />} />
                         </Route>
 
                         {/* 404 Catch-all */}

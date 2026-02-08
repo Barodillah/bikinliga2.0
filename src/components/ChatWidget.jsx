@@ -45,7 +45,7 @@ export default function ChatWidget() {
         setIsInitializing(true);
         try {
             // Create new session
-            const response = await fetch(`${API_URL}/chat/sessions`, {
+            const response = await fetch(`${API_URL}/ai/minliga/sessions`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: getAuthHeaders()
@@ -96,7 +96,7 @@ export default function ChatWidget() {
         try {
             if (isAuthenticated && sessionId) {
                 // Send to backend API
-                const response = await fetch(`${API_URL}/chat/message`, {
+                const response = await fetch(`${API_URL}/ai/minliga/message`, {
                     method: 'POST',
                     credentials: 'include',
                     headers: getAuthHeaders(),
@@ -157,7 +157,7 @@ export default function ChatWidget() {
         if (!sessionId) return;
 
         try {
-            const response = await fetch(`${API_URL}/chat/sessions/${sessionId}`, {
+            const response = await fetch(`${API_URL}/ai/minliga/sessions/${sessionId}`, {
                 method: 'DELETE',
                 credentials: 'include',
                 headers: getAuthHeaders()

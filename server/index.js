@@ -13,14 +13,18 @@ import adminRoutes from './routes/admin.js';
 import rankingsRoutes from './routes/rankings.js';
 import communityRoutes from './routes/communities.js';
 import postRoutes from './routes/posts.js';
-import chatbotRoutes from './routes/chatbot.js';
+import minligaAIRoutes from './routes/ai_minliga.js';
+import analystAIRoutes from './routes/ai_analyst.js';
 import complaintsRoutes from './routes/complaints.js';
 import metaRoutes from './routes/meta.js';
 import achievementsRoutes from './routes/achievements.js';
+import adminAIRouter from './routes/adminAI.js';
+import notificationRoutes from './routes/notifications.js';
 import { initDatabase } from './config/db.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+// Trigger reload 1
 
 // Middleware
 app.use(cors({
@@ -43,12 +47,15 @@ app.use('/api/matches', matchesRoutes);
 app.use('/api/external', externalRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/ai', adminAIRouter);
 app.use('/api/rankings', rankingsRoutes);
 app.use('/api/communities', communityRoutes);
 app.use('/api/posts', postRoutes);
-app.use('/api/chat', chatbotRoutes);
+app.use('/api/ai/minliga', minligaAIRoutes);
+app.use('/api/ai/analyst', analystAIRoutes);
 app.use('/api/complaints', complaintsRoutes);
 app.use('/api/achievements', achievementsRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

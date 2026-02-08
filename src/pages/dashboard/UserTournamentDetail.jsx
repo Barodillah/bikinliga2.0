@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
-import { Trophy, Users, Calendar, BarChart2, ArrowLeft, TrendingUp, Activity, Sparkles, Brain, Goal, Newspaper, Gift, ChevronRight, ArrowRight, Grid3X3, GitMerge, DollarSign, Medal, Crown, Percent, Target, Share2, Lock } from 'lucide-react'
+import { Trophy, Users, Calendar, BarChart2, ArrowLeft, TrendingUp, Activity, Sparkles, Brain, Goal, Newspaper, Gift, ChevronRight, ArrowRight, Grid3X3, GitMerge, DollarSign, Medal, Crown, Percent, Target, Share2, Lock, Maximize2, Minimize2 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -150,6 +150,7 @@ export default function UserTournamentDetail() {
 
     // AI Analysis State - MOVED UP before early returns
     const [aiSessionId, setAiSessionId] = useState(null)
+    const [isFullscreen, setIsFullscreen] = useState(false) // State for fullscreen chat mode
     const [userSubscription, setUserSubscription] = useState(null)
     const [loadingSubscription, setLoadingSubscription] = useState(true)
     const [chatLocked, setChatLocked] = useState(false) // derived state if needed
@@ -738,7 +739,7 @@ export default function UserTournamentDetail() {
 
         try {
             // Use authFetch for post request too
-            const response = await authFetch('/api/chat/analyze', {
+            const response = await authFetch('/api/ai/analyst/analyze', {
                 method: 'POST',
                 body: JSON.stringify({
                     tournamentId: id,
@@ -1088,14 +1089,18 @@ export default function UserTournamentDetail() {
                             )}
 
                             {/* Messages Card */}
-                            <div className="flex flex-col h-[calc(100vh-380px)] min-h-[320px] max-h-[450px] md:h-[500px] md:max-h-none bg-[#0a0a0a] rounded-xl border border-white/10 overflow-hidden relative">
+                            <div className={`${isFullscreen
+                                ? 'fixed inset-0 z-50 bg-[#0a0a0a] m-0 rounded-none flex flex-col h-[100dvh]'
+                                : 'flex flex-col h-[calc(100vh-200px)] min-h-[500px] bg-[#0a0a0a] rounded-xl border border-white/10 relative'
+                                } overflow-hidden transition-all duration-300`}>
+
                                 {/* Premium Badge Background */}
                                 <div className="absolute top-0 right-0 p-2 md:p-4 opacity-10 pointer-events-none">
                                     <Sparkles className="w-32 h-32 md:w-64 md:h-64 text-yellow-500" />
                                 </div>
 
                                 {/* Chat Header */}
-                                <div className="p-3 md:p-4 border-b border-white/10 bg-white/5 flex items-center justify-between relative z-10">
+                                <div className="p-3 md:p-4 border-b border-white/10 bg-white/5 flex items-center justify-between relative z-10 shrink-0">
                                     <div className="flex items-center gap-2 md:gap-3">
                                         <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center justify-center flex-shrink-0">
                                             <Brain className="w-4 h-4 md:w-5 md:h-5 text-black" />
@@ -1110,12 +1115,23 @@ export default function UserTournamentDetail() {
                                             <div className="text-[10px] md:text-xs text-gray-400 truncate">Powered by advanced match data</div>
                                         </div>
                                     </div>
-                                    {/* Usage Indicator for Captain */}
-                                    {isPremiumUser && !isPro && (
-                                        <div className="text-[10px] bg-white/10 px-2 py-1 rounded text-gray-400">
-                                            Daily Limit: 2 Chats
-                                        </div>
-                                    )}
+
+                                    <div className="flex items-center gap-2">
+                                        {/* Usage Indicator for Captain */}
+                                        {isPremiumUser && !isPro && (
+                                            <div className="hidden md:block text-[10px] bg-white/10 px-2 py-1 rounded text-gray-400">
+                                                Daily Limit: 2 Chats
+                                            </div>
+                                        )}
+                                        {/* Fullscreen Toggle */}
+                                        <button
+                                            onClick={() => setIsFullscreen(!isFullscreen)}
+                                            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition"
+                                            title={isFullscreen ? "Minimize" : "Fullscreen"}
+                                        >
+                                            {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* Messages */}
@@ -1189,7 +1205,7 @@ export default function UserTournamentDetail() {
                                     )}
                                 </div>
                                 {/* Input Area */}
-                                <div className="p-3 md:p-4 border-t border-white/10 bg-white/5 relative z-10">
+                                <div className="p-3 md:p-4 border-t border-white/10 bg-white/5 relative z-10 shrink-0">
                                     <div className="flex gap-1.5 md:gap-2 mb-2 md:mb-3 overflow-x-auto pb-1.5 md:pb-2 scrollbar-hide -mx-1 px-1">
                                         {analysisPrompts.map((prompt, i) => (
                                             <button

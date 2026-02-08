@@ -1,6 +1,8 @@
 import express from 'express';
 import db from '../config/db.js';
 import { authMiddleware as authenticateToken } from '../middleware/auth.js';
+import { createNotification } from '../utils/notifications.js';
+import { logActivity } from '../utils/activity.js';
 
 const router = express.Router();
 
@@ -151,6 +153,20 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
             res.json({ success: true, liked: false });
         } else {
             await db.query('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)', [postId, userId]);
+
+            // NOTIFICATION: Like
+            // Get post author
+            const [postInfo] = await db.query('SELECT user_id, content FROM posts WHERE id = ?', [postId]);
+            if (postInfo.length > 0 && postInfo[0].user_id !== userId) {
+                await createNotification(
+                    postInfo[0].user_id,
+                    'post_like',
+                    'Post Disukai ❤️',
+                    `Seseorang menyukai postingan Anda: "${postInfo[0].content.substring(0, 30)}..."`,
+                    { post_id: postId, actor_id: userId }
+                );
+            }
+
             res.json({ success: true, liked: true });
         }
     } catch (error) {
@@ -198,6 +214,19 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
         `, [result.insertId]);
 
         res.json({ success: true, data: newComment[0] });
+
+        // NOTIFICATION: Comment
+        // Get post author
+        const [postInfo] = await db.query('SELECT user_id, content FROM posts WHERE id = ?', [postId]);
+        if (postInfo.length > 0 && postInfo[0].user_id !== userId) {
+            await createNotification(
+                postInfo[0].user_id,
+                'post_comment',
+                'Komentar Baru 💬',
+                `Seseorang mengomentari postingan Anda: "${postInfo[0].content.substring(0, 30)}..."`,
+                { post_id: postId, comment_id: result.insertId, actor_id: userId }
+            );
+        }
     } catch (error) {
         console.error('Add comment error:', error);
         res.status(500).json({ success: false, message: 'Failed to add comment' });
@@ -220,6 +249,10 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
         await db.query('DELETE FROM posts WHERE id = ?', [postId]);
         res.json({ success: true, message: 'Post deleted' });
+
+        // Log Activity
+        await logActivity(userId, 'Delete Post', `User deleted post ${postId}`, postId, 'post');
+
     } catch (error) {
         console.error('Delete post error:', error);
         res.status(500).json({ success: false, message: 'Error deleting post' });

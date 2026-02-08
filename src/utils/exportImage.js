@@ -17,6 +17,7 @@ export async function exportToImage(element, filename = 'export.png', options = 
         padding = 20,
         scale = 2,
         onStart = () => { },
+        onClone = () => { }, // Callback to modify the clone before export
         onComplete = () => { },
         onError = () => { }
     } = options;
@@ -38,6 +39,14 @@ export async function exportToImage(element, filename = 'export.png', options = 
         stickyElements.forEach(el => {
             el.style.position = 'relative';
         });
+
+        // Add specific export class to clone
+        clone.classList.add('export-mode');
+
+        // Allow modification of the clone
+        if (onClone) {
+            onClone(clone);
+        }
 
         wrapper.appendChild(clone);
         document.body.appendChild(wrapper);
@@ -103,5 +112,35 @@ export async function exportBracketToImage(bracketRef, tournamentName = 'tournam
         backgroundColor: '#0a0a0a',
         padding: 40,
         scale: 2,
+    });
+}
+
+/**
+ * Export top scorers to image (Top 10 only)
+ * @param {HTMLElement} element - Reference to the top scorers element
+ * @param {string} tournamentName - Name of the tournament
+ */
+export async function exportTopScorersToImage(element, tournamentName = 'tournament') {
+    const sanitizedName = tournamentName.replace(/[^a-zA-Z0-9-_]/g, '_');
+    const filename = `top_scorers_${sanitizedName}_${Date.now()}.png`;
+
+    return exportToImage(element, filename, {
+        backgroundColor: '#0a0a0a',
+        padding: 40,
+        scale: 2,
+        onClone: (clone) => {
+            // Find the table body
+            const tbody = clone.querySelector('tbody');
+            if (tbody) {
+                // Get all rows
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                // Remove rows after index 9 (keep top 10)
+                if (rows.length > 10) {
+                    for (let i = 10; i < rows.length; i++) {
+                        rows[i].remove();
+                    }
+                }
+            }
+        }
     });
 }

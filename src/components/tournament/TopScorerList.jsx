@@ -1,5 +1,5 @@
 import React from 'react'
-import { Trophy, Medal, TrendingUp } from 'lucide-react'
+import { Trophy, Medal, TrendingUp, Download } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../ui/Card'
 import Button from '../ui/Button'
 import AdSlot from '../ui/AdSlot'
@@ -18,12 +18,12 @@ const topScorersData = [
     { id: 10, name: 'Phil Foden', team: 'Manchester City', goals: 4, assists: 3, matches: 7 },
 ]
 
-export default function TopScorerList({ compact = false, scorers = [], highlightParticipantId }) {
+const TopScorerList = React.forwardRef(({ compact = false, scorers = [], highlightParticipantId, onExport }, ref) => {
     const data = compact ? scorers.slice(0, 5) : scorers
     const topScorer = data[0]
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6" ref={ref}>
             {!compact && topScorer && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Top 1 Highlight Card */}
@@ -61,7 +61,9 @@ export default function TopScorerList({ compact = false, scorers = [], highlight
                                 </div>
                             </CardContent>
                         </Card>
-                        <AdSlot variant="banner" className="mt-6" />
+                        <div data-html2canvas-ignore>
+                            <AdSlot variant="banner" className="mt-6" />
+                        </div>
                     </div>
                 </div>
             )}
@@ -72,7 +74,14 @@ export default function TopScorerList({ compact = false, scorers = [], highlight
                         <TrendingUp className="w-5 h-5 text-neonGreen" />
                         Pencetak Gol Terbanyak
                     </h3>
-                    <Button variant="ghost" size="sm">Export Data</Button>
+                    <div data-html2canvas-ignore>
+                        {onExport && (
+                            <Button variant="ghost" size="sm" onClick={onExport}>
+                                <Download className="w-4 h-4 mr-2" />
+                                Export Image
+                            </Button>
+                        )}
+                    </div>
                 </CardHeader>
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
@@ -123,4 +132,6 @@ export default function TopScorerList({ compact = false, scorers = [], highlight
             </Card>
         </div>
     )
-}
+})
+
+export default TopScorerList

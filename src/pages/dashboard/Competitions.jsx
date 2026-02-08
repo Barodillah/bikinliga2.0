@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, Trophy, Calendar, Users, Grid, List as ListIcon, PlayCircle, ShieldCheck, Sparkles, Clock, TrendingUp, Filter, Crown, Shield } from 'lucide-react'
+import { Search, Trophy, Calendar, Users, Grid, List as ListIcon, PlayCircle, ShieldCheck, Sparkles, Clock, TrendingUp, Filter, Crown, Shield, Mail } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
@@ -426,14 +426,14 @@ export default function Competitions() {
                                     </div>
                                 </div>
 
-                                <Button className="w-full mt-auto" icon={PlayCircle} onClick={() => {
-                                    if (comp.status !== 'draft' && comp.userStatus) {
+                                <Button className={`w-full mt-auto ${comp.userStatus === 'invited' ? 'bg-orange-500 hover:bg-orange-600' : ''}`} icon={comp.userStatus === 'invited' ? Mail : PlayCircle} onClick={() => {
+                                    if (comp.status !== 'draft' && comp.userStatus && comp.userStatus !== 'invited') {
                                         navigate(`/dashboard/competitions/${comp.slug}/view`)
                                     } else {
                                         navigate(`/dashboard/competitions/${comp.slug}/join`)
                                     }
                                 }}>
-                                    {comp.userStatus ? 'Lihat Detail' : 'Ikuti Kompetisi'}
+                                    {comp.userStatus && comp.userStatus !== 'invited' ? 'Lihat Detail' : (comp.userStatus === 'invited' ? 'Buka Undangan' : 'Ikuti Kompetisi')}
                                 </Button>
                             </Card>
                             {/* Insert AdSlot after every 3 items */}
@@ -489,14 +489,14 @@ export default function Competitions() {
                                             )
                                         })()}
                                     </div>
-                                    <Button size="sm" icon={PlayCircle} onClick={() => {
-                                        if (comp.status !== 'draft' && comp.userStatus) {
+                                    <Button size="sm" icon={comp.userStatus === 'invited' ? Mail : PlayCircle} onClick={() => {
+                                        if (comp.status !== 'draft' && comp.userStatus && comp.userStatus !== 'invited') {
                                             navigate(`/dashboard/competitions/${comp.slug}/view`)
                                         } else {
                                             navigate(`/dashboard/competitions/${comp.slug}/join`)
                                         }
-                                    }}>
-                                        {comp.userStatus ? 'Detail' : 'Ikuti'}
+                                    }} className={comp.userStatus === 'invited' ? 'bg-orange-500 hover:bg-orange-600' : ''}>
+                                        {comp.userStatus && comp.userStatus !== 'invited' ? 'Detail' : (comp.userStatus === 'invited' ? 'Buka Undangan' : 'Ikuti')}
                                     </Button>
                                 </div>
                             </div>
