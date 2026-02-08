@@ -7,7 +7,7 @@ import { useToast } from '../../contexts/ToastContext';
 export default function OtpPage() {
     const navigate = useNavigate();
     const location = useLocation();
-    const { verifyOtp, resendOtp } = useAuth();
+    const { verifyOtp, verifyResetOtp, resendOtp } = useAuth();
     const { success, error } = useToast();
 
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -18,12 +18,15 @@ export default function OtpPage() {
 
     const userId = location.state?.userId;
     const email = location.state?.email;
+    const isReset = location.state?.isReset;
 
     useEffect(() => {
-        if (!userId) {
-            navigate('/register');
+        // userId might be null for forgot password depending on backend implementation
+        // But if we're here from forgot password, we expect email at least
+        if (!userId && !email) {
+            navigate('/login');
         }
-    }, [userId, navigate]);
+    }, [userId, email, navigate]);
 
     useEffect(() => {
         if (countdown > 0) {
@@ -88,9 +91,15 @@ export default function OtpPage() {
 
         setIsLoading(true);
         try {
-            await verifyOtp(userId, code);
-            success('Email berhasil diverifikasi!');
-            navigate('/dashboard');
+            if (isReset) {
+                await verifyResetOtp(userId, code);
+                success('Password berhasil direset! Silakan atur password baru.');
+                navigate('/dashboard/settings?tab=password');
+            } else {
+                await verifyOtp(userId, code);
+                success('Email berhasil diverifikasi!');
+                navigate('/dashboard');
+            }
         } catch (err) {
             error(err.message || 'Kode OTP tidak valid');
             setOtp(['', '', '', '', '', '']);
@@ -130,7 +139,7 @@ export default function OtpPage() {
             {/* Main Content */}
             <div className="relative z-10 w-full max-w-md mx-4">
                 {/* Back Link */}
-                <Link to="/register" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
+                <Link to={isReset ? "/forgot-password" : "/register"} className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
                     <ArrowLeft className="w-4 h-4" />
                     <span>Kembali</span>
                 </Link>

@@ -289,7 +289,40 @@ export function AuthProvider({ children }) {
         checkUsername,
         logout,
         refreshUser: fetchUser,
-        refreshWallet: fetchWallet
+        refreshWallet: fetchWallet,
+        forgotPassword: async (email) => {
+            const response = await fetch(`${API_URL}/auth/forgot-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await response.json();
+            if (!data.success) throw new Error(data.message);
+            return data;
+        },
+        verifyResetOtp: async (userId, code) => {
+            const response = await fetch(`${API_URL}/auth/verify-reset-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ userId, code })
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.message);
+            }
+
+            // Auto login after successful reset verification
+            if (data.data && data.data.token) {
+                localStorage.setItem('token', data.data.token);
+                setUser(data.data.user);
+                setSubscription(data.data.subscription || { plan: 'free', name: 'Free' });
+            }
+
+            return data;
+        }
     };
 
     return (

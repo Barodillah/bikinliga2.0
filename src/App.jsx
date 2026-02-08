@@ -5,6 +5,7 @@ import { AuthProvider, RequireAuth, RequireGuest, RequireAdmin } from './context
 import LandingPage from './pages/landing/LandingPage'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage'
 import OtpPage from './pages/auth/OtpPage'
 import DashboardLayout from './layouts/DashboardLayout'
 import Dashboard from './pages/dashboard/Dashboard'
@@ -73,6 +74,11 @@ function App() {
                         <Route path="/register" element={
                             <RequireGuest>
                                 <RegisterPage />
+                            </RequireGuest>
+                        } />
+                        <Route path="/forgot-password" element={
+                            <RequireGuest>
+                                <ForgotPasswordPage />
                             </RequireGuest>
                         } />
                         <Route path="/verify-otp" element={<OtpPage />} />

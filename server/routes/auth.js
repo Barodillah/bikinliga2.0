@@ -203,6 +203,160 @@ router.post('/verify-otp', async (req, res) => {
     }
 });
 
+// POST /api/auth/forgot-password - Request Password Reset OTP
+router.post('/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email harus diisi'
+            });
+        }
+
+        const users = await query('SELECT * FROM users WHERE email = ?', [email]);
+        if (users.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Email tidak terdaftar'
+            });
+        }
+
+        const user = users[0];
+
+        // Generate and save OTP
+        const otp = generateOTP();
+        const otpId = uuidv4();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        // Invalidate old OTPs for this user
+        await query('UPDATE otps SET is_used = TRUE WHERE user_id = ? AND is_used = FALSE', [user.id]);
+
+        await query(
+            'INSERT INTO otps (id, user_id, code, type, expires_at) VALUES (?, ?, ?, ?, ?)',
+            [otpId, user.id, otp, 'reset_password', expiresAt]
+        );
+
+        // Send OTP email
+        await sendOTPEmail(email, otp, user.name);
+
+        res.json({
+            success: true,
+            message: 'Kode OTP telah dikirim ke email Anda',
+            data: { userId: user.id, email: user.email }
+        });
+
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Terjadi kesalahan saat memproses permintaan'
+        });
+    }
+});
+
+// POST /api/auth/verify-reset-password - Verify OTP and Reset Password
+router.post('/verify-reset-password', async (req, res) => {
+    try {
+        const { userId, code } = req.body;
+
+        if (!userId || !code) {
+            return res.status(400).json({
+                success: false,
+                message: 'User ID dan kode OTP harus diisi'
+            });
+        }
+
+        // Find valid OTP
+        const otps = await query(
+            `SELECT * FROM otps 
+             WHERE user_id = ? AND code = ? AND is_used = FALSE AND expires_at > NOW() AND type = 'reset_password'
+             ORDER BY created_at DESC LIMIT 1`,
+            [userId, code]
+        );
+
+        if (otps.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Kode OTP tidak valid atau sudah kadaluarsa'
+            });
+        }
+
+        const connection = await getConnection();
+        try {
+            await connection.beginTransaction();
+
+            // Mark OTP as used
+            await connection.execute('UPDATE otps SET is_used = TRUE WHERE id = ?', [otps[0].id]);
+
+            // Set password to NULL as requested
+            await connection.execute('UPDATE users SET password = NULL WHERE id = ?', [userId]);
+
+            await connection.commit();
+
+            // Auto Login Logic
+            const users = await query('SELECT * FROM users WHERE id = ?', [userId]);
+            const user = users[0];
+
+            // Get subscription
+            const subscriptions = await query(
+                `SELECT s.*, p.name as plan_name 
+                 FROM user_subscriptions s
+                 JOIN subscription_plans p ON s.plan_id = p.id
+                 WHERE s.user_id = ? AND s.status = 'active'
+                 ORDER BY s.end_date DESC LIMIT 1`,
+                [userId]
+            );
+            const subscription = subscriptions.length > 0 ? { ...subscriptions[0], plan: subscriptions[0].plan_name } : null;
+
+            // Generate token
+            const token = generateToken(userId);
+
+            res.cookie('token', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+            });
+
+            res.json({
+                success: true,
+                message: 'Password berhasil direset',
+                data: {
+                    user: {
+                        id: user.id,
+                        email: user.email,
+                        name: user.name,
+                        username: user.username,
+                        phone: user.phone,
+                        avatar_url: user.avatar_url,
+                        role: user.role,
+                        needsUsername: !user.username,
+                        needsCoinClaim: !user.has_claimed_login_coin,
+                        hasPassword: false // Explicitly false since we set it to NULL
+                    },
+                    token,
+                    subscription
+                }
+            });
+
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+
+    } catch (error) {
+        console.error('Verify reset password error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Terjadi kesalahan saat verifikasi OTP'
+        });
+    }
+});
+
 // POST /api/auth/resend-otp - Resend OTP
 router.post('/resend-otp', async (req, res) => {
     try {
