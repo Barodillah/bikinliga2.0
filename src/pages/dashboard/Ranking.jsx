@@ -382,7 +382,7 @@ export default function Ranking() {
                         {/* Stats Row */}
                         <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
                             <div className="flex items-center gap-1">
-                                <span className="text-xs text-gray-400">Turnamen:</span>
+                                <span className="text-xs text-gray-400">Matches:</span>
                                 <span className="text-xs font-medium text-gray-300">{player.totalTournaments}</span>
                             </div>
                             <span className="px-2 py-0.5 rounded-md bg-green-500/10 text-green-400 text-xs font-medium border border-green-500/20">
