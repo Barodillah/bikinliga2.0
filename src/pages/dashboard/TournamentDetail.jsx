@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
 import { Trophy, Users, Calendar, BarChart2, Settings, Share2, Download, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2, Gift, DollarSign, Percent, Save, Loader2, User, Phone, Shield, Sparkles, Medal, Crown, Target, ListFilter, MessageSquare, MessageCircle, Send, ChevronDown, UserCheck, ShieldCheck, Mail } from 'lucide-react'
 import confetti from 'canvas-confetti'
+import { motion } from 'framer-motion'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Modal from '../../components/ui/Modal'
 import ConfirmationModal from '../../components/ui/ConfirmationModal'
@@ -225,9 +226,9 @@ function DraftPlayerList({ players, tournamentId, navigate, onStatusUpdate, onEd
                                     </div>
 
                                     <div className="flex items-center gap-4 w-full sm:w-auto justify-end">
-                                        <div className="text-right hidden sm:block">
+                                        <div className="text-right">
                                             {getStatusBadge(player.status)}
-                                            <p className="text-xs text-gray-500 mt-2">{formatDate(player.created_at)}</p>
+                                            <p className="text-xs text-gray-500 mt-2 hidden sm:block">{formatDate(player.created_at)}</p>
                                         </div>
 
                                         <div className="flex items-center gap-1 border-l border-white/10 pl-4 ml-2">
@@ -746,6 +747,68 @@ const knockoutRounds = [
         ]
     },
 ]
+
+// Helper to duplicate players for seamless loop
+const duplicatePlayers = (players) => {
+    if (players.length < 10) {
+        return [...players, ...players, ...players, ...players] // Repeat more for small lists
+    }
+    return [...players, ...players]
+}
+
+function PlayerCarousel({ players }) {
+    const approvedPlayers = players.filter(p => p.status === 'approved')
+
+    if (approvedPlayers.length === 0) return null
+
+    const loopedPlayers = duplicatePlayers(approvedPlayers)
+    const duration = Math.max(20, approvedPlayers.length * 3)
+
+    return (
+        <div className="w-full overflow-hidden bg-black/20 border-b border-white/5 py-3 mb-6 relative group">
+            <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-cardBg to-transparent z-10 pointer-events-none"></div>
+            <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-cardBg to-transparent z-10 pointer-events-none"></div>
+
+            <style>
+                {`
+                @keyframes marquee {
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(-50%); }
+                }
+                .animate-marquee {
+                    animation: marquee ${duration}s linear infinite;
+                }
+                .animate-marquee:hover {
+                    animation-play-state: paused;
+                }
+                `}
+            </style>
+
+            <div className="flex gap-4 w-max animate-marquee pl-4">
+                {loopedPlayers.map((player, idx) => (
+                    <motion.div
+                        key={`${player.id}-${idx}`}
+                        className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-full border border-white/10 flex-shrink-0 min-w-[200px] cursor-pointer"
+                        whileHover={{ scale: 1.05, backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                    >
+                        {player.logo_url ? (
+                            <img src={player.logo_url} alt={player.name} className="w-8 h-8 rounded-full object-contain bg-white/5 p-0.5" />
+                        ) : (
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center text-blue-400 font-bold text-xs">
+                                {player.team_name?.charAt(0) || player.name?.charAt(0)}
+                            </div>
+                        )}
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold text-white leading-tight">{player.team_name || 'No Team'}</span>
+                            <span className="text-[10px] text-gray-400 leading-tight">{player.name}</span>
+                        </div>
+                    </motion.div>
+                ))}
+            </div>
+        </div>
+    )
+}
 
 // Helper functions omitted for brevity
 
@@ -3337,19 +3400,29 @@ export default function TournamentDetail() {
                     <div className="space-y-4">
                         {/* Show Generate Button if NO matches exist */}
                         {matches.length === 0 ? (
-                            <Card className="text-center py-12">
-                                <CardContent>
-                                    <div className="w-16 h-16 bg-neonGreen/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <Calendar className="w-8 h-8 text-neonGreen" />
+                            <Card className="text-center py-12 overflow-hidden relative">
+                                <CardContent className="p-0">
+                                    <div className="pt-12 px-6">
+                                        <div className="w-16 h-16 bg-neonGreen/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <Calendar className="w-8 h-8 text-neonGreen" />
+                                        </div>
+                                        <h3 className="text-xl font-bold font-display mb-2">Generate Jadwal Pertandingan</h3>
+                                        <p className="text-gray-400 mb-8 max-w-md mx-auto">
+                                            Jumlah peserta sudah memenuhi syarat. Anda dapat membuat jadwal pertandingan secara otomatis sekarang.
+                                        </p>
                                     </div>
-                                    <h3 className="text-xl font-bold font-display mb-2">Generate Jadwal Pertandingan</h3>
-                                    <p className="text-gray-400 mb-6 max-w-md mx-auto">
-                                        Jumlah peserta sudah memenuhi syarat. Anda dapat membuat jadwal pertandingan secara otomatis sekarang.
-                                    </p>
-                                    <Button onClick={handleGenerateSchedule} className="bg-neonGreen hover:bg-neonGreen/80 text-black mx-auto">
-                                        <Sparkles className="w-4 h-4 mr-2" />
-                                        Generate Jadwal
-                                    </Button>
+
+                                    {/* Player Carousel */}
+                                    <div className="mb-8">
+                                        <PlayerCarousel players={tournamentData.participants || []} />
+                                    </div>
+
+                                    <div className="pb-12 px-6">
+                                        <Button onClick={handleGenerateSchedule} className="bg-neonGreen hover:bg-neonGreen/80 text-black mx-auto">
+                                            <Sparkles className="w-4 h-4 mr-2" />
+                                            Generate Jadwal
+                                        </Button>
+                                    </div>
                                 </CardContent>
                             </Card>
                         ) : (
