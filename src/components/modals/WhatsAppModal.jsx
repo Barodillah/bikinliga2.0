@@ -50,6 +50,7 @@ export default function WhatsAppModal({ isOpen, onClose, onCancel }) {
                 // Update local user context
                 setUser(prev => ({ ...prev, phone: data.data.user.phone }));
                 onClose();
+                window.location.reload();
             } else {
                 error(data.message || 'Gagal menyimpan nomor WhatsApp');
             }

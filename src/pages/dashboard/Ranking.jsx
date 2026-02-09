@@ -24,15 +24,16 @@ export default function Ranking() {
                         id: item.user_id,
                         name: item.name || item.username,
                         username: `@${item.username}`,
-                        team: '-', // Team not in global stats yet
+                        team: item.community_name || '-',
                         points: item.total_points,
-                        totalTournaments: item.total_matches, // Mapping Matches to "Tournaments" slot for design consistency
+                        totalTournaments: parseInt(item.total_matches) || 0, // Mapping Matches to "Tournaments" slot
                         winRate: `${item.win_rate}%`,
                         avatar: item.avatar_url || `https://ui-avatars.com/api/?name=${item.name || item.username}&background=random`,
                         role: '-',
                         tier: (item.tier_name || 'free').toLowerCase().replace(' ', '_'),
                         recentMatches: [] // Not fetched in list
                     })))
+                        .filter(item => item.totalTournaments > 0)
                 }
             } catch (error) {
                 console.error("Failed to fetch rankings:", error)
@@ -287,7 +288,7 @@ export default function Ranking() {
                             <tr className="border-b border-white/10 bg-white/5">
                                 <th className="p-4 text-sm font-medium text-gray-400">Rank</th>
                                 <th className="p-4 text-sm font-medium text-gray-400">Player</th>
-                                <th className="p-4 text-sm font-medium text-gray-400 text-center">Tournaments</th>
+                                <th className="p-4 text-sm font-medium text-gray-400 text-center">Matches</th>
                                 <th className="p-4 text-sm font-medium text-gray-400 text-center">Win Rate</th>
                                 <th className="p-4 text-sm font-medium text-gray-400 text-right">Points</th>
                             </tr>
@@ -319,7 +320,9 @@ export default function Ranking() {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="p-4 text-gray-300 text-center">{player.totalTournaments}</td>
+                                    <td className="p-4 text-gray-300 text-center">
+                                        {player.totalTournaments > 0 ? player.totalTournaments : '-'}
+                                    </td>
                                     <td className="p-4 text-center">
                                         <span className="px-2 py-1 rounded-md bg-green-500/10 text-green-400 text-xs font-medium border border-green-500/20">
                                             {player.winRate}

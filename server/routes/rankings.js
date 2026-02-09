@@ -22,7 +22,15 @@ router.get('/', async (req, res) => {
                     SELECT COUNT(*)
                     FROM participants p
                     WHERE p.user_id = u.id
-                ) as totalTournaments
+                ) as totalTournaments,
+                (
+                    SELECT c.name 
+                    FROM community_members cm
+                    JOIN communities c ON cm.community_id = c.id
+                    WHERE cm.user_id = u.id AND cm.status = 'active'
+                    ORDER BY cm.joined_at DESC 
+                    LIMIT 1
+                ) as community_name
              FROM user_statistics us
              JOIN users u ON us.user_id = u.id
              ORDER BY us.total_points DESC, us.win_rate DESC, us.goal_difference DESC, us.goals_for DESC
