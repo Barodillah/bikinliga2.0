@@ -1447,7 +1447,7 @@ export default function UserTournamentDetail() {
                                                 <Newspaper className="w-24 h-24" />
                                             </div>
                                             <div className="relative z-10">
-                                                {pinnedNews.is_welcome && (
+                                                {!!pinnedNews.is_welcome && (
                                                     <span className="inline-block px-2 py-1 rounded bg-neonGreen/20 text-neonGreen text-[10px] font-bold mb-2">PINNED</span>
                                                 )}
                                                 <h4 className="font-bold text-lg sm:text-xl mb-2 line-clamp-2">{pinnedNews.title}</h4>

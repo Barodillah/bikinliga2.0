@@ -512,7 +512,14 @@ function EditParticipantModal({ isOpen, onClose, participant, onSave, onDelete, 
                         <UserCheck className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
                         <div className="text-xs text-gray-300 space-y-1">
                             <p className="font-bold text-blue-400">Akun Terverifikasi</p>
-                            <p>Peserta ini mendaftar menggunakan akun <strong>{participant.name}</strong>. Nama dan kontak dikelola langsung oleh pengguna dan tidak dapat diubah oleh admin.</p>
+                            <p>Peserta ini mendaftar menggunakan akun <strong>{participant.name}</strong>.</p>
+                            {(participant.phone || participant.user?.phone) && (
+                                <div className="mt-2 p-2 bg-black/20 rounded border border-white/5 flex items-center gap-2">
+                                    <Phone className="w-4 h-4 text-neonGreen" />
+                                    <span className="text-sm font-mono text-neonGreen">{participant.phone || participant.user?.phone}</span>
+                                </div>
+                            )}
+                            <p className="mt-2 text-xs opacity-70">Nama dan kontak dikelola langsung oleh pengguna dan tidak dapat diubah oleh admin.</p>
                         </div>
                     </div>
                 )}
@@ -930,6 +937,29 @@ export default function TournamentDetail() {
 
         return sfCompleted;
     }, [isKnockout, isGroupKO, tournamentData?.status, matches]);
+
+    // Auto-scroll to scheduled matches when opening fixtures tab
+    useEffect(() => {
+        if (activeTab === 'fixtures' && matches.length > 0) {
+            // Find the first match that is scheduled
+            const scheduledMatch = matches.find(m => m.status === 'scheduled');
+
+            if (scheduledMatch) {
+                const roundKey = scheduledMatch.round;
+                // Small delay to ensure rendering is complete
+                setTimeout(() => {
+                    const element = fixturesRefs.current[roundKey];
+                    if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 300);
+            }
+        }
+    }, [activeTab, matches]);
+
+    const isReadyForThirdPlace = canGenerate3rdPlace; // Simplified: exists check is already inside canGenerate3rdPlace logic
+
+
     const [newComment, setNewComment] = useState('')
     const [openThreadNewsId, setOpenThreadNewsId] = useState(null)
     const [newNews, setNewNews] = useState({

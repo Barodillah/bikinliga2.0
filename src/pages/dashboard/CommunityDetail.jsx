@@ -632,13 +632,13 @@ export default function CommunityDetail() {
                                                                     (comments[post.id] || []).map(comment => (
                                                                         <div key={comment.id} className="flex gap-3">
                                                                             <img
-                                                                                src={comment.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.user_name)}&background=random`}
-                                                                                alt={comment.user_name}
+                                                                                src={comment.user_avatar || comment.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.user_name || comment.name)}&background=random`}
+                                                                                alt={comment.user_name || comment.name}
                                                                                 className="w-8 h-8 rounded-full flex-shrink-0"
                                                                             />
                                                                             <div className="flex-1 bg-white/5 rounded-lg px-3 py-2">
                                                                                 <div className="flex items-center gap-2">
-                                                                                    <span className="font-bold text-white text-sm">{comment.user_name}</span>
+                                                                                    <span className="font-bold text-white text-sm">{comment.user_name || comment.name}</span>
                                                                                     <span className="text-xs text-gray-500">{formatTime(comment.created_at)}</span>
                                                                                 </div>
                                                                                 <p className="text-gray-300 text-sm">{comment.content}</p>
