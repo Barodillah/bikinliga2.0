@@ -2,6 +2,7 @@
 import { authFetch } from '../../utils/api'
 import { useNavigate } from 'react-router-dom'
 import { Trophy, Users, Calendar, ArrowLeft, ArrowRight, Check, Image, Upload, Link, Loader2, Sparkles, Pencil, X } from 'lucide-react'
+import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
 import Card, { CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
@@ -27,6 +28,97 @@ export default function CreateTournament() {
     const { success, error } = useToast()
     const navigate = useNavigate()
     const [step, setStep] = useState(1)
+
+    // Tour State
+    const [runTour, setRunTour] = useState(false);
+    const [tourSteps, setTourSteps] = useState([]);
+
+    const steps1 = [
+        {
+            target: '#tour-tournament-name',
+            content: 'Mulai dengan memberi nama untuk turnamenmu. Buat yang unik dan mudah diingat!',
+            title: 'Nama Turnamen',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-logo-section',
+            content: 'Pilih logo turnamen. Kamu bisa gunakan preset Liga yang tersedia, upload sendiri, atau gunakan URL.',
+            title: 'Logo Turnamen',
+        },
+        {
+            target: '#tour-competition-type',
+            content: 'Pilih format kompetisimu: Liga (Round Robin), Knockout (Gugur), atau Group Stage + Knockout.',
+            title: 'Jenis Kompetisi',
+        },
+        {
+            target: '#tour-ai-desc',
+            content: 'Bingung nulis deskripsi? Gunakan AI kami untuk membuatkan deskripsi yang menarik secara instan!',
+            title: 'Bantuan AI',
+        }
+    ];
+
+    const steps2 = [
+        {
+            target: '#tour-participant-count',
+            content: 'Tentukan jumlah peserta yang akan mengikuti turnamen ini. Sesuaikan dengan format yang kamu pilih.',
+            title: 'Jumlah Peserta',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-points-system',
+            content: 'Pilih sistem poin yang akan digunakan untuk menentukan peringkat (hanya untuk Liga/Group).',
+            title: 'Sistem Poin',
+        },
+        {
+            target: '#tour-match-format',
+            content: 'Tentukan apakah pertandingan berjalan 1 leg (Single Match) atau 2 leg (Home & Away).',
+            title: 'Format Pertandingan',
+        },
+        {
+            target: '#tour-visibility',
+            content: 'Atur visibilitas turnamenmu. Public bisa dilihat semua orang, Private hanya bisa diakses lewat link.',
+            title: 'Visibilitas',
+        }
+    ];
+
+    const steps3 = [
+        {
+            target: '#tour-summary',
+            content: 'Periksa kembali semua data turnamenmu sebelum dibuat. Pastikan semuanya sudah benar.',
+            title: 'Konfirmasi Data',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-submit',
+            content: 'Jika sudah yakin, klik tombol ini untuk membuat turnamenmu!',
+            title: 'Buat Turnamen',
+        }
+    ];
+
+    useEffect(() => {
+        const tourSeen = localStorage.getItem('create_tournament_tour_seen');
+        if (!tourSeen) {
+            if (step === 1) setTourSteps(steps1);
+            if (step === 2) setTourSteps(steps2);
+            if (step === 3) setTourSteps(steps3);
+            setRunTour(true);
+        }
+    }, [step]);
+
+    const handleJoyrideCallback = (data) => {
+        const { status } = data;
+
+        if (status === STATUS.SKIPPED) {
+            setRunTour(false);
+            localStorage.setItem('create_tournament_tour_seen', 'true');
+        } else if (status === STATUS.FINISHED) {
+            setRunTour(false);
+            if (step === 3) {
+                localStorage.setItem('create_tournament_tour_seen', 'true');
+            }
+        }
+    };
+
     const [formData, setFormData] = useState({
         name: '',
         logo: '',
@@ -217,6 +309,50 @@ export default function CreateTournament() {
 
     return (
         <div className="w-full mx-auto">
+            <ReactJoyride
+                steps={tourSteps}
+                run={runTour}
+                continuous
+                showProgress
+                showSkipButton
+                callback={handleJoyrideCallback}
+                styles={{
+                    options: {
+                        arrowColor: '#121212',
+                        backgroundColor: '#121212',
+                        overlayColor: 'rgba(5, 5, 5, 0.5)',
+                        primaryColor: '#02FE02',
+                        textColor: '#fff',
+                        zIndex: 1000,
+                    },
+                    tooltipContainer: {
+                        textAlign: 'left'
+                    },
+                    buttonNext: {
+                        backgroundColor: '#02FE02',
+                        color: '#000',
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        fontWeight: 'bold',
+                        outline: 'none',
+                    },
+                    buttonBack: {
+                        color: '#fff',
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        outline: 'none',
+                    },
+                    buttonSkip: {
+                        color: '#fff',
+                        fontFamily: 'Space Grotesk, sans-serif'
+                    }
+                }}
+                locale={{
+                    back: 'Kembali',
+                    close: 'Tutup',
+                    last: 'Selesai',
+                    next: 'Lanjut',
+                    skip: 'Lewati',
+                }}
+            />
             {/* Header */}
             <div className="mb-8">
                 <button
@@ -256,16 +392,18 @@ export default function CreateTournament() {
                         </h2>
 
                         <div className="space-y-6">
-                            <Input
-                                label="Nama Turnamen"
-                                placeholder="contoh: Warkop Cup Season 5"
-                                value={formData.name}
-                                onChange={(e) => handleChange('name', e.target.value)}
-                                required
-                            />
+                            <div id="tour-tournament-name">
+                                <Input
+                                    label="Nama Turnamen"
+                                    placeholder="contoh: Warkop Cup Season 5"
+                                    value={formData.name}
+                                    onChange={(e) => handleChange('name', e.target.value)}
+                                    required
+                                />
+                            </div>
 
                             {/* Logo Selection */}
-                            <div>
+                            <div id="tour-logo-section">
                                 <label className="block text-sm font-medium text-gray-300 mb-3">
                                     <div className="flex items-center gap-2">
                                         <Image className="w-4 h-4 text-neonPink" />
@@ -394,7 +532,7 @@ export default function CreateTournament() {
                                 )}
                             </div>
 
-                            <div>
+                            <div id="tour-competition-type">
                                 <label className="block text-sm font-medium text-gray-300 mb-3">Jenis Kompetisi</label>
                                 <div className="grid gap-3">
                                     {tournamentTypes.map((type) => (
@@ -437,6 +575,7 @@ export default function CreateTournament() {
                                             <span>Deskripsi (opsional)</span>
                                             <button
                                                 type="button"
+                                                id="tour-ai-desc"
                                                 onClick={() => setShowAIModal(true)}
                                                 className="text-xs flex items-center gap-1 text-neonGreen hover:text-white transition group"
                                                 title="Generate with AI"
@@ -478,7 +617,7 @@ export default function CreateTournament() {
                         </h2>
 
                         <div className="space-y-6">
-                            <div>
+                            <div id="tour-participant-count">
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Jumlah Peserta</label>
 
                                 {/* LEAGUE Logic */}
@@ -562,16 +701,18 @@ export default function CreateTournament() {
                                 )}
                             </div>
 
-                            {formData.type !== 'knockout' && (
-                                <Select
-                                    label="Sistem Poin"
-                                    options={pointSystems}
-                                    value={formData.pointSystem}
-                                    onChange={(e) => handleChange('pointSystem', e.target.value)}
-                                />
-                            )}
+                            <div id="tour-points-system">
+                                {formData.type !== 'knockout' && (
+                                    <Select
+                                        label="Sistem Poin"
+                                        options={pointSystems}
+                                        value={formData.pointSystem}
+                                        onChange={(e) => handleChange('pointSystem', e.target.value)}
+                                    />
+                                )}
+                            </div>
 
-                            <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                            <div id="tour-match-format" className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
                                 <div>
                                     <div className="font-medium">Format Pertandingan</div>
                                     <div className="text-sm text-gray-500">
@@ -590,7 +731,7 @@ export default function CreateTournament() {
                             </div>
 
                             {/* Visibility Toggle */}
-                            <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                            <div id="tour-visibility" className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
                                 <div>
                                     <div className="font-medium">Visibility</div>
                                     <div className="text-sm text-gray-500">
@@ -654,7 +795,7 @@ export default function CreateTournament() {
                             Konfirmasi
                         </h2>
 
-                        <div className="space-y-4 mb-8">
+                        <div id="tour-summary" className="space-y-4 mb-8">
                             {/* Logo & Name Preview */}
                             <div className="p-4 bg-white/5 rounded-lg flex items-center gap-4">
                                 {formData.logo ? (
@@ -728,7 +869,7 @@ export default function CreateTournament() {
                             <Button type="button" variant="ghost" onClick={() => setStep(2)}>
                                 <ArrowLeft className="w-4 h-4 mr-2" /> Kembali
                             </Button>
-                            <Button type="submit" disabled={isSubmitting}>
+                            <Button type="submit" disabled={isSubmitting} id="tour-submit">
                                 {isSubmitting ? (
                                     <>
                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memproses...

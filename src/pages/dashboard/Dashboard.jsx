@@ -7,6 +7,7 @@ import AdSlot from '../../components/ui/AdSlot'
 import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
 import { useToast } from '../../contexts/ToastContext'
 import { authFetch } from '../../utils/api'
+import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
 
 // Formatters
 const formatDate = (dateString) => {
@@ -39,6 +40,49 @@ export default function Dashboard() {
     const [joinedTournaments, setJoinedTournaments] = useState([]);
     const [upcomingMatches, setUpcomingMatches] = useState([]);
     const [quickActions, setQuickActions] = useState(null);
+
+    const [runTour, setRunTour] = useState(false);
+    const [tourSteps, setTourSteps] = useState([
+        {
+            target: '#tour-create-tournament',
+            content: 'Buat turnamenmu sendiri disini! Atur jadwal, skor, dan kelola peserta dengan mudah.',
+            title: 'Buat Turnamen',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-join-tournament',
+            content: 'Cari dan ikuti turnamen yang tersedia untuk menunjukkan kemampuan timmu.',
+            title: 'Gabung Turnamen',
+        }
+    ]);
+
+    useEffect(() => {
+        const tourSeen = localStorage.getItem('dashboard_tour_seen');
+        // Only run tour if not seen and (optionally) if user has no tournaments yet (isEmptyState logic handles the view, but tour runs on logic)
+        // Check if data is loaded to decide? For now just rely on localStorage and the fact that these elements exist only in empty state?
+        // Actually, the elements #tour-create-tournament are ONLY rendered if isEmptyState is true.
+        // So we should only run tour if isEmptyState is true? 
+        // But isEmptyState is derived from data. 
+        // Let's set runTour to true initially if localStorage is empty, but Joyride won't find targets until they render.
+        // That might cause issues or just not show.
+        // Better: Set runTour to true ONLY when we know we are showing the empty state.
+        // But we don't know that until data is fetched.
+        // So I'll modify the existing useEffect or add a new one that depends on isEmptyState.
+        // For now, let's just leave this simple logic, and maybe update it in a separate effect once loading is done.
+        if (!tourSeen) {
+            setRunTour(true);
+        }
+    }, []);
+
+    const handleJoyrideCallback = (data) => {
+        const { status } = data;
+        const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
+
+        if (finishedStatuses.includes(status)) {
+            setRunTour(false);
+            localStorage.setItem('dashboard_tour_seen', 'true');
+        }
+    };
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -110,6 +154,50 @@ export default function Dashboard() {
 
     return (
         <div className="space-y-6 sm:space-y-8 w-full max-w-full overflow-hidden">
+            <ReactJoyride
+                steps={tourSteps}
+                run={runTour && !loading && isEmptyState} // Only run if loaded and empty state is active
+                continuous
+                showProgress
+                showSkipButton
+                callback={handleJoyrideCallback}
+                styles={{
+                    options: {
+                        arrowColor: '#121212',
+                        backgroundColor: '#121212',
+                        overlayColor: 'rgba(5, 5, 5, 0.5)',
+                        primaryColor: '#02FE02',
+                        textColor: '#fff',
+                        zIndex: 1000,
+                    },
+                    tooltipContainer: {
+                        textAlign: 'left'
+                    },
+                    buttonNext: {
+                        backgroundColor: '#02FE02',
+                        color: '#000',
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        fontWeight: 'bold',
+                        outline: 'none',
+                    },
+                    buttonBack: {
+                        color: '#fff',
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        outline: 'none',
+                    },
+                    buttonSkip: {
+                        color: '#fff',
+                        fontFamily: 'Space Grotesk, sans-serif'
+                    }
+                }}
+                locale={{
+                    back: 'Kembali',
+                    close: 'Tutup',
+                    last: 'Selesai',
+                    next: 'Lanjut',
+                    skip: 'Lewati',
+                }}
+            />
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-1">
                 <div>
@@ -126,7 +214,7 @@ export default function Dashboard() {
             {isEmptyState ? (
                 <div className="space-y-6">
                     {/* Create Tournament CTA */}
-                    <div className="w-full relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-900/40 to-teal-900/40 border border-white/10 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+                    <div id="tour-create-tournament" className="w-full relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-900/40 to-teal-900/40 border border-white/10 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
                         <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                             <Trophy className="w-48 h-48 -rotate-12" />
                         </div>
@@ -147,7 +235,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* Join Tournament CTA */}
-                    <div className="w-full relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-white/10 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+                    <div id="tour-join-tournament" className="w-full relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-white/10 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
                         <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                             <Trophy className="w-48 h-48 rotate-12" />
                         </div>

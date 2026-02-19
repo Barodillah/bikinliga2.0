@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
 import { Search, Trophy, Calendar, Users, Grid, List as ListIcon, PlayCircle, ShieldCheck, Sparkles, Clock, TrendingUp, Filter, Crown, Shield, Mail } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -25,6 +26,48 @@ export default function Competitions() {
     const [filterType, setFilterType] = useState(searchParams.get('tab') === 'participating' ? 'participating' : 'all')
 
     const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
+
+    // Tour State
+    const [runTour, setRunTour] = useState(false);
+    const [tourSteps, setTourSteps] = useState([
+        {
+            target: '#tour-comp-header',
+            content: 'Halaman ini menampilkan semua kompetisi publik yang bisa kamu ikuti.',
+            title: 'Kompetisi Publik',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-comp-featured',
+            content: 'Kompetisi Highlight adalah turnamen pilihan atau yang paling banyak diminati saat ini.',
+            title: 'Kompetisi Highlight',
+        },
+        {
+            target: '#tour-comp-featured-btn',
+            content: 'Klik tombol ini untuk mendaftar atau melihat detail kompetisi highlight tersebut.',
+            title: 'Daftar Sekarang',
+        },
+        {
+            target: '#tour-comp-filters',
+            content: 'Gunakan filter ini untuk melihat semua kompetisi publik atau kompetisi yang sudah kamu ikuti.',
+            title: 'Filter Kompetisi',
+        }
+    ]);
+
+    useEffect(() => {
+        const tourSeen = localStorage.getItem('competitions_tour_seen');
+        if (!tourSeen && !loading) { // Wait for loading to finish so elements exist
+            setRunTour(true);
+        }
+    }, [loading]);
+
+    const handleJoyrideCallback = (data) => {
+        const { status } = data;
+        const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
+        if (finishedStatuses.includes(status)) {
+            setRunTour(false);
+            localStorage.setItem('competitions_tour_seen', 'true');
+        }
+    };
 
     useEffect(() => {
         if (user && !user.phone) {
@@ -194,8 +237,52 @@ export default function Competitions() {
 
     return (
         <div className="space-y-6">
+            <ReactJoyride
+                steps={tourSteps}
+                run={runTour}
+                continuous
+                showProgress
+                showSkipButton
+                callback={handleJoyrideCallback}
+                styles={{
+                    options: {
+                        arrowColor: '#121212',
+                        backgroundColor: '#121212',
+                        overlayColor: 'rgba(5, 5, 5, 0.5)',
+                        primaryColor: '#02FE02',
+                        textColor: '#fff',
+                        zIndex: 1000,
+                    },
+                    tooltipContainer: {
+                        textAlign: 'left'
+                    },
+                    buttonNext: {
+                        backgroundColor: '#02FE02',
+                        color: '#000',
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        fontWeight: 'bold',
+                        outline: 'none',
+                    },
+                    buttonBack: {
+                        color: '#fff',
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        outline: 'none',
+                    },
+                    buttonSkip: {
+                        color: '#fff',
+                        fontFamily: 'Space Grotesk, sans-serif'
+                    }
+                }}
+                locale={{
+                    back: 'Kembali',
+                    close: 'Tutup',
+                    last: 'Selesai',
+                    next: 'Lanjut',
+                    skip: 'Lewati',
+                }}
+            />
             {/* ... Header ... */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" id="tour-comp-header">
                 <div>
                     <h1 className="text-2xl md:text-3xl font-display font-bold">Kompetisi Publik</h1>
                     <p className="text-gray-400 mt-1">Temukan dan ikuti turnamen yang terbuka untuk umum</p>
@@ -204,7 +291,7 @@ export default function Competitions() {
 
             {/* Featured Competition */}
             {featuredCompetition && !searchQuery && (
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-900/50 to-purple-900/50 border border-white/10 p-6 sm:p-8">
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-900/50 to-purple-900/50 border border-white/10 p-6 sm:p-8" id="tour-comp-featured">
                     {/* ... (existing featured content) ... */}
                     <div className="absolute top-0 right-0 p-4 opacity-10">
                         <Trophy className="w-64 h-64 rotate-12" />
@@ -267,6 +354,7 @@ export default function Competitions() {
                                     className="w-full"
                                     size="lg"
                                     icon={PlayCircle}
+                                    id="tour-comp-featured-btn"
                                     onClick={() => navigate(`/dashboard/competitions/${featuredCompetition.slug}/join`)}
                                 >
                                     {featuredCompetition.userStatus ? 'Lihat Detail' : 'Daftar Sekarang'}
@@ -297,7 +385,7 @@ export default function Competitions() {
                 </div>
                 <div className="flex gap-2">
                     {/* ... Filter Buttons ... */}
-                    <div className="flex border border-white/10 rounded-lg overflow-hidden bg-black/20 p-1 gap-1">
+                    <div className="flex border border-white/10 rounded-lg overflow-hidden bg-black/20 p-1 gap-1" id="tour-comp-filters">
                         <button
                             onClick={() => setFilterType('all')}
                             className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${filterType === 'all'

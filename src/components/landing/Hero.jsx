@@ -81,10 +81,10 @@ export default function Hero() {
                             <Zap className="w-5 h-5" />
                             Buat Liga Sekarang
                         </Link>
-                        <a href="#cara-kerja" className="btn-secondary w-full sm:w-auto px-8 py-4 rounded-full text-lg flex items-center justify-center gap-2">
+                        <Link to="/tutorial" className="btn-secondary w-full sm:w-auto px-8 py-4 rounded-full text-lg flex items-center justify-center gap-2">
                             <PlayCircle className="w-5 h-5" />
-                            Lihat Demo
-                        </a>
+                            Lihat Panduan
+                        </Link>
                     </div>
                 </div>
 

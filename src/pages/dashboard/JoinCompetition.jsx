@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react'
 import { authFetch } from '../../utils/api'
+import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { ArrowLeft, Loader2, User, Phone, Shield, Trophy, Users, Calendar, Sparkles, ShieldCheck, Newspaper, ClipboardList, MessageSquare, MessageCircle, ChevronDown, Send, CheckCircle, XCircle, Clock, Trash2, Edit, Share2, Mail, ImagePlus } from 'lucide-react'
 import Card, { CardHeader, CardContent, CardTitle, CardDescription } from '../../components/ui/Card'
@@ -62,8 +63,13 @@ export default function JoinCompetition() {
     const location = useLocation()
     const isPublic = location.pathname.startsWith('/join')
 
-    const [competitionData, setCompetitionData] = useState(null)
+    // Move participants state up so isJoined can use it
     const [participants, setParticipants] = useState([])
+    // Move isJoined definition up before effects
+    // user is already defined above
+    const isJoined = participants.some(p => p.user_id === user?.id)
+
+    const [competitionData, setCompetitionData] = useState(null)
     const [loadingData, setLoadingData] = useState(true)
 
     const [formData, setFormData] = useState({
@@ -80,13 +86,77 @@ export default function JoinCompetition() {
     const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
 
+    // Tour State
+    const [runTour, setRunTour] = useState(false);
+    const [tourSteps, setTourSteps] = useState([
+        {
+            target: '#tour-join-header',
+            content: 'Selamat datang di halaman pendaftaran! Di sini kamu bisa mendaftar untuk mengikuti kompetisi.',
+            title: 'Registrasi Kompetisi',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-join-info',
+            content: 'Cek detail kompetisi, jadwal, format pertandingan, tier, serta slot yang tersedia sebelum mendaftar.',
+            title: 'Detail Kompetisi',
+        },
+        {
+            target: '#tour-join-tabs',
+            content: 'Gunakan tab ini untuk melihat daftar peserta yang sudah bergabung atau berita terbaru seputar liga.',
+            title: 'Navigasi Tab',
+        },
+        {
+            target: '#tour-join-form',
+            content: 'Isi formulir ini dengan lengkap untuk mendaftarkan tim kamu.',
+            title: 'Formulir Pendaftaran',
+        },
+        {
+            target: '#tour-join-league',
+            content: 'Pilih liga asal tim kamu (misalnya: English League, Spanish League, dsb).',
+            title: 'Pilih Liga',
+        },
+        {
+            target: '#tour-join-team',
+            content: 'Pilih tim yang akan kamu gunakan dalam kompetisi ini. Pastikan pilihanmu sudah benar.',
+            title: 'Pilih Tim',
+        },
+        {
+            target: '#tour-join-submit',
+            content: 'Klik tombol ini untuk mengirim pendaftaranmu. Semoga beruntung!',
+            title: 'Kirim Pendaftaran',
+        }
+    ]);
+
+    useEffect(() => {
+        // Only run tour if data is loaded, user is logged in, and hasn't seen it yet
+        if (!loadingData && competitionData && user) {
+            const tourSeen = localStorage.getItem('join_competition_tour_seen');
+            if (!tourSeen && !isJoined) { // Don't run if already joined
+                setRunTour(true);
+            }
+        }
+    }, [loadingData, competitionData, user, isJoined]);
+
+    const handleJoyrideCallback = (data) => {
+        const { status } = data;
+        const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
+        if (finishedStatuses.includes(status)) {
+            setRunTour(false);
+            localStorage.setItem('join_competition_tour_seen', 'true');
+        }
+    };
+
     useEffect(() => {
         if (user && !user.phone) {
             setShowWhatsAppModal(true)
         }
     }, [user])
 
-    const isJoined = participants.some(p => p.user_id === user?.id)
+    useEffect(() => {
+        if (user && !user.phone) {
+            setShowWhatsAppModal(true)
+        }
+    }, [user])
 
     // Redirect logic if user is joined and status is NOT pending (e.g. approved)
     // Redirect logic if user is joined and status is NOT pending (e.g. approved)
@@ -545,9 +615,53 @@ export default function JoinCompetition() {
                 isLoading={loading}
             />
             {isPublic && <Navbar />}
+            <ReactJoyride
+                steps={tourSteps}
+                run={runTour}
+                continuous
+                showProgress
+                showSkipButton
+                callback={handleJoyrideCallback}
+                styles={{
+                    options: {
+                        arrowColor: '#121212',
+                        backgroundColor: '#121212',
+                        overlayColor: 'rgba(5, 5, 5, 0.5)',
+                        primaryColor: '#02FE02',
+                        textColor: '#fff',
+                        zIndex: 1000,
+                    },
+                    tooltipContainer: {
+                        textAlign: 'left'
+                    },
+                    buttonNext: {
+                        backgroundColor: '#02FE02',
+                        color: '#000',
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        fontWeight: 'bold',
+                        outline: 'none',
+                    },
+                    buttonBack: {
+                        color: '#fff',
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        outline: 'none',
+                    },
+                    buttonSkip: {
+                        color: '#fff',
+                        fontFamily: 'Space Grotesk, sans-serif'
+                    }
+                }}
+                locale={{
+                    back: 'Kembali',
+                    close: 'Tutup',
+                    last: 'Selesai',
+                    next: 'Lanjut',
+                    skip: 'Lewati',
+                }}
+            />
             <div className={`space-y-6 mx-auto w-full ${isPublic ? 'pt-24 px-4 md:px-8' : ''}`}>
                 {/* Header */}
-                <div>
+                <div id="tour-join-header">
                     {!isPublic && (
                         <button
                             onClick={() => navigate('/dashboard/competitions')}
@@ -564,7 +678,7 @@ export default function JoinCompetition() {
                             <h1 className="text-2xl md:text-3xl font-display font-bold mb-2">Registrasi Kompetisi</h1>
 
                             {/* Competition Detail Summary */}
-                            <div className="bg-gradient-to-br from-blue-900/40 to-purple-900/40 border border-white/10 rounded-xl p-6 relative overflow-hidden">
+                            <div className="bg-gradient-to-br from-blue-900/40 to-purple-900/40 border border-white/10 rounded-xl p-6 relative overflow-hidden" id="tour-join-info">
                                 <div className="absolute top-0 right-0 p-4 opacity-10">
                                     <Trophy className="w-32 h-32 rotate-12" />
                                 </div>
@@ -636,7 +750,7 @@ export default function JoinCompetition() {
                             </div>
 
                             {/* Tab Navigation */}
-                            <div className="flex items-center gap-2 border-b border-white/10 overflow-x-auto mt-6">
+                            <div className="flex items-center gap-2 border-b border-white/10 overflow-x-auto mt-6" id="tour-join-tabs">
                                 {(!isJoined || isInvited) && (
                                     <button
                                         onClick={() => setActiveTab('register')}
@@ -665,7 +779,7 @@ export default function JoinCompetition() {
                             {/* Tab Content */}
                             <div className="min-h-[400px] mt-6">
                                 {activeTab === 'register' && (
-                                    <Card hover={false} className={isInvited ? "border-orange-500/50 bg-orange-500/5" : ""}>
+                                    <Card hover={false} className={isInvited ? "border-orange-500/50 bg-orange-500/5" : ""} id="tour-join-form">
                                         <CardHeader>
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-10 h-10 rounded-lg ${isInvited ? 'bg-orange-500/20 text-orange-500' : 'bg-white/5 text-neonGreen'} flex items-center justify-center`}>
@@ -876,7 +990,7 @@ export default function JoinCompetition() {
                                                     </div>
 
                                                     {/* Team Select */}
-                                                    <div>
+                                                    <div id="tour-join-team">
                                                         <label className="block text-sm font-medium text-gray-300 mb-2">
                                                             <div className="flex items-center gap-2">
                                                                 <Shield className="w-4 h-4 text-neonPink" />
@@ -941,31 +1055,23 @@ export default function JoinCompetition() {
                                                     </div>
 
                                                     {/* Submit Buttons */}
-
-                                                    {/* Submit Buttons */}
-                                                    <div className="flex gap-3 pt-4">
+                                                    <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
                                                         <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            className="flex-1"
-                                                            onClick={() => isPublic ? navigate('/') : navigate('/dashboard/competitions')}
+                                                            variant="secondary"
+                                                            onClick={() => navigate('/dashboard/competitions')}
+                                                            disabled={isSubmitting}
                                                         >
                                                             Batal
                                                         </Button>
                                                         <Button
+                                                            loading={isSubmitting}
                                                             type="submit"
                                                             className="flex-1"
                                                             disabled={isSubmitting || loadingTeams}
                                                             icon={Sparkles}
+                                                            id="tour-join-submit"
                                                         >
-                                                            {isSubmitting ? (
-                                                                <>
-                                                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                                                    Mendaftar...
-                                                                </>
-                                                            ) : (
-                                                                'Daftar Sekarang'
-                                                            )}
+                                                            {isInvited ? 'Terima Undangan' : 'Kirim Pendaftaran'}
                                                         </Button>
                                                     </div>
                                                 </form>

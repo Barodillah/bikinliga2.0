@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Loader2, User, Phone, Shield, Trophy, Users, Calendar, BarChart2 } from 'lucide-react'
+import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
 import Card, { CardHeader, CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
@@ -91,6 +92,53 @@ export default function AddPlayer() {
     const [loadingTeams, setLoadingTeams] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState('')
+
+    // Tour State
+    const [runTour, setRunTour] = useState(false);
+    const [tourSteps, setTourSteps] = useState([
+        {
+            target: '#tour-player-league',
+            content: 'Pilih Liga eFootball 2025 yang sesuai. Pilihan liga akan memuat daftar tim resmi beserta logo mereka secara otomatis.',
+            title: 'Pilih Liga',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-player-team',
+            content: 'Cari dan pilih tim kamu di sini. Jika tidak ada di daftar, ketik nama tim secara manual di kolom bawahnya. Logo tim akan otomatis muncul.',
+            title: 'Pilih Tim',
+        },
+        {
+            target: '#tour-player-name',
+            content: 'Masukkan nama pemain atau bisa menggunakan nama panggilan. Nama ini akan ditampilkan di statistik, hasil pertandingan, dan klasemen.',
+            title: 'Nama Pemain',
+        },
+        {
+            target: '#tour-player-contact',
+            content: 'Wajib isi nomor WhatsApp aktif (awalan 08). Kami akan mengirim notifikasi jadwal dan info penting turnamen ke nomor ini.',
+            title: 'Kontak WhatsApp',
+        },
+        {
+            target: '#tour-player-save',
+            content: 'Simpan data pemain untuk menyelesaikan pendaftaran. Pastikan semua data sudah benar sebelum menyimpan.',
+            title: 'Simpan Data',
+        }
+    ]);
+
+    useEffect(() => {
+        const tourSeen = localStorage.getItem('add_player_tour_seen');
+        if (!tourSeen) {
+            setRunTour(true);
+        }
+    }, []);
+
+    const handleJoyrideCallback = (data) => {
+        const { status } = data;
+        const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
+        if (finishedStatuses.includes(status)) {
+            setRunTour(false);
+            localStorage.setItem('add_player_tour_seen', 'true');
+        }
+    };
 
     // Fetch teams when league changes
     useEffect(() => {
@@ -255,6 +303,50 @@ export default function AddPlayer() {
 
     return (
         <div className="space-y-6 w-full mx-auto">
+            <ReactJoyride
+                steps={tourSteps}
+                run={runTour}
+                continuous
+                showProgress
+                showSkipButton
+                callback={handleJoyrideCallback}
+                styles={{
+                    options: {
+                        arrowColor: '#121212',
+                        backgroundColor: '#121212',
+                        overlayColor: 'rgba(5, 5, 5, 0.5)',
+                        primaryColor: '#02FE02',
+                        textColor: '#fff',
+                        zIndex: 1000,
+                    },
+                    tooltipContainer: {
+                        textAlign: 'left'
+                    },
+                    buttonNext: {
+                        backgroundColor: '#02FE02',
+                        color: '#000',
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        fontWeight: 'bold',
+                        outline: 'none',
+                    },
+                    buttonBack: {
+                        color: '#fff',
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        outline: 'none',
+                    },
+                    buttonSkip: {
+                        color: '#fff',
+                        fontFamily: 'Space Grotesk, sans-serif'
+                    }
+                }}
+                locale={{
+                    back: 'Kembali',
+                    close: 'Tutup',
+                    last: 'Selesai',
+                    next: 'Lanjut',
+                    skip: 'Lewati',
+                }}
+            />
             {/* Header with Tournament Details */}
             <div>
                 <button
@@ -333,7 +425,7 @@ export default function AddPlayer() {
                         )}
 
                         {/* League Select */}
-                        <div>
+                        <div id="tour-player-league">
                             <label className="block text-sm font-medium text-gray-300 mb-2">
                                 <div className="flex items-center gap-2">
                                     <Trophy className="w-4 h-4 text-neonGreen" />
@@ -349,7 +441,7 @@ export default function AddPlayer() {
                         </div>
 
                         {/* Team Select */}
-                        <div>
+                        <div id="tour-player-team">
                             <label className="block text-sm font-medium text-gray-300 mb-2">
                                 <div className="flex items-center gap-2">
                                     <Shield className="w-4 h-4 text-neonPink" />
@@ -415,38 +507,42 @@ export default function AddPlayer() {
                         </div>
 
                         {/* Player Name */}
-                        <Input
-                            label={
-                                <div className="flex items-center gap-2">
-                                    <User className="w-4 h-4 text-neonGreen" />
-                                    Nama Pemain
-                                </div>
-                            }
-                            placeholder="contoh: Ahmad"
-                            value={formData.playerName}
-                            onChange={(e) => setFormData(prev => ({
-                                ...prev,
-                                playerName: e.target.value.replace(/\b\w/g, char => char.toUpperCase())
-                            }))}
-                        />
+                        <div id="tour-player-name">
+                            <Input
+                                label={
+                                    <div className="flex items-center gap-2">
+                                        <User className="w-4 h-4 text-neonGreen" />
+                                        Nama Pemain
+                                    </div>
+                                }
+                                placeholder="contoh: Ahmad"
+                                value={formData.playerName}
+                                onChange={(e) => setFormData(prev => ({
+                                    ...prev,
+                                    playerName: e.target.value.replace(/\b\w/g, char => char.toUpperCase())
+                                }))}
+                            />
+                        </div>
 
                         {/* Contact */}
-                        <Input
-                            label={
-                                <div className="flex items-center gap-2">
-                                    <Phone className="w-4 h-4 text-neonPink" />
-                                    Kontak (WhatsApp)
-                                </div>
-                            }
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="contoh: 081234567890"
-                            value={formData.contact}
-                            onChange={(e) => setFormData(prev => ({
-                                ...prev,
-                                contact: e.target.value.replace(/[^0-9]/g, '')
-                            }))}
-                        />
+                        <div id="tour-player-contact">
+                            <Input
+                                label={
+                                    <div className="flex items-center gap-2">
+                                        <Phone className="w-4 h-4 text-neonPink" />
+                                        Kontak (WhatsApp)
+                                    </div>
+                                }
+                                type="text"
+                                inputMode="numeric"
+                                placeholder="contoh: 081234567890"
+                                value={formData.contact}
+                                onChange={(e) => setFormData(prev => ({
+                                    ...prev,
+                                    contact: e.target.value.replace(/[^0-9]/g, '')
+                                }))}
+                            />
+                        </div>
 
                         {/* Submit Buttons */}
                         <div className="flex gap-3 pt-4">
@@ -461,6 +557,7 @@ export default function AddPlayer() {
                             <Button
                                 type="submit"
                                 className="flex-1"
+                                id="tour-player-save"
                                 disabled={isSubmitting || loadingTeams || !formData.league || !formData.team || !formData.playerName || !formData.contact}
                                 onClick={(e) => {
                                     // If disabled, click won't fire. But user said: "jika dipaksa di klik".

@@ -24,7 +24,7 @@ export default function AdminLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const location = useLocation()
     const navigate = useNavigate()
-    const { logout } = useAuth()
+    const { logout, user } = useAuth()
 
     const handleLogout = async () => {
         await logout()
@@ -170,11 +170,15 @@ export default function AdminLayout() {
                         {/* User Menu */}
                         <div className="flex items-center gap-4">
                             <div className="text-right hidden sm:block">
-                                <div className="text-sm font-bold text-gray-900">Owner</div>
-                                <div className="text-xs text-gray-500">Super Admin</div>
+                                <div className="text-sm font-bold text-gray-900">{user?.name || user?.username || 'User'}</div>
+                                <div className="text-xs text-gray-500 capitalize">{user?.role || 'Admin'}</div>
                             </div>
-                            <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold border-2 border-neonGreen">
-                                O
+                            <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold border-2 border-neonGreen overflow-hidden">
+                                {user?.avatar_url || user?.profile_picture ? (
+                                    <img src={user.avatar_url || user.profile_picture} alt={user.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    (user?.name?.charAt(0) || user?.username?.charAt(0) || 'U').toUpperCase()
+                                )}
                             </div>
                         </div>
                     </header>

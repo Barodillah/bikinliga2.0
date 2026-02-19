@@ -7,6 +7,7 @@ import HowItWorks from '../../components/landing/HowItWorks'
 import Pricing from '../../components/landing/Pricing'
 import FAQ from '../../components/landing/FAQ'
 import Footer from '../../components/landing/Footer'
+import CookieConsent from '../../components/landing/CookieConsent'
 
 export default function LandingPage() {
     return (
@@ -23,6 +24,7 @@ export default function LandingPage() {
             <Pricing />
             <FAQ />
             <Footer />
+            <CookieConsent />
         </div>
     )
 }

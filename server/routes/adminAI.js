@@ -1,5 +1,7 @@
 import express from 'express';
 import { query } from '../config/db.js';
+import { v4 as uuidv4 } from 'uuid';
+
 import dotenv from 'dotenv';
 // Import Auth Middleware
 import { authMiddleware } from '../middleware/auth.js';
@@ -13,16 +15,68 @@ router.use(authMiddleware);
 
 // Helper to get system stats for context
 const getSystemStats = async () => {
-    const statsQuery = `
+    // 1. User Stats
+    const [userStats] = await query(`
         SELECT 
-            (SELECT COUNT(*) FROM users) as total_users,
-            (SELECT COUNT(*) FROM complaints WHERE status IN ('open', 'in_progress')) as active_complaints,
-            (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'topup' AND status = 'success') as total_revenue,
-            (SELECT COUNT(*) FROM tournaments) as total_tournaments
-    `;
-    const [stats] = await query(statsQuery);
-    return stats;
+            COUNT(*) as total,
+            SUM(CASE WHEN is_verified = 1 THEN 1 ELSE 0 END) as verified,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as new_users_30d
+        FROM users
+    `);
+
+    // 2. Tournament Stats
+    const [tournamentStats] = await query(`
+        SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+            SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft,
+            SUM(CASE WHEN type = 'knockout' THEN 1 ELSE 0 END) as knockout,
+            SUM(CASE WHEN type = 'league' THEN 1 ELSE 0 END) as league,
+            SUM(CASE WHEN type = 'group_knockout' THEN 1 ELSE 0 END) as group_knockout
+        FROM tournaments
+    `);
+
+    // 3. Financial Stats (Revenue)
+    const [financialStats] = await query(`
+        SELECT 
+            COALESCE(SUM(amount), 0) as total_revenue,
+            COUNT(*) as total_transactions,
+            SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN amount ELSE 0 END) as revenue_30d
+        FROM transactions 
+        WHERE type = 'topup' AND status = 'success'
+    `);
+
+    // 4. Complaints Overview
+    const [complaintStats] = await query(`
+        SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open,
+            SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+            SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved
+        FROM complaints
+    `);
+
+    // 5. Recent Complaints (for qualitative analysis)
+    const recentComplaints = await query(`
+        SELECT subject, message, status, created_at 
+        FROM complaints 
+        ORDER BY created_at DESC 
+        LIMIT 5
+    `);
+
+    return {
+        users: userStats[0],
+        tournaments: tournamentStats[0],
+        finance: financialStats[0],
+        complaints: {
+            stats: complaintStats[0],
+            recent: recentComplaints
+        }
+    };
 };
+
+
 
 // Analyze/Chat Endpoint
 router.post('/analyze', async (req, res) => {
@@ -45,41 +99,59 @@ router.post('/analyze', async (req, res) => {
                 const [msgs] = await query('SELECT role, content FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC', [currentSessionId]);
                 history = msgs || [];
             } else {
-                // Session ID provided but not found? Treat as new or error. Let's create new.
+                // Session ID provided but not found? Treat as new.
                 currentSessionId = null;
             }
         }
 
         if (!currentSessionId) {
             // Create new session
-            // Using UUID for ID generation in SQL if possible, or selecting after. 
-            // Better to use UUID library but I'll stick to SQL UUID() and fetch content.
-            // Actually, let's use a simpler approach: 
-            // Generate UUID in JS (if I had uuid lib imported, looking at ai_minliga.js it does)
-            // But since I don't want to add imports if not needed, I will do the INSERT then SELECT.
-
+            currentSessionId = uuidv4();
             await query(
-                'INSERT INTO chat_sessions (id, user_id, title) VALUES (UUID(), ?, ?)',
-                [userId, 'New Chat']
+                'INSERT INTO chat_sessions (id, user_id, title) VALUES (?, ?, ?)',
+                [currentSessionId, userId, 'New Chat']
             );
-            const [newSession] = await query('SELECT id FROM chat_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1', [userId]);
-            currentSessionId = newSession.id;
         }
 
         // 2. Prepare Context
-        const systemStats = await getSystemStats();
+        const stats = await getSystemStats();
+
         const systemPrompt = `
-            You are an AI Assistant for the Admin of "BikinLiga", a tournament management platform.
+            Anda adalah **AI Business Intelligence & Product Consultant** untuk **BikinLiga**.
             
-            Current System Stats:
-            - Users: ${systemStats.total_users}
-            - Active Complaints: ${systemStats.active_complaints}
-            - Revenue: Rp ${Number(systemStats.total_revenue).toLocaleString('id-ID')}
-            - Tournaments: ${systemStats.total_tournaments}
+            **Tentang BikinLiga:**
+            BikinLiga adalah platform SaaS modern untuk manajemen turnamen e-sports dan olahraga fisik. 
+            Fitur utama meliputi: Bracket Generator (Knockout/League), Automatic Scheduling, Public Leaderboard, Manajemen Tim/Pemain, dan Integrasi Pembayaran (Wallet System).
+            Tujuan aplikasi ini adalah memudahkan penyelenggara (EO) membuat turnamen yang profesional dan transparan.
+
+            **Data Terkini Sistem (Real-time):**
             
-            Answer the admin's questions based on this data. Be helpful, concise, and professional.
-            If asked about data not here, explain you only have access to high-level stats currently.
-            Response format: Markdown.
+            📊 **Pengguna:**
+            - Total: ${stats.users.total} (Terverifikasi: ${stats.users.verified})
+            - Baru (30 Hari): ${stats.users.new_users_30d}
+            
+            🏆 **Turnamen:**
+            - Total: ${stats.tournaments.total}
+            - Status: ${stats.tournaments.active} Aktif, ${stats.tournaments.completed} Selesai, ${stats.tournaments.draft} Draft
+            - Tipe: ${stats.tournaments.knockout} Knockout, ${stats.tournaments.league} Liga, ${stats.tournaments.group_knockout} Grup+Knockout
+            
+            💰 **Keuangan:**
+            - Total Pendapatan: Rp ${Number(stats.finance.total_revenue).toLocaleString('id-ID')}
+            - Pendapatan (30 Hari): Rp ${Number(stats.finance.revenue_30d).toLocaleString('id-ID')}
+            - Total Transaksi: ${stats.finance.total_transactions}
+            
+            📢 **Keluhan & Masukan User:**
+            - Total: ${stats.complaints.stats.total} (Open: ${stats.complaints.stats.open}, On Progress: ${stats.complaints.stats.in_progress}, Resolved: ${stats.complaints.stats.resolved})
+            - **5 Keluhan Terakhir:**
+            ${stats.complaints.recent.map(c => `- [${c.status.toUpperCase()}] ${c.subject}: "${c.message.substring(0, 100)}..."`).join('\n')}
+
+            **Tugas Anda:**
+            1. **Analisis Data:** Berikan insight mendalam berdasarkan data di atas. Jangan hanya membaca angka, tapi cari pola (misal: rasio user aktif rendah, banyak turnamen draft, dll).
+            2. **Analisis Masalah:** Identifikasi pain point utama user dari data keluhan terakhir. Berikan saran solusi konkret.
+            3. **Brainstorming Pengembangan:** Berikan ide fitur baru atau perbaikan UX yang relevan dengan kondisi data saat ini untuk meningkatkan engagement dan revenue.
+            4. **Gaya Komunikasi:** Profesional, Strategis, Data-Driven, namun tetap ringkas dan mudah dibaca. Gunakan format Markdown (Bold, List, Header) agar rapi.
+            
+            Jawab pertanyaan admin berikut dengan konteks di atas:
         `;
 
         // Map history to OpenRouter format
@@ -96,7 +168,7 @@ router.post('/analyze', async (req, res) => {
         let aiResponseText = "";
 
         if (!apiKey || apiKey === 'mock-key') {
-            aiResponseText = `[MOCK AI] (No API Key) Saya melihat ada ${systemStats.total_users} user.`;
+            aiResponseText = `[MOCK AI] (No API Key) Saya melihat ada ${stats.users.total} user.`;
         } else {
             const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
@@ -109,7 +181,7 @@ router.post('/analyze', async (req, res) => {
                 body: JSON.stringify({
                     model: model,
                     messages: openRouterMessages,
-                    max_tokens: 1024,
+                    max_tokens: 2000,
                     temperature: 0.7
                 })
             });
@@ -125,10 +197,13 @@ router.post('/analyze', async (req, res) => {
         }
 
         // 4. Update History (Save to chat_messages)
+        const userMsgId = uuidv4();
+        const aiMsgId = uuidv4();
+
         // Insert User Message
-        await query('INSERT INTO chat_messages (id, session_id, role, content) VALUES (UUID(), ?, ?, ?)', [currentSessionId, 'user', message]);
+        await query('INSERT INTO chat_messages (id, session_id, role, content) VALUES (?, ?, ?, ?)', [userMsgId, currentSessionId, 'user', message]);
         // Insert AI Message
-        await query('INSERT INTO chat_messages (id, session_id, role, content) VALUES (UUID(), ?, ?, ?)', [currentSessionId, 'assistant', aiResponseText]);
+        await query('INSERT INTO chat_messages (id, session_id, role, content) VALUES (?, ?, ?, ?)', [aiMsgId, currentSessionId, 'assistant', aiResponseText]);
 
         // Update Title if it's the first message (history was empty)
         if (history.length === 0) {
@@ -157,7 +232,13 @@ router.post('/analyze', async (req, res) => {
 
     } catch (error) {
         console.error('AI Analysis Error:', error);
-        res.status(500).json({ success: false, message: 'Failed to process AI request' });
+        console.error('Error Details:', {
+            message: error.message,
+            stack: error.stack,
+            sqlState: error.sqlState,
+            sqlMessage: error.sqlMessage
+        });
+        res.status(500).json({ success: false, message: 'Failed to process AI request: ' + error.message });
     }
 });
 

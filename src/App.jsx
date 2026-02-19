@@ -37,6 +37,7 @@ import PublicPostDetail from './pages/public/PublicPostDetail';
 import PublicCommunityDetail from './pages/public/PublicCommunityDetail';
 import TermsPage from './pages/public/TermsPage'
 import PrivacyPage from './pages/public/PrivacyPage'
+import TutorialPage from './pages/public/TutorialPage'
 import UserTournamentDetail from './pages/dashboard/UserTournamentDetail'
 import UserMatchDetail from './pages/dashboard/UserMatchDetail'
 import UserNewsDetail from './pages/dashboard/UserNewsDetail'
@@ -98,6 +99,11 @@ function App() {
                         </Route>
                         <Route path="/eclub" element={<PublicLayout />}>
                             <Route path=":id" element={<PublicCommunityDetail />} />
+                        </Route>
+
+                        {/* Public Documentation Pages */}
+                        <Route element={<PublicLayout />}>
+                            <Route path="/tutorial" element={<TutorialPage />} />
                         </Route>
 
 
