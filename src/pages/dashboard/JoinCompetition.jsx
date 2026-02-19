@@ -1160,7 +1160,7 @@ export default function JoinCompetition() {
 
                                                     <div className="flex flex-wrap gap-3">
                                                         {news.contact_info && (
-                                                            <a href={`https://wa.me/${news.contact_info.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
+                                                            <a href={`https://wa.me/62${news.contact_info.replace(/[^0-9]/g, '').replace(/^0/, '').replace(/^62/, '')}`} target="_blank" rel="noreferrer"
                                                                 className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition">
                                                                 <Phone className="w-4 h-4" />
                                                                 Hubungi Admin

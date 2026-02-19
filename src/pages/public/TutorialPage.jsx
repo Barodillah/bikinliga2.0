@@ -254,7 +254,7 @@ export default function TutorialPage() {
                                 <span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold shrink-0">1</span>
                                 <div>
                                     <strong className="text-white block mb-1">Akses Dashboard</strong>
-                                    Masuk ke Dashboard dan klik tombol <span className="text-neonGreen">"Buat Kompetisi"</span>.
+                                    Masuk ke Dashboard dan klik tombol <span className="text-neonGreen">"Buat Turnamen"</span>.
                                 </div>
                             </li>
                             <li className="flex gap-3">
@@ -310,16 +310,16 @@ export default function TutorialPage() {
                             3. Update Skor & Jadwal
                         </h3>
                         <p className="text-gray-400 mb-6">
-                            Jadwal (Fixtures) akan digenerate otomatis saat Anda mengklik "Start Tournament".
+                            Jadwal (Fixtures) akan digenerate otomatis saat Anda mengklik <span className="text-neonGreen">"Generate Match"</span> pada tab <span className="text-neonGreen">"Jadwal"</span>.
                         </p>
                         <MockImage label="Halaman Match Management (Input Skor)" />
                         <div className="mt-6 space-y-4">
                             <div className="bg-white/5 p-4 rounded-lg border-l-4 border-neonGreen">
                                 <h4 className="font-bold text-white mb-1">Input Skor</h4>
                                 <p className="text-sm text-gray-400">
-                                    Klik tombol "Edit" pada match card &gt; Masukkan skor Home & Away &gt; Klik "Simpan". Klasemen akan otomatis terupdate seketika.
+                                    Klik tombol <span className="text-neonGreen">"Kickoff"</span> pada match card &gt; Masukkan skor Home & Away &gt; Klik "Simpan". jika sudah selesai maka klik <span className="text-neonGreen">"Fulltime/Selesai"</span>. Klasemen serta Top Score akan otomatis terupdate seketika.
                                     ...
-                                    Masuk ke tab <strong>Settings</strong> &gt; Scroll ke bagian <strong>Sharing Tools</strong> untuk mendownload gambar-gambar ini.
+                                    Masuk ke tab <span className="text-neonGreen">Klasemen</span> &gt; Klik saja <span className="text-neonGreen">Export Gambar</span> untuk mendownload gambar-gambar ini.
                                 </p>
                             </div>
                             <div className="bg-white/5 p-4 rounded-lg border-l-4 border-blue-500">
@@ -333,31 +333,31 @@ export default function TutorialPage() {
 
                     <section id="tournament-settings" className="mb-16 scroll-mt-32">
                         <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                            4. Pengaturan & Widget
+                            4. Export & Share
                         </h3>
                         <p className="text-gray-400 mb-6">
-                            Bagikan update turnamen ke media sosial dengan fitur Widget Generator.
+                            Bagikan update turnamen ke media sosial dengan fitur Export Gambar.
                         </p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                             <div className="aspect-square bg-white/5 rounded-lg flex flex-col items-center justify-center p-4 text-center">
                                 <BarChart2 className="w-8 h-8 text-neonGreen mb-2" />
-                                <span className="text-sm font-bold text-white">Klasemen Widget</span>
+                                <span className="text-sm font-bold text-white">Klasemen Export</span>
                             </div>
                             <div className="aspect-square bg-white/5 rounded-lg flex flex-col items-center justify-center p-4 text-center">
                                 <Calendar className="w-8 h-8 text-blue-400 mb-2" />
-                                <span className="text-sm font-bold text-white">Jadwal Widget</span>
+                                <span className="text-sm font-bold text-white">Jadwal Export</span>
                             </div>
                             <div className="aspect-square bg-white/5 rounded-lg flex flex-col items-center justify-center p-4 text-center">
                                 <Target className="w-8 h-8 text-red-400 mb-2" />
-                                <span className="text-sm font-bold text-white">Bracket Widget</span>
+                                <span className="text-sm font-bold text-white">Bracket Export</span>
                             </div>
                             <div className="aspect-square bg-white/5 rounded-lg flex flex-col items-center justify-center p-4 text-center">
-                                <Share2 className="w-8 h-8 text-purple-400 mb-2" />
-                                <span className="text-sm font-bold text-white">Export Image</span>
+                                <Trophy className="w-8 h-8 text-purple-400 mb-2" />
+                                <span className="text-sm font-bold text-white">Top Score Export</span>
                             </div>
                         </div>
                         <p className="text-sm text-gray-400">
-                            Masuk ke tab <strong>Settings</strong> &gt; Scroll ke bagian <strong>Sharing Tools</strong> untuk mendownload gambar-gambar ini.
+                            Masuk ke tab <span className="text-neonGreen">Klasemen, Jadwal, Bracket, Top Score</span> &gt; Klik saja <span className="text-neonGreen">Export Gambar</span> untuk mendownload gambar-gambar ini.
                         </p>
                     </section>
                 </div>
@@ -505,13 +505,13 @@ export default function TutorialPage() {
                         <div className="mt-6 flex flex-col md:flex-row gap-6 items-center bg-gradient-to-r from-yellow-900/20 to-transparent p-6 rounded-xl border border-yellow-500/20">
                             <Award className="w-16 h-16 text-yellow-500 shrink-0" />
                             <div>
-                                <h4 className="text-lg font-bold text-white mb-2">Sistem Poin</h4>
+                                <h4 className="text-lg font-bold text-white mb-2">Sistem Poin Ranking</h4>
                                 <ul className="text-sm text-gray-300 space-y-1">
-                                    <li>• <strong>Menang</strong>: +3 Poin Ranking</li>
-                                    <li>• <strong>Seri</strong>: +1 Poin Ranking</li>
-                                    <li>• <strong>Juara Turnamen</strong>: +50 Bonus Poin</li>
+                                    <li>• <strong>Menang</strong>: +6 Poin Ranking</li>
+                                    <li>• <strong>Seri</strong>: +2 Poin Ranking</li>
+                                    <li>• <strong>Kalah</strong>: -4 Poin Ranking</li>
                                 </ul>
-                                <p className="text-xs text-gray-500 mt-2">*Hanya berlaku untuk turnamen yang diset sebagai "Official/Ranked" oleh admin.</p>
+                                <p className="text-xs text-gray-500 mt-2">*Hanya berlaku untuk participan yang <span className="text-neonGreen">terdaftar pada BikinLiga atau User Aktif</span>.</p>
                             </div>
                         </div>
                     </section>
@@ -523,12 +523,12 @@ export default function TutorialPage() {
                     <p className="text-black/80 mb-6 max-w-xl mx-auto">
                         Daftar sekarang dan rasakan pengalaman turnamen yang profesional, otomatis, dan seru.
                     </p>
-                    <div className="flex justify-center gap-4">
-                        <Link to="/register" className="bg-black text-white px-8 py-3 rounded-full font-bold hover:bg-gray-900 transition flex items-center gap-2">
-                            <Zap className="w-4 h-4" /> Daftar Akun
+                    <div className="flex flex-col md:flex-row justify-center gap-4">
+                        <Link to="/register" className="bg-black text-white px-8 py-3 rounded-full font-bold hover:bg-gray-900 transition flex justify-center items-center gap-2 w-full md:w-auto shadow-lg shadow-black/20 hover:shadow-black/30">
+                            <Zap className="w-5 h-5 shrink-0" /> Daftar Akun
                         </Link>
-                        <Link to="/dashboard/tournaments/new" className="bg-white/20 text-black border border-black/10 px-8 py-3 rounded-full font-bold hover:bg-white/30 transition flex items-center gap-2">
-                            <PlayCircle className="w-4 h-4" /> Buat Kompetisi
+                        <Link to="/dashboard/tournaments/new" className="bg-white/20 text-black border border-black/10 px-8 py-3 rounded-full font-bold hover:bg-white/30 transition flex justify-center items-center gap-2 w-full md:w-auto hover:border-black/20">
+                            <PlayCircle className="w-5 h-5 shrink-0" /> Buat Kompetisi
                         </Link>
                     </div>
                 </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Trophy, Calendar, Users, TrendingUp, ArrowRight, BarChart2, Search } from 'lucide-react'
+import { Plus, Trophy, Calendar, Users, TrendingUp, ArrowRight, BarChart2, Search, BookOpen } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import AdSlot from '../../components/ui/AdSlot'
@@ -21,8 +21,8 @@ const formatDate = (dateString) => {
 
     const timeStr = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
-    if (isToday) return `Hari ini, ${timeStr}`;
-    if (isTomorrow) return `Besok, ${timeStr}`;
+    if (isToday) return `Hari ini, ${timeStr} `;
+    if (isTomorrow) return `Besok, ${timeStr} `;
 
     return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 };
@@ -145,9 +145,9 @@ export default function Dashboard() {
         if (!targetSlug) return '/dashboard/tournaments/new';
 
         switch (type) {
-            case 'players': return `/dashboard/tournaments/${targetSlug}?tab=players`;
-            case 'schedule': return `/dashboard/tournaments/${targetSlug}?tab=fixtures`;
-            case 'stats': return `/dashboard/tournaments/${targetSlug}?tab=statistics`;
+            case 'players': return `/ dashboard / tournaments / ${targetSlug}?tab = players`;
+            case 'schedule': return `/ dashboard / tournaments / ${targetSlug}?tab = fixtures`;
+            case 'stats': return `/ dashboard / tournaments / ${targetSlug}?tab = statistics`;
             default: return '/dashboard/tournaments';
         }
     };
@@ -254,6 +254,27 @@ export default function Dashboard() {
                             </Link>
                         </div>
                     </div>
+
+                    {/* Tutorial CTA */}
+                    <div id="tour-tutorial" className="w-full relative overflow-hidden rounded-xl bg-gradient-to-r from-orange-900/40 to-red-900/40 border border-white/10 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                            <BookOpen className="w-48 h-48 -rotate-12" />
+                        </div>
+                        <div className="relative z-10 max-w-xl">
+                            <h2 className="text-xl sm:text-2xl font-display font-bold mb-2">Masih Bingung Cara Pakainya?</h2>
+                            <p className="text-gray-400 text-sm sm:text-base">
+                                Pelajari cara membuat turnamen, mengelola tim, hingga fitur eksklusif lainnya di halaman dokumentasi.
+                            </p>
+                        </div>
+                        <div className="relative z-10 flex-shrink-0 w-full sm:w-auto">
+                            <Link to="/tutorial">
+                                <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 border-none">
+                                    <BookOpen className="w-5 h-5 mr-2" />
+                                    Lihat Panduan
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
                 </div>
             ) : (
                 <>
@@ -262,7 +283,7 @@ export default function Dashboard() {
                         {statCards.map((stat) => (
                             <Card key={stat.label} className="p-4 sm:p-6">
                                 <div className="flex items-center gap-3 sm:gap-4">
-                                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-white/5 flex items-center justify-center ${stat.color}`}>
+                                    <div className={`w - 10 h - 10 sm: w - 12 sm: h - 12 rounded - lg bg - white / 5 flex items - center justify - center ${stat.color} `}>
                                         <stat.icon className="w-5 h-5 sm:w-6 sm:h-6" />
                                     </div>
                                     <div className="min-w-0">
@@ -297,7 +318,7 @@ export default function Dashboard() {
                                         {recentTournaments.map((tournament) => (
                                             <Link
                                                 key={tournament.id}
-                                                to={`/dashboard/tournaments/${tournament.slug || tournament.id}`}
+                                                to={`/ dashboard / tournaments / ${tournament.slug || tournament.id} `}
                                                 className="flex items-center justify-between p-3 sm:p-4 hover:bg-white/5 transition"
                                             >
                                                 <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -313,11 +334,11 @@ export default function Dashboard() {
                                                     </div>
                                                 </div>
                                                 <div className="text-right flex-shrink-0 pl-2">
-                                                    <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full whitespace-nowrap block w-fit ml-auto ${tournament.status === 'active' ? 'bg-neonGreen/20 text-neonGreen' :
-                                                        tournament.status === 'open' ? 'bg-blue-500/20 text-blue-400' :
-                                                            tournament.status === 'completed' ? 'bg-gray-500/20 text-gray-400' :
-                                                                'bg-yellow-500/20 text-yellow-400' // draft
-                                                        }`}>
+                                                    <span className={`text - [10px] sm: text - xs px - 2 py - 1 rounded - full whitespace - nowrap block w - fit ml - auto ${tournament.status === 'active' ? 'bg-neonGreen/20 text-neonGreen' :
+                                                            tournament.status === 'open' ? 'bg-blue-500/20 text-blue-400' :
+                                                                tournament.status === 'completed' ? 'bg-gray-500/20 text-gray-400' :
+                                                                    'bg-yellow-500/20 text-yellow-400' // draft
+                                                        } `}>
                                                         {tournament.status === 'active' ? 'Aktif' :
                                                             tournament.status === 'open' ? 'Terbuka' :
                                                                 tournament.status === 'completed' ? 'Selesai' : 'Draft'}
@@ -353,7 +374,7 @@ export default function Dashboard() {
                                             >
                                                 {/* Main Match Link Background */}
                                                 <Link
-                                                    to={`/dashboard/tournaments/${match.tournament_slug || match.tournament_id}/match/${match.id}`}
+                                                    to={`/ dashboard / tournaments / ${match.tournament_slug || match.tournament_id} /match/${match.id} `}
                                                     className="absolute inset-0 z-0"
                                                     aria-label="View Match Details"
                                                 />
@@ -362,14 +383,14 @@ export default function Dashboard() {
                                                 <div className="relative z-10 flex items-center justify-between mb-2 sm:mb-3 pointer-events-none w-full">
                                                     {/* Tournament Link - Clickable */}
                                                     <Link
-                                                        to={`/dashboard/tournaments/${match.tournament_slug || match.tournament_id}`}
+                                                        to={`/ dashboard / tournaments / ${match.tournament_slug || match.tournament_id} `}
                                                         className="pointer-events-auto text-xs text-gray-500 flex items-center gap-1 group-hover:text-neonGreen hover:scale-110 transition-all origin-left duration-200 truncate max-w-[65%]"
                                                     >
                                                         {match.tournament} <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition flex-shrink-0" />
                                                     </Link>
 
                                                     {/* Status Badge */}
-                                                    <span className={`text-[10px] sm:text-xs whitespace-nowrap ml-2 flex-shrink-0 ${match.type === 'upcoming' ? 'text-neonPink' : 'text-gray-400'}`}>
+                                                    <span className={`text - [10px] sm: text - xs whitespace - nowrap ml - 2 flex - shrink - 0 ${match.type === 'upcoming' ? 'text-neonPink' : 'text-gray-400'} `}>
                                                         {match.type === 'upcoming' ? formatDate(match.time) : match.status === 'completed' ? 'Selesai' : 'Full Time'}
                                                     </span>
                                                 </div>
@@ -378,7 +399,7 @@ export default function Dashboard() {
                                                 <div className="relative z-10 grid grid-cols-[1fr_auto_1fr] gap-2 items-center pointer-events-none w-full">
                                                     {/* Home Team */}
                                                     <div className="flex items-center gap-2 min-w-0">
-                                                        <div className={`w-8 h-8 rounded-lg flex-shrink-0 ${match.winner === 'home' ? 'bg-yellow-500/10 ring-1 ring-yellow-500' : 'bg-gray-800'} flex items-center justify-center overflow-hidden`}>
+                                                        <div className={`w - 8 h - 8 rounded - lg flex - shrink - 0 ${match.winner === 'home' ? 'bg-yellow-500/10 ring-1 ring-yellow-500' : 'bg-gray-800'} flex items - center justify - center overflow - hidden`}>
                                                             {match.home_logo ? (
                                                                 <img src={match.home_logo} alt={match.home_team} className="w-full h-full object-cover" />
                                                             ) : (
@@ -386,7 +407,7 @@ export default function Dashboard() {
                                                             )}
                                                         </div>
                                                         <div className="min-w-0 overflow-hidden">
-                                                            <div className={`font-bold text-xs sm:text-sm truncate ${match.winner === 'home' ? 'text-yellow-500' : 'text-gray-200'}`}>
+                                                            <div className={`font - bold text - xs sm: text - sm truncate ${match.winner === 'home' ? 'text-yellow-500' : 'text-gray-200'} `}>
                                                                 {match.home_team || 'Tim Home'}
                                                             </div>
                                                             <div className="text-[10px] sm:text-xs text-gray-500 truncate">{match.home_player || 'Player 1'}</div>
@@ -422,12 +443,12 @@ export default function Dashboard() {
                                                     {/* Away Team */}
                                                     <div className="flex items-center gap-2 justify-end min-w-0 text-right">
                                                         <div className="min-w-0 overflow-hidden">
-                                                            <div className={`font-bold text-xs sm:text-sm truncate ${match.winner === 'away' ? 'text-yellow-500' : 'text-gray-200'}`}>
+                                                            <div className={`font - bold text - xs sm: text - sm truncate ${match.winner === 'away' ? 'text-yellow-500' : 'text-gray-200'} `}>
                                                                 {match.away_team || 'Tim Away'}
                                                             </div>
                                                             <div className="text-[10px] sm:text-xs text-gray-500 truncate">{match.away_player || 'Player 2'}</div>
                                                         </div>
-                                                        <div className={`w-8 h-8 rounded-lg flex-shrink-0 ${match.winner === 'away' ? 'bg-yellow-500/10 ring-1 ring-yellow-500' : 'bg-gray-800'} flex items-center justify-center overflow-hidden`}>
+                                                        <div className={`w - 8 h - 8 rounded - lg flex - shrink - 0 ${match.winner === 'away' ? 'bg-yellow-500/10 ring-1 ring-yellow-500' : 'bg-gray-800'} flex items - center justify - center overflow - hidden`}>
                                                             {match.away_logo ? (
                                                                 <img src={match.away_logo} alt={match.away_team} className="w-full h-full object-cover" />
                                                             ) : (
@@ -462,7 +483,7 @@ export default function Dashboard() {
                                 {joinedTournaments.map((tournament) => (
                                     <Link
                                         key={tournament.id}
-                                        to={`/dashboard/competitions/${tournament.slug || tournament.id}/view`}
+                                        to={`/ dashboard / competitions / ${tournament.slug || tournament.id}/view`}
                                         className="block group"
                                     >
                                         <Card className="h-full hover:border-neonGreen/30 transition-all p-4 relative overflow-hidden">
@@ -505,10 +526,10 @@ export default function Dashboard() {
                                                 </div>
                                             )}
                                         </Card>
-                                    </Link>
+                                    </Link >
                                 ))}
-                            </div>
-                        </div>
+                            </div >
+                        </div >
                     ) : (
                         <div className="w-full relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-white/10 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
                             <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
@@ -555,6 +576,6 @@ export default function Dashboard() {
                     </Card>
                 </>
             )}
-        </div>
+        </div >
     )
 }
