@@ -14,33 +14,33 @@ const Card = forwardRef(function Card({ children, className = '', hover = true, 
 
 export default Card
 
-export function CardHeader({ children, className = '' }) {
+export function CardHeader({ children, className = '', ...props }) {
     return (
-        <div className={`p-6 border-b border-white/10 ${className}`}>
+        <div className={`p-6 border-b border-white/10 ${className}`} {...props}>
             {children}
         </div>
     )
 }
 
-export function CardTitle({ children, className = '' }) {
+export function CardTitle({ children, className = '', ...props }) {
     return (
-        <h3 className={`text-xl font-display font-bold ${className}`}>
+        <h3 className={`text-xl font-display font-bold ${className}`} {...props}>
             {children}
         </h3>
     )
 }
 
-export function CardDescription({ children, className = '' }) {
+export function CardDescription({ children, className = '', ...props }) {
     return (
-        <p className={`text-sm text-gray-400 mt-1 ${className}`}>
+        <p className={`text-sm text-gray-400 mt-1 ${className}`} {...props}>
             {children}
         </p>
     )
 }
 
-export function CardContent({ children, className = '' }) {
+export function CardContent({ children, className = '', ...props }) {
     return (
-        <div className={`p-6 ${className}`}>
+        <div className={`p-6 ${className}`} {...props}>
             {children}
         </div>
     )

@@ -2,10 +2,10 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
-import { Trophy, Users, Calendar, BarChart2, Settings, Share2, Download, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2, Gift, DollarSign, Percent, Save, Loader2, User, Phone, Shield, Sparkles, Medal, Crown, Target, ListFilter, MessageSquare, MessageCircle, Send, ChevronDown, UserCheck, ShieldCheck, Mail } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Trophy, Users, Calendar, BarChart2, Settings, Share2, Download, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2, Gift, DollarSign, Percent, Save, Loader2, User, Phone, Shield, Sparkles, Medal, Crown, Target, ListFilter, MessageSquare, MessageCircle, Send, ChevronDown, UserCheck, ShieldCheck, Mail } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Modal from '../../components/ui/Modal'
 import ConfirmationModal from '../../components/ui/ConfirmationModal'
@@ -839,6 +839,10 @@ export default function TournamentDetail() {
     const { success: showSuccess, error: showError, warning: showWarning } = useToast()
 
     // Core Content State
+    // State for Group Carousel
+    const [currentGroupIndex, setCurrentGroupIndex] = useState(0);
+    const [isPaused, setIsPaused] = useState(false);
+
     const [activeTab, setActiveTab] = useState('overview')
     const [copied, setCopied] = useState(false)
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
@@ -1375,6 +1379,18 @@ export default function TournamentDetail() {
             .sort((a, b) => a[0].localeCompare(b[0]))
             .map(([name, teams]) => ({ name, teams }));
     }, [standings]);
+
+    // Group Stage Auto-Slide Logic
+    const [autoSlideInterval, setAutoSlideInterval] = useState(null);
+
+    useEffect(() => {
+        if (!isPaused && processedGroups.length > 1) {
+            const interval = setInterval(() => {
+                setCurrentGroupIndex((prev) => (prev === processedGroups.length - 1 ? 0 : prev + 1));
+            }, 5000);
+            return () => clearInterval(interval);
+        }
+    }, [isPaused, processedGroups]);
 
     const handleEditParticipant = (participant) => {
         setEditingParticipant(participant)
@@ -3112,71 +3128,124 @@ export default function TournamentDetail() {
                                                 <Grid3X3 className="w-5 h-5 text-blue-400" />
                                                 Group Stage Status
                                             </h3>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                className="text-xs h-7 px-2"
-                                                onClick={() => setActiveTab('groups')}
-                                            >
-                                                Lihat Semua
-                                            </Button>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex bg-black/20 rounded-lg p-0.5 border border-white/5">
+                                                    <button
+                                                        onClick={() => {
+                                                            setCurrentGroupIndex(prev => prev === 0 ? processedGroups.length - 1 : prev - 1);
+                                                        }}
+                                                        disabled={processedGroups.length <= 1}
+                                                        className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-gray-400 hover:text-white transition disabled:opacity-50"
+                                                    >
+                                                        <ChevronLeft className="w-3 h-3" />
+                                                    </button>
+                                                    <div className="px-2 flex items-center justify-center text-[10px] font-mono text-gray-500 min-w-[30px]">
+                                                        {processedGroups.length > 0 ? currentGroupIndex + 1 : 0}/{processedGroups.length}
+                                                    </div>
+                                                    <button
+                                                        onClick={() => {
+                                                            setCurrentGroupIndex(prev => prev === processedGroups.length - 1 ? 0 : prev + 1);
+                                                        }}
+                                                        disabled={processedGroups.length <= 1}
+                                                        className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-gray-400 hover:text-white transition disabled:opacity-50"
+                                                    >
+                                                        <ChevronRight className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="text-xs h-7 px-2"
+                                                    onClick={() => setActiveTab('groups')}
+                                                >
+                                                    Detail
+                                                </Button>
+                                            </div>
                                         </CardHeader>
-                                        <CardContent className="pt-0">
-                                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                                                {processedGroups.slice(0, 4).map(group => (
-                                                    <div key={group.name} className="bg-white/5 border border-white/5 rounded-lg overflow-hidden flex flex-col">
-                                                        <div className="bg-white/5 px-3 py-1.5 flex justify-between items-center border-b border-white/5">
-                                                            <span className="text-xs font-bold text-neonGreen uppercase tracking-wider">{group.name}</span>
-                                                            <span className="text-[10px] text-gray-400 font-mono">Top 2 Promosi</span>
+                                        <CardContent
+                                            className="pt-4 relative overflow-hidden min-h-[300px]"
+                                            onMouseEnter={() => setIsPaused(true)}
+                                            onMouseLeave={() => setIsPaused(false)}
+                                        >
+                                            <AnimatePresence mode="wait">
+                                                {processedGroups.length > 0 && processedGroups[currentGroupIndex] ? (
+                                                    <motion.div
+                                                        key={processedGroups[currentGroupIndex].name}
+                                                        initial={{ opacity: 0, x: 20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        exit={{ opacity: 0, x: -20 }}
+                                                        transition={{ duration: 0.2 }}
+                                                        className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-xl overflow-hidden flex flex-col shadow-inner"
+                                                    >
+                                                        <div className="bg-white/5 px-4 py-3 flex justify-between items-center border-b border-white/5">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="w-2 h-2 rounded-full bg-neonGreen animate-pulse"></span>
+                                                                <span className="font-bold text-white text-sm uppercase tracking-wider">{processedGroups[currentGroupIndex].name}</span>
+                                                            </div>
+                                                            <span className="text-[10px] text-gray-400 bg-white/5 px-2 py-0.5 rounded border border-white/5">Top 2 Promosi</span>
                                                         </div>
-                                                        <div className="flex-1 p-0">
-                                                            <table className="w-full text-xs">
+                                                        <div className="p-0">
+                                                            <table className="w-full text-sm">
                                                                 <thead>
-                                                                    <tr className="text-gray-500 border-b border-white/5">
-                                                                        <th className="py-1 px-2 text-left w-6">#</th>
-                                                                        <th className="py-1 px-2 text-left">Tim</th>
-                                                                        <th className="py-1 px-2 text-center w-8" title="Main">MP</th>
-                                                                        <th className="py-1 px-2 text-center w-8" title="Goal Difference">GD</th>
-                                                                        <th className="py-1 px-2 text-center w-8 font-bold text-white">Pts</th>
+                                                                    <tr className="text-gray-500 border-b border-white/5 bg-black/20 text-xs uppercase">
+                                                                        <th className="py-2 px-4 text-left w-10">#</th>
+                                                                        <th className="py-2 px-4 text-left">Tim</th>
+                                                                        <th className="py-2 px-4 text-center w-12" title="Main">MP</th>
+                                                                        <th className="py-2 px-4 text-center w-12 hidden sm:table-cell" title="Goal Difference">GD</th>
+                                                                        <th className="py-2 px-4 text-center w-12 font-bold text-white">Pts</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
-                                                                    {group.teams.slice(0, 4).map((team, idx) => (
-                                                                        <tr key={idx} className={`border-b border-white/5 last:border-0 ${idx < 2 ? 'bg-neonGreen/5' : ''}`}>
-                                                                            <td className="py-1.5 px-2 text-left">
-                                                                                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${idx < 2 ? 'bg-neonGreen text-black' : 'bg-gray-700 text-gray-300'}`}>
+                                                                    {processedGroups[currentGroupIndex].teams.map((team, idx) => (
+                                                                        <tr key={idx} className={`border-b border-white/5 last:border-0 group hover:bg-white/5 transition duration-200 ${idx < 2 ? 'bg-gradient-to-r from-neonGreen/5 to-transparent' : ''}`}>
+                                                                            <td className="py-3 px-4 text-left">
+                                                                                <span className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shadow-sm ${idx < 2 ? 'bg-neonGreen text-black ring-1 ring-neonGreen/50' : 'bg-gray-800 text-gray-400 ring-1 ring-white/10'}`}>
                                                                                     {idx + 1}
                                                                                 </span>
                                                                             </td>
-                                                                            <td className="py-1.5 px-2 font-medium truncate max-w-[100px] sm:max-w-[140px]">
-                                                                                <div className="flex items-center gap-1.5">
-                                                                                    {team.logo && <img src={team.logo} alt="" className="w-3 h-3 object-contain" />}
-                                                                                    <span className="truncate">{team.name}</span>
+                                                                            <td className="py-3 px-4 font-medium">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <div className="w-6 h-6 rounded bg-gray-800 flex items-center justify-center overflow-hidden border border-white/10">
+                                                                                        {team.logo ? (
+                                                                                            <img src={team.logo} alt="" className="w-full h-full object-contain p-0.5" />
+                                                                                        ) : (
+                                                                                            <span className="text-[8px] text-gray-500 font-bold">{team.name.substring(0, 2).toUpperCase()}</span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    <span className={`truncate max-w-[120px] sm:max-w-none ${idx < 2 ? 'text-white font-semibold' : 'text-gray-300'}`}>{team.name}</span>
                                                                                 </div>
                                                                             </td>
-                                                                            <td className="py-1.5 px-2 text-center text-gray-400">{team.played}</td>
-                                                                            <td className={`py-1.5 px-2 text-center ${team.gd > 0 ? 'text-green-400' : team.gd < 0 ? 'text-red-400' : 'text-gray-400'}`}>
-                                                                                {team.gd > 0 ? '+' : ''}{team.gd}
+                                                                            <td className="py-3 px-4 text-center text-gray-400 font-mono text-xs">{team.played}</td>
+                                                                            <td className="py-3 px-4 text-center hidden sm:table-cell">
+                                                                                <span className={`text-xs font-mono font-medium px-1.5 py-0.5 rounded ${team.gd > 0 ? 'bg-green-500/20 text-green-400 border border-green-500/20' : team.gd < 0 ? 'bg-red-500/20 text-red-400 border border-red-500/20' : 'text-gray-500'}`}>
+                                                                                    {team.gd > 0 ? '+' : ''}{team.gd}
+                                                                                </span>
                                                                             </td>
-                                                                            <td className="py-1.5 px-2 text-center font-bold text-neonGreen">{team.pts}</td>
+                                                                            <td className="py-3 px-4 text-center">
+                                                                                <span className="font-bold text-neonGreen text-base">{team.pts}</span>
+                                                                            </td>
                                                                         </tr>
                                                                     ))}
                                                                 </tbody>
                                                             </table>
-                                                            {group.teams.length > 4 && (
-                                                                <div className="text-[10px] text-center py-1 text-gray-500 bg-black/20">
-                                                                    +{group.teams.length - 4} tim lainnya
-                                                                </div>
+
+                                                            {/* Empty State for Group if needed */}
+                                                            {processedGroups[currentGroupIndex].teams.length === 0 && (
+                                                                <div className="py-8 text-center text-gray-500 text-xs">Belum ada tim</div>
                                                             )}
                                                         </div>
-                                                    </div>
-                                                ))}
-                                                {processedGroups.length === 0 && (
-                                                    <div className="col-span-1 xl:col-span-2 text-center text-gray-500 py-8 bg-white/5 rounded-lg border border-dashed border-white/10">
-                                                        Belum ada data grup
-                                                    </div>
+                                                    </motion.div>
+                                                ) : (
+                                                    <motion.div
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        className="text-center text-gray-500 py-12 bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center gap-3"
+                                                    >
+                                                        <Grid3X3 className="w-10 h-10 opacity-20" />
+                                                        <p>Belum ada data grup</p>
+                                                    </motion.div>
                                                 )}
-                                            </div>
+                                            </AnimatePresence>
                                         </CardContent>
                                     </Card>
 
