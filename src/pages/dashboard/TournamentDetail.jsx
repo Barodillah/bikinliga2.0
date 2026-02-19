@@ -2323,7 +2323,7 @@ export default function TournamentDetail() {
                     <ArrowLeft className="w-4 h-4" /> Kembali ke daftar
                 </button>
 
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 py-4">
                     <div className="flex items-center gap-3 sm:gap-4">
                         <AdaptiveLogo
                             src={tournamentData.logo}
@@ -2433,7 +2433,7 @@ export default function TournamentDetail() {
             )}
 
             {/* Share Link */}
-            <Card className="p-3 sm:p-4">
+            <Card className="p-3 sm:p-4 mb-4">
                 <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                         <div className="text-xs sm:text-sm text-gray-400 mb-1">Link Publik</div>
@@ -2453,7 +2453,7 @@ export default function TournamentDetail() {
 
             {/* Quick Stats - different for draft vs active */}
             {isDraft ? (
-                <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
                     <Card className="p-3 sm:p-4 text-center">
                         <Clock className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-yellow-400" />
                         <div className="text-xl sm:text-2xl font-display font-bold">
@@ -2527,7 +2527,7 @@ export default function TournamentDetail() {
 
 
             {/* Tabs */}
-            <div className="border-b border-white/10 -mx-4 px-4 lg:mx-0 lg:px-0">
+            <div className="border-b border-white/10 -mx-4 px-4 lg:mx-0 lg:px-0 mb-4">
                 <div className="flex gap-1 overflow-x-auto scrollbar-hide">
                     {tabs.map((tab) => (
                         <button

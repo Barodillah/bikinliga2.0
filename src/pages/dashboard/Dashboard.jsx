@@ -145,9 +145,9 @@ export default function Dashboard() {
         if (!targetSlug) return '/dashboard/tournaments/new';
 
         switch (type) {
-            case 'players': return `/ dashboard / tournaments / ${targetSlug}?tab = players`;
-            case 'schedule': return `/ dashboard / tournaments / ${targetSlug}?tab = fixtures`;
-            case 'stats': return `/ dashboard / tournaments / ${targetSlug}?tab = statistics`;
+            case 'players': return `/dashboard/tournaments/${targetSlug}?tab=players`;
+            case 'schedule': return `/dashboard/tournaments/${targetSlug}?tab=fixtures`;
+            case 'stats': return `/dashboard/tournaments/${targetSlug}?tab=statistics`;
             default: return '/dashboard/tournaments';
         }
     };
@@ -283,7 +283,7 @@ export default function Dashboard() {
                         {statCards.map((stat) => (
                             <Card key={stat.label} className="p-4 sm:p-6">
                                 <div className="flex items-center gap-3 sm:gap-4">
-                                    <div className={`w - 10 h - 10 sm: w - 12 sm: h - 12 rounded - lg bg - white / 5 flex items - center justify - center ${stat.color} `}>
+                                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-white/5 flex items-center justify-center ${stat.color}`}>
                                         <stat.icon className="w-5 h-5 sm:w-6 sm:h-6" />
                                     </div>
                                     <div className="min-w-0">
@@ -318,7 +318,7 @@ export default function Dashboard() {
                                         {recentTournaments.map((tournament) => (
                                             <Link
                                                 key={tournament.id}
-                                                to={`/ dashboard / tournaments / ${tournament.slug || tournament.id} `}
+                                                to={`/dashboard/tournaments/${tournament.slug || tournament.id}`}
                                                 className="flex items-center justify-between p-3 sm:p-4 hover:bg-white/5 transition"
                                             >
                                                 <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -334,11 +334,11 @@ export default function Dashboard() {
                                                     </div>
                                                 </div>
                                                 <div className="text-right flex-shrink-0 pl-2">
-                                                    <span className={`text - [10px] sm: text - xs px - 2 py - 1 rounded - full whitespace - nowrap block w - fit ml - auto ${tournament.status === 'active' ? 'bg-neonGreen/20 text-neonGreen' :
+                                                    <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full whitespace-nowrap block w-fit ml-auto ${tournament.status === 'active' ? 'bg-neonGreen/20 text-neonGreen' :
                                                         tournament.status === 'open' ? 'bg-blue-500/20 text-blue-400' :
                                                             tournament.status === 'completed' ? 'bg-gray-500/20 text-gray-400' :
                                                                 'bg-yellow-500/20 text-yellow-400' // draft
-                                                        } `}>
+                                                        }`}>
                                                         {tournament.status === 'active' ? 'Aktif' :
                                                             tournament.status === 'open' ? 'Terbuka' :
                                                                 tournament.status === 'completed' ? 'Selesai' : 'Draft'}
@@ -374,7 +374,7 @@ export default function Dashboard() {
                                             >
                                                 {/* Main Match Link Background */}
                                                 <Link
-                                                    to={`/ dashboard / tournaments / ${match.tournament_slug || match.tournament_id} /match/${match.id} `}
+                                                    to={`/dashboard/tournaments/${match.tournament_slug || match.tournament_id}/match/${match.id}`}
                                                     className="absolute inset-0 z-0"
                                                     aria-label="View Match Details"
                                                 />
@@ -383,14 +383,14 @@ export default function Dashboard() {
                                                 <div className="relative z-10 flex items-center justify-between mb-2 sm:mb-3 pointer-events-none w-full">
                                                     {/* Tournament Link - Clickable */}
                                                     <Link
-                                                        to={`/ dashboard / tournaments / ${match.tournament_slug || match.tournament_id} `}
+                                                        to={`/dashboard/tournaments/${match.tournament_slug || match.tournament_id}`}
                                                         className="pointer-events-auto text-xs text-gray-500 flex items-center gap-1 group-hover:text-neonGreen hover:scale-110 transition-all origin-left duration-200 truncate max-w-[65%]"
                                                     >
                                                         {match.tournament} <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition flex-shrink-0" />
                                                     </Link>
 
                                                     {/* Status Badge */}
-                                                    <span className={`text - [10px] sm: text - xs whitespace - nowrap ml - 2 flex - shrink - 0 ${match.type === 'upcoming' ? 'text-neonPink' : 'text-gray-400'} `}>
+                                                    <span className={`text-[10px] sm:text-xs whitespace-nowrap ml-2 flex-shrink-0 ${match.type === 'upcoming' ? 'text-neonPink' : 'text-gray-400'}`}>
                                                         {match.type === 'upcoming' ? formatDate(match.time) : match.status === 'completed' ? 'Selesai' : 'Full Time'}
                                                     </span>
                                                 </div>
@@ -399,7 +399,7 @@ export default function Dashboard() {
                                                 <div className="relative z-10 grid grid-cols-[1fr_auto_1fr] gap-2 items-center pointer-events-none w-full">
                                                     {/* Home Team */}
                                                     <div className="flex items-center gap-2 min-w-0">
-                                                        <div className={`w - 8 h - 8 rounded - lg flex - shrink - 0 ${match.winner === 'home' ? 'bg-yellow-500/10 ring-1 ring-yellow-500' : 'bg-gray-800'} flex items - center justify - center overflow - hidden`}>
+                                                        <div className={`w-8 h-8 rounded-lg flex-shrink-0 ${match.winner === 'home' ? 'bg-yellow-500/10 ring-1 ring-yellow-500' : 'bg-gray-800'} flex items-center justify-center overflow-hidden`}>
                                                             {match.home_logo ? (
                                                                 <img src={match.home_logo} alt={match.home_team} className="w-full h-full object-cover" />
                                                             ) : (
@@ -407,7 +407,7 @@ export default function Dashboard() {
                                                             )}
                                                         </div>
                                                         <div className="min-w-0 overflow-hidden">
-                                                            <div className={`font - bold text - xs sm: text - sm truncate ${match.winner === 'home' ? 'text-yellow-500' : 'text-gray-200'} `}>
+                                                            <div className={`font-bold text-xs sm:text-sm truncate ${match.winner === 'home' ? 'text-yellow-500' : 'text-gray-200'}`}>
                                                                 {match.home_team || 'Tim Home'}
                                                             </div>
                                                             <div className="text-[10px] sm:text-xs text-gray-500 truncate">{match.home_player || 'Player 1'}</div>
@@ -443,12 +443,12 @@ export default function Dashboard() {
                                                     {/* Away Team */}
                                                     <div className="flex items-center gap-2 justify-end min-w-0 text-right">
                                                         <div className="min-w-0 overflow-hidden">
-                                                            <div className={`font - bold text - xs sm: text - sm truncate ${match.winner === 'away' ? 'text-yellow-500' : 'text-gray-200'} `}>
+                                                            <div className={`font-bold text-xs sm:text-sm truncate ${match.winner === 'away' ? 'text-yellow-500' : 'text-gray-200'}`}>
                                                                 {match.away_team || 'Tim Away'}
                                                             </div>
                                                             <div className="text-[10px] sm:text-xs text-gray-500 truncate">{match.away_player || 'Player 2'}</div>
                                                         </div>
-                                                        <div className={`w - 8 h - 8 rounded - lg flex - shrink - 0 ${match.winner === 'away' ? 'bg-yellow-500/10 ring-1 ring-yellow-500' : 'bg-gray-800'} flex items - center justify - center overflow - hidden`}>
+                                                        <div className={`w-8 h-8 rounded-lg flex-shrink-0 ${match.winner === 'away' ? 'bg-yellow-500/10 ring-1 ring-yellow-500' : 'bg-gray-800'} flex items-center justify-center overflow-hidden`}>
                                                             {match.away_logo ? (
                                                                 <img src={match.away_logo} alt={match.away_team} className="w-full h-full object-cover" />
                                                             ) : (
@@ -483,7 +483,7 @@ export default function Dashboard() {
                                 {joinedTournaments.map((tournament) => (
                                     <Link
                                         key={tournament.id}
-                                        to={`/ dashboard / competitions / ${tournament.slug || tournament.id}/view`}
+                                        to={`/dashboard/competitions/${tournament.slug || tournament.id}/view`}
                                         className="block group"
                                     >
                                         <Card className="h-full hover:border-neonGreen/30 transition-all p-4 relative overflow-hidden">
