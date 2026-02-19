@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Calendar, Trophy, Users, Lock, ChevronRight, Share2, MapPin, Grid, List, Shield, UserCheck } from 'lucide-react'
+import { Calendar, Trophy, Users, Lock, ChevronRight, Share2, MapPin, Grid, List, Shield, UserCheck, GitMerge } from 'lucide-react'
 import Card, { CardContent } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import AdSlot from '../../components/ui/AdSlot'
@@ -120,7 +120,7 @@ export default function TournamentPublicView() {
             { id: 'standings', label: 'Klasemen', icon: List, hidden: tournament.type === 'knockout' },
             { id: 'matches', label: 'Jadwal & Hasil', icon: Calendar },
             { id: 'topscore', label: 'Top Score', icon: Users },
-            { id: 'bracket', label: 'Bracket', icon: Grid, hidden: tournament.type === 'league' },
+            { id: 'bracket', label: 'Bracket', icon: GitMerge, hidden: tournament.type === 'league', locked: true },
             { id: 'stats', label: 'Statistik', icon: Trophy, locked: true },
         ].filter(t => !t.hidden)
 
@@ -212,51 +212,99 @@ export default function TournamentPublicView() {
 
                     {/* STANDINGS TAB */}
                     {activeTab === 'standings' && (
-                        <Card>
-                            <CardContent className="p-0">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="bg-white/5 uppercase text-gray-400 font-bold text-xs">
-                                            <tr>
-                                                <th className="p-4 w-10 text-center">#</th>
-                                                <th className="p-4">Tim</th>
-                                                <th className="p-4 text-center">Main</th>
-                                                <th className="p-4 text-center">Poin</th>
-                                                <th className="p-4 text-center hidden sm:table-cell">Selisih Gol</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-white/5">
-                                            {standings.length === 0 ? (
-                                                <tr><td colSpan="5" className="p-8 text-center text-gray-500">Belum ada data klasemen</td></tr>
-                                            ) : (
-                                                standings.map((row, index) => (
-                                                    <tr key={index} className="hover:bg-white/5 transition">
-                                                        <td className="p-4 text-center font-bold text-gray-500">{index + 1}</td>
-                                                        <td className="p-4 font-bold flex items-center gap-3">
-                                                            {row.team_logo ? (
-                                                                <img src={row.team_logo} alt="" className="w-8 h-8 rounded-full bg-gray-800 object-contain" />
-                                                            ) : (
-                                                                <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs">
-                                                                    {(row.team_name || row.participant_name || '?').charAt(0)}
-                                                                </div>
-                                                            )}
-                                                            {row.team_name || row.participant_name}
-                                                        </td>
-                                                        <td className="p-4 text-center text-gray-400">{row.played}</td>
-                                                        <td className="p-4 text-center font-bold text-neonGreen text-base">{row.points}</td>
-                                                        <td className="p-4 hidden sm:table-cell text-center">
-                                                            <span className={row.goal_difference > 0 ? 'text-green-500' : row.goal_difference < 0 ? 'text-red-500' : 'text-gray-400'}>
-                                                                {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <div className="space-y-8">
+                            {(() => {
+                                const isGroupStage = tournament.type === 'group' || tournament.type === 'group_knockout';
+
+                                // Helper to render table
+                                const renderTable = (data) => (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-sm">
+                                            <thead className="bg-white/5 uppercase text-gray-400 font-bold text-xs">
+                                                <tr>
+                                                    <th className="p-4 w-10 text-center">#</th>
+                                                    <th className="p-4">Tim</th>
+                                                    <th className="p-4 text-center">Main</th>
+                                                    <th className="p-4 text-center">Poin</th>
+                                                    <th className="p-4 text-center hidden sm:table-cell">Selisih Gol</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-white/5">
+                                                {data.length === 0 ? (
+                                                    <tr><td colSpan="5" className="p-8 text-center text-gray-500">Belum ada data klasemen</td></tr>
+                                                ) : (
+                                                    data.map((row, index) => (
+                                                        <tr key={index} className="hover:bg-white/5 transition">
+                                                            <td className="p-4 text-center font-bold text-gray-500">{index + 1}</td>
+                                                            <td className="p-4 font-bold flex items-center gap-3">
+                                                                {row.team_logo ? (
+                                                                    <img src={row.team_logo} alt="" className="w-8 h-8 rounded-full bg-gray-800 object-contain" />
+                                                                ) : (
+                                                                    <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs">
+                                                                        {(row.team_name || row.participant_name || '?').charAt(0)}
+                                                                    </div>
+                                                                )}
+                                                                {row.team_name || row.participant_name}
+                                                            </td>
+                                                            <td className="p-4 text-center text-gray-400">{row.played}</td>
+                                                            <td className="p-4 text-center font-bold text-neonGreen text-base">{row.points}</td>
+                                                            <td className="p-4 hidden sm:table-cell text-center">
+                                                                <span className={row.goal_difference > 0 ? 'text-green-500' : row.goal_difference < 0 ? 'text-red-500' : 'text-gray-400'}>
+                                                                    {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                );
+
+                                if (isGroupStage) {
+                                    // Group standings by group_name
+                                    const grouped = standings.reduce((acc, row) => {
+                                        const groupName = row.group_name || 'Unknown Group'; // Verify field name!
+                                        if (!acc[groupName]) acc[groupName] = [];
+                                        acc[groupName].push(row);
+                                        return acc;
+                                    }, {});
+
+                                    const sortedGroupNames = Object.keys(grouped).sort();
+
+                                    if (sortedGroupNames.length === 0) {
+                                        return (
+                                            <Card>
+                                                <CardContent className="p-0">
+                                                    {renderTable([])}
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    }
+
+                                    return sortedGroupNames.map(groupName => (
+                                        <div key={groupName} className="space-y-4">
+                                            <h3 className="font-display font-bold text-lg text-white border-l-4 border-neonGreen pl-3">
+                                                {groupName}
+                                            </h3>
+                                            <Card>
+                                                <CardContent className="p-0">
+                                                    {renderTable(grouped[groupName])}
+                                                </CardContent>
+                                            </Card>
+                                        </div>
+                                    ));
+                                } else {
+                                    return (
+                                        <Card>
+                                            <CardContent className="p-0">
+                                                {renderTable(standings)}
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                }
+                            })()}
+                        </div>
                     )}
 
                     {/* MATCHES TAB */}
@@ -381,10 +429,40 @@ export default function TournamentPublicView() {
                         </Card>
                     )}
 
-                    {/* BRACKET TAB (Placeholder) */}
+                    {/* BRACKET TAB (Locked) */}
                     {activeTab === 'bracket' && (
-                        <div className="h-96 flex items-center justify-center border border-white/10 rounded-xl bg-white/5 border-dashed">
-                            <p className="text-gray-500">Bracket diagram will be rendered here.</p>
+                        <div className="relative overflow-hidden rounded-xl border border-white/10">
+                            {/* Blurred Content */}
+                            <div className="filter blur-md opacity-50 pointer-events-none select-none">
+                                <Card>
+                                    <div className="p-6 space-y-4">
+                                        <div className="flex justify-between items-center px-8">
+                                            <div className="h-12 w-32 bg-gray-800 rounded"></div>
+                                            <div className="h-12 w-32 bg-gray-800 rounded"></div>
+                                        </div>
+                                        <div className="flex justify-center my-8">
+                                            <div className="h-24 w-px bg-gray-800"></div>
+                                        </div>
+                                        <div className="flex justify-center">
+                                            <div className="h-16 w-48 bg-gray-800 rounded border border-gray-700"></div>
+                                        </div>
+                                    </div>
+                                </Card>
+                            </div>
+
+                            {/* CTA Overlay */}
+                            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 p-6 text-center">
+                                <GitMerge className="w-12 h-12 text-neonGreen mb-4" />
+                                <h3 className="text-2xl font-bold text-white mb-2">Bagan Pertandingan</h3>
+                                <p className="text-gray-300 mb-6 max-w-sm">
+                                    Login untuk melihat bracket lengkap, update skor realtime, dan perjalanan tim menuju juara.
+                                </p>
+                                <Link to={`/dashboard/tournaments/${slug}`}>
+                                    <Button className="bg-neonGreen text-black font-bold px-8">
+                                        Login Sekarang
+                                    </Button>
+                                </Link>
+                            </div>
                         </div>
                     )}
 
@@ -463,7 +541,7 @@ export default function TournamentPublicView() {
                                 <p className="text-gray-300 mb-6 max-w-sm">
                                     Login untuk melihat statistik mendalam, top skor, assist, dan analisis performa tim.
                                 </p>
-                                <Link to="/login">
+                                <Link to={`/dashboard/tournaments/${slug}`}>
                                     <Button className="bg-neonGreen text-black font-bold px-8">
                                         Login Sekarang
                                     </Button>
@@ -479,8 +557,8 @@ export default function TournamentPublicView() {
                     <Card>
                         <div className="p-6">
                             <h3 className="font-bold mb-4 text-white">Tentang Turnamen</h3>
-                            <p className="text-sm text-gray-400 leading-relaxed mb-4">
-                                {tournamentData.description}
+                            <p className="text-sm text-gray-400 leading-relaxed mb-4 whitespace-pre-wrap">
+                                {tournament.description || 'Belum ada deskripsi untuk turnamen ini.'}
                             </p>
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
@@ -489,7 +567,7 @@ export default function TournamentPublicView() {
                                 </div>
                                 <div>
                                     <div className="text-gray-500 text-xs uppercase">Peserta</div>
-                                    <div className="text-white font-medium">{tournament.players || 0} / {tournament.maxParticipants} Tim</div>
+                                    <div className="text-white font-medium">{participants.filter(p => p.status === 'approved').length} / {tournament.maxParticipants || tournament.max_participants || 0} Tim</div>
                                 </div>
                             </div>
                         </div>
@@ -501,7 +579,7 @@ export default function TournamentPublicView() {
                         <p className="text-sm mb-4 opacity-90">
                             Daftarkan tim kamu sekarang dan ikuti turnamen seru lainnya di BikinLiga!
                         </p>
-                        <Link to="/register">
+                        <Link to={`/dashboard/tournaments/${slug}`}>
                             <button className="w-full py-3 bg-black text-white rounded-lg font-bold hover:bg-gray-900 transition flex items-center justify-center gap-2">
                                 Buat Akun Gratis <ChevronRight className="w-4 h-4" />
                             </button>
