@@ -228,7 +228,7 @@ export default function Dashboard() {
                             <Link to="/dashboard/tournaments/new">
                                 <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 border-none">
                                     <Plus className="w-5 h-5 mr-2" />
-                                    Buat Kompetisi
+                                    Buat Turnamen
                                 </Button>
                             </Link>
                         </div>
@@ -335,9 +335,9 @@ export default function Dashboard() {
                                                 </div>
                                                 <div className="text-right flex-shrink-0 pl-2">
                                                     <span className={`text - [10px] sm: text - xs px - 2 py - 1 rounded - full whitespace - nowrap block w - fit ml - auto ${tournament.status === 'active' ? 'bg-neonGreen/20 text-neonGreen' :
-                                                            tournament.status === 'open' ? 'bg-blue-500/20 text-blue-400' :
-                                                                tournament.status === 'completed' ? 'bg-gray-500/20 text-gray-400' :
-                                                                    'bg-yellow-500/20 text-yellow-400' // draft
+                                                        tournament.status === 'open' ? 'bg-blue-500/20 text-blue-400' :
+                                                            tournament.status === 'completed' ? 'bg-gray-500/20 text-gray-400' :
+                                                                'bg-yellow-500/20 text-yellow-400' // draft
                                                         } `}>
                                                         {tournament.status === 'active' ? 'Aktif' :
                                                             tournament.status === 'open' ? 'Terbuka' :

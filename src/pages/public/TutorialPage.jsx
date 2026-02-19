@@ -4,8 +4,9 @@ import {
     Book, Trophy, Users, Shield, Zap, Target, BarChart2,
     Share2, Cpu, Globe, Lock, MessageSquare, Heart,
     ChevronRight, Menu, X, PlayCircle, Calendar,
-    UserCheck, FileText, Settings, Award
+    UserCheck, FileText, Settings, Award, Plus
 } from 'lucide-react'
+import Button from '../../components/ui/Button'
 
 export default function TutorialPage() {
     const [activeSection, setActiveSection] = useState('intro')
@@ -74,17 +75,23 @@ export default function TutorialPage() {
         }
     ]
 
-    const MockImage = ({ label, height = "h-48" }) => (
+    const MockImage = ({ label, height = "h-48", src }) => (
         <div className={`w-full ${height} bg-white/5 border border-white/10 rounded-xl flex items-center justify-center relative overflow-hidden group`}>
-            <div className="absolute inset-0 bg-gradient-to-br from-neonGreen/5 to-purple-500/5 group-hover:opacity-100 opacity-50 transition-opacity"></div>
-            <div className="text-center p-4">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white/10 mb-2">
-                    <div className="w-6 h-6 text-gray-400" />
-                    {/* Icon placeholder */}
-                </div>
-                <p className="text-gray-400 font-medium text-sm">{label}</p>
-                <p className="text-gray-600 text-xs mt-1">(Tampilan Screenshot)</p>
-            </div>
+            {src ? (
+                <img src={src} alt={label} className="w-full h-full object-cover" />
+            ) : (
+                <>
+                    <div className="absolute inset-0 bg-gradient-to-br from-neonGreen/5 to-purple-500/5 group-hover:opacity-100 opacity-50 transition-opacity"></div>
+                    <div className="text-center p-4">
+                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white/10 mb-2">
+                            <div className="w-6 h-6 text-gray-400" />
+                            {/* Icon placeholder */}
+                        </div>
+                        <p className="text-gray-400 font-medium text-sm">{label}</p>
+                        <p className="text-gray-600 text-xs mt-1">(Tampilan Screenshot)</p>
+                    </div>
+                </>
+            )}
         </div>
     )
 
@@ -248,7 +255,25 @@ export default function TutorialPage() {
                         <p className="text-gray-400 mb-6">
                             Langkah pertama untuk memulai liga Anda. Pastikan Anda sudah login ke akun BikinLiga.
                         </p>
-                        <MockImage label="Form Buat Turnamen (Isi Nama, Tipe Liga, Format Match)" />
+                        <div className="w-full relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-900/40 to-teal-900/40 border border-white/10 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 mb-8">
+                            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                                <Trophy className="w-48 h-48 -rotate-12" />
+                            </div>
+                            <div className="relative z-10 max-w-xl">
+                                <h2 className="text-xl sm:text-2xl font-display font-bold mb-2">Buat Turnamen Pertamamu!</h2>
+                                <p className="text-gray-400 text-sm sm:text-base">
+                                    Kelola kompetisimu sendiri dengan mudah. Atur jadwal, skor, dan statistik dalam satu tempat.
+                                </p>
+                            </div>
+                            <div className="relative z-10 flex-shrink-0 w-full sm:w-auto">
+                                <Link to="/dashboard/tournaments/new">
+                                    <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 border-none">
+                                        <Plus className="w-5 h-5 mr-2" />
+                                        Buat Turnamen
+                                    </Button>
+                                </Link>
+                            </div>
+                        </div>
                         <ul className="mt-6 space-y-4 text-gray-300">
                             <li className="flex gap-3">
                                 <span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold shrink-0">1</span>
@@ -276,6 +301,7 @@ export default function TutorialPage() {
                                     Tentukan tanggal mulai dan jumlah maksimal peserta (misal: 16 tim).
                                 </div>
                             </li>
+                            <MockImage label="Form Buat Turnamen (Isi Nama, Tipe Liga, Format Match)" src="https://cuma.click/f/buatturnamen/stream" height="h-auto" />
                         </ul>
                     </section>
 
@@ -294,13 +320,14 @@ export default function TutorialPage() {
                                     bikinliga.online/join/tournament-slug
                                 </div>
                                 <p className="text-sm text-gray-400">
-                                    Pemain yang mendaftar akan masuk status <span className="text-yellow-500">Pending</span>. Anda harus <strong>Approve</strong> mereka di halaman Manage Participants.
+                                    Pemain yang mendaftar akan masuk filter status <span className="text-yellow-500">Pending</span> dan keterangan <span className="text-blue-500">Request</span>. Anda harus <strong>Approve</strong> mereka di halaman Manage Participants.
                                 </p>
+                                <MockImage label="Tombol 'Add Participant' & Form Manual" src="https://cuma.click/f/requestplayer/stream" height="h-auto" />
                             </div>
                             <div className="space-y-4">
                                 <h4 className="font-bold text-white">Cara 2: Input Manual</h4>
                                 <p className="text-sm text-gray-400">Anda juga bisa menambahkan peserta secara manual jika sudah memiliki datanya.</p>
-                                <MockImage label="Tombol 'Add Participant' & Form Manual" height="h-32" />
+                                <MockImage label="Tombol 'Add Participant' & Form Manual" src="https://cuma.click/f/addplayers/stream" height="h-auto" />
                             </div>
                         </div>
                     </section>
@@ -312,7 +339,7 @@ export default function TutorialPage() {
                         <p className="text-gray-400 mb-6">
                             Jadwal (Fixtures) akan digenerate otomatis saat Anda mengklik <span className="text-neonGreen">"Generate Match"</span> pada tab <span className="text-neonGreen">"Jadwal"</span>.
                         </p>
-                        <MockImage label="Halaman Match Management (Input Skor)" />
+                        <MockImage label="Tombol 'Add Participant' & Form Manual" src="https://cuma.click/f/generatejadwal/stream" height="h-auto" />
                         <div className="mt-6 space-y-4">
                             <div className="bg-white/5 p-4 rounded-lg border-l-4 border-neonGreen">
                                 <h4 className="font-bold text-white mb-1">Input Skor</h4>
