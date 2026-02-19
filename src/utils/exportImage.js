@@ -144,3 +144,19 @@ export async function exportTopScorersToImage(element, tournamentName = 'tournam
         }
     });
 }
+
+/**
+ * Export group stage to image
+ * @param {HTMLElement} element - Reference to the group stage element
+ * @param {string} tournamentName - Name of the tournament
+ */
+export async function exportGroupStageToImage(element, tournamentName = 'tournament') {
+    const sanitizedName = tournamentName.replace(/[^a-zA-Z0-9-_]/g, '_');
+    const filename = `group_stage_${sanitizedName}_${Date.now()}.png`;
+
+    return exportToImage(element, filename, {
+        backgroundColor: '#0a0a0a',
+        padding: 30,
+        scale: 2
+    });
+}

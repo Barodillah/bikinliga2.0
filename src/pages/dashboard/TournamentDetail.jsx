@@ -24,7 +24,7 @@ import UserBadge from '../../components/ui/UserBadge'
 import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
 import ShareModal from '../../components/ui/ShareModal'
 import InviteUserModal from '../../components/tournament/InviteUserModal'
-import { exportStandingsToImage, exportBracketToImage, exportToImage, exportTopScorersToImage } from '../../utils/exportImage'
+import { exportStandingsToImage, exportBracketToImage, exportToImage, exportTopScorersToImage, exportGroupStageToImage } from '../../utils/exportImage'
 
 // Helper function for authenticated fetch
 const authFetch = (url, options = {}) => {
@@ -858,6 +858,7 @@ export default function TournamentDetail() {
     const standingsRef = useRef(null)
     const bracketRef = useRef(null)
     const topScorersRef = useRef(null)
+    const groupsRef = useRef(null)
     const fixturesRefs = useRef({})
     const [exportLoading, setExportLoading] = useState(null) // 'standings' | 'bracket' | 'round_X' | null
 
@@ -3346,22 +3347,66 @@ export default function TournamentDetail() {
             {/* Group Stage - Group+KO only */}
             {
                 activeTab === 'groups' && isGroupKO && (
-                    <div className="space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                            <h3 className="font-display font-bold text-lg flex items-center gap-2">
-                                <Grid3X3 className="w-5 h-5 text-blue-400" />
-                                Group Stage
-                            </h3>
-                            <div className="text-xs sm:text-sm text-gray-400">
-                                Top 2 dari setiap grup lolos ke Knockout Stage
+                    <div className="space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div className="space-y-1">
+                                <h3 className="font-display font-bold text-lg flex items-center gap-2">
+                                    <Grid3X3 className="w-5 h-5 text-blue-400" />
+                                    Group Stage
+                                </h3>
+                                <div className="flex items-center gap-1.5 text-xs text-blue-400/80 sm:hidden">
+                                    <Info className="w-3.5 h-3.5" />
+                                    <span>Top 2 lolos ke Knockout</span>
+                                </div>
                             </div>
+
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={async () => {
+                                    if (groupsRef.current) {
+                                        setExportLoading('groups')
+                                        try {
+                                            await exportGroupStageToImage(groupsRef.current, tournamentData?.name || 'tournament')
+                                        } finally {
+                                            setExportLoading(null)
+                                        }
+                                    }
+                                }}
+                                disabled={exportLoading === 'groups'}
+                                className="w-full sm:w-auto justify-center"
+                            >
+                                {exportLoading === 'groups' ? (
+                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                ) : (
+                                    <Download className="w-4 h-4 mr-2" />
+                                )}
+                                Export Gambar
+                            </Button>
                         </div>
+
                         {processedGroups.length > 0 ? (
-                            <GroupStage groups={processedGroups} />
+                            <div className="space-y-4">
+                                <div ref={groupsRef}>
+                                    <GroupStage groups={processedGroups} />
+                                </div>
+                                <div className="hidden sm:flex items-center gap-2 text-sm text-gray-400 bg-white/5 p-3 rounded-lg border border-white/5">
+                                    <Info className="w-4 h-4 text-blue-400" />
+                                    <span>Top 2 tim terbaik dari setiap grup akan lolos otomatis ke babak Knockout Stage.</span>
+                                </div>
+                            </div>
                         ) : (
                             <Card className="text-center py-12">
                                 <CardContent>
-                                    <p className="text-gray-500">Belum ada pembagian grup. Silakan generate jadwal terlebih dahulu.</p>
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
+                                            <Grid3X3 className="w-6 h-6 text-gray-500" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="font-medium text-white">Belum ada pembagian grup</p>
+                                            <p className="text-sm text-gray-500">Silakan generate jadwal terlebih dahulu untuk melihat pembagian grup.</p>
+                                        </div>
+                                    </div>
                                 </CardContent>
                             </Card>
                         )}
