@@ -2543,14 +2543,21 @@ export default function TournamentDetail() {
 
 
             {/* Tabs */}
-            <div className="border-b border-white/10 -mx-4 px-4 lg:mx-0 lg:px-0 mb-4">
-                <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+            <div className="border-b border-white/10 -mx-4 px-4 lg:mx-0 lg:px-0 mb-4 relative">
+                {/* Left fade indicator */}
+                <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#050505] to-transparent z-10 pointer-events-none lg:hidden" />
+                {/* Right fade indicator */}
+                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#050505] to-transparent z-10 pointer-events-none lg:hidden" />
+                <div
+                    className="flex gap-1 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory lg:snap-none"
+                    style={{ WebkitOverflowScrolling: 'touch' }}
+                >
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
                             id={tab.id === 'players' ? 'tour-participants-tab' : tab.id === 'news' ? 'tour-news-tab' : tab.id === 'fixtures' ? 'tour-fixtures-tab' : undefined}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${activeTab === tab.id
+                            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap snap-start flex-shrink-0 ${activeTab === tab.id
                                 ? 'border-neonGreen text-neonGreen'
                                 : 'border-transparent text-gray-400 hover:text-white'
                                 }`}
