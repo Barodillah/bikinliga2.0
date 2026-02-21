@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react'
 import { authFetch } from '../../utils/api'
+import { uploadImage } from '../../utils/uploadService'
 import { useNavigate } from 'react-router-dom'
 import { Trophy, Users, Calendar, ArrowLeft, ArrowRight, Check, Image, Upload, Link, Loader2, Sparkles, Pencil, X } from 'lucide-react'
 import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
@@ -145,6 +146,7 @@ export default function CreateTournament() {
     const [isGeneratingAI, setIsGeneratingAI] = useState(false)
     const [aiPrompt, setAiPrompt] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isUploading, setIsUploading] = useState(false)
 
     const handleGenerateAI = async () => {
         setIsGeneratingAI(true)
@@ -220,18 +222,23 @@ export default function CreateTournament() {
     }
 
     // Handle file upload
-    const handleFileUpload = (e) => {
+    const handleFileUpload = async (e) => {
         const file = e.target.files?.[0]
         if (file) {
             if (!file.type.startsWith('image/')) {
                 error('Hanya file gambar yang diperbolehkan!')
                 return
             }
-            const reader = new FileReader()
-            reader.onload = (event) => {
-                setFormData(prev => ({ ...prev, logo: event.target.result, logoType: 'upload' }))
+            setIsUploading(true)
+            try {
+                const url = await uploadImage(file)
+                setFormData(prev => ({ ...prev, logo: url, logoType: 'upload' }))
+            } catch (err) {
+                console.error('Upload failed:', err)
+                error(err.message || 'Gagal upload gambar')
+            } finally {
+                setIsUploading(false)
             }
-            reader.readAsDataURL(file)
         }
     }
 
@@ -469,22 +476,28 @@ export default function CreateTournament() {
                                 {/* Upload Logo */}
                                 {formData.logoType === 'upload' && (
                                     <div
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center cursor-pointer hover:border-neonGreen/50 transition"
+                                        onClick={() => !isUploading && fileInputRef.current?.click()}
+                                        className={`border-2 border-dashed rounded-lg p-6 text-center transition ${isUploading ? 'border-neonGreen/50 bg-neonGreen/5 cursor-wait' : 'border-white/20 cursor-pointer hover:border-neonGreen/50'}`}
                                     >
-                                        <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                                        <p className="text-sm text-gray-400">
-                                            Klik untuk upload gambar
-                                        </p>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Format: JPG, PNG, GIF, WebP
-                                        </p>
+                                        {isUploading ? (
+                                            <>
+                                                <Loader2 className="w-8 h-8 mx-auto mb-2 text-neonGreen animate-spin" />
+                                                <p className="text-sm text-neonGreen">Mengupload gambar...</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                                                <p className="text-sm text-gray-400">Klik untuk upload gambar</p>
+                                                <p className="text-xs text-gray-500 mt-1">Format: JPG, PNG, GIF, WebP (Max 2MB)</p>
+                                            </>
+                                        )}
                                         <input
                                             ref={fileInputRef}
                                             type="file"
                                             accept="image/*"
                                             onChange={handleFileUpload}
                                             className="hidden"
+                                            disabled={isUploading}
                                         />
                                     </div>
                                 )}

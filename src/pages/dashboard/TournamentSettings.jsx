@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react'
 import { authFetch } from '../../utils/api'
+import { uploadImage } from '../../utils/uploadService'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Trophy, Users, Calendar, ArrowLeft, Save, Upload, Link, Loader2, Sparkles, Pencil, X, Image, Check, Trash2 } from 'lucide-react'
 import Card, { CardContent } from '../../components/ui/Card'
@@ -58,6 +59,7 @@ export default function TournamentSettings() {
     const [logoUrl, setLogoUrl] = useState('')
     const fileInputRef = useRef(null)
     const errorShownRef = useRef(false)
+    const [isUploading, setIsUploading] = useState(false)
 
     useEffect(() => {
         const fetchTournament = async () => {
@@ -214,15 +216,24 @@ export default function TournamentSettings() {
         setFormData(prev => ({ ...prev, logo: url }))
     }
 
-    const handleFileUpload = (e) => {
+    const handleFileUpload = async (e) => {
         const file = e.target.files[0]
         if (file) {
-            const reader = new FileReader()
-            reader.onloadend = () => {
-                setFormData(prev => ({ ...prev, logo: reader.result }))
-                setLogoUrl(reader.result)
+            if (!file.type.startsWith('image/')) {
+                error('Hanya file gambar yang diperbolehkan!')
+                return
             }
-            reader.readAsDataURL(file)
+            setIsUploading(true)
+            try {
+                const url = await uploadImage(file)
+                setFormData(prev => ({ ...prev, logo: url, logoType: 'upload' }))
+                setLogoUrl(url)
+            } catch (err) {
+                console.error('Upload failed:', err)
+                error(err.message || 'Gagal upload gambar')
+            } finally {
+                setIsUploading(false)
+            }
         }
     }
 
@@ -349,9 +360,20 @@ export default function TournamentSettings() {
                             )}
 
                             {formData.logoType === 'upload' && (
-                                <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center cursor-pointer hover:border-neonGreen/50 transition">
-                                    <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                                <div onClick={() => !isUploading && fileInputRef.current?.click()} className={`border-2 border-dashed rounded-lg p-6 text-center transition ${isUploading ? 'border-neonGreen/50 bg-neonGreen/5 cursor-wait' : 'border-white/20 cursor-pointer hover:border-neonGreen/50'}`}>
+                                    {isUploading ? (
+                                        <>
+                                            <Loader2 className="w-8 h-8 mx-auto mb-2 text-neonGreen animate-spin" />
+                                            <p className="text-sm text-neonGreen">Mengupload gambar...</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                                            <p className="text-sm text-gray-400">Klik untuk upload gambar</p>
+                                            <p className="text-xs text-gray-500 mt-1">Format: JPG, PNG, GIF, WebP (Max 2MB)</p>
+                                        </>
+                                    )}
+                                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" disabled={isUploading} />
                                 </div>
                             )}
 

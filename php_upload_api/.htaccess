@@ -1,0 +1,44 @@
+# BikinLiga Upload API - .htaccess
+# Deploy ke folder root bikinligaupload/ di shared hosting
+
+# Disable directory listing
+Options -Indexes
+
+# Set max upload size (2MB)
+php_value upload_max_filesize 2M
+php_value post_max_size 3M
+
+# Protect sensitive files
+<FilesMatch "\.(htaccess|htpasswd|ini|log|sh|sql)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Allow direct access to uploaded images
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Allow access to uploads folder
+    RewriteRule ^uploads/ - [L]
+    
+    # Allow access to upload.php
+    RewriteRule ^upload\.php$ - [L]
+</IfModule>
+
+# Cache uploaded images (1 year)
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+</IfModule>
+
+# CORS headers for images (so frontend can display them)
+<IfModule mod_headers.c>
+    <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg)$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Cache-Control "public, max-age=31536000"
+    </FilesMatch>
+</IfModule>
