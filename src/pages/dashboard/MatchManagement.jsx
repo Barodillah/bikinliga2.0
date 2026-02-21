@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react'
+import Joyride, { STATUS } from 'react-joyride'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Timer, User, Goal, Flag, Play, Square, Save, Clock, Trophy, ChevronRight, CheckCircle, RotateCcw, Brain, Percent, History, BarChart2, Search, Loader2 } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
@@ -41,6 +42,92 @@ export default function MatchManagement() {
     const [showPreviousRoundModal, setShowPreviousRoundModal] = useState(false)
     const [previousRoundNumber, setPreviousRoundNumber] = useState(null)
     const [loadingMessage, setLoadingMessage] = useState('') // Custom loading overlay message
+
+    // Joyride States
+    const [runTour, setRunTour] = useState(false)
+    const [tourSteps, setTourSteps] = useState([])
+
+    // Joyride Logic
+    useEffect(() => {
+        if (loading || isActionLoading) return;
+
+        if (match.status === 'scheduled') {
+            const hasSeen = localStorage.getItem('tour_match_scheduled');
+            if (!hasSeen) {
+                setTourSteps([
+                    {
+                        target: '.tour-main-card',
+                        content: 'Ini adalah papan skor dan informasi utama pertandingan. Di sini Anda bisa melihat ronde, status pertandingan, nama tim yang bertanding beserta logonya, dan skor berjalan nantinya.',
+                        title: 'Papan Skor Pertandingan',
+                        disableBeacon: true,
+                    },
+                    {
+                        target: '.tour-duration',
+                        content: 'Pilih durasi pertandingan per babak dalam menit. Pastikan Anda menyesuaikan durasi sebelum melakukan Kick Off. Perubahan durasi tidak bisa dilakukan setelah pertandingan dimulai.',
+                        title: 'Tentukan Durasi',
+                    },
+                    {
+                        target: '.tour-kickoff',
+                        content: 'Klik tombol Kick Off untuk memulai timer babak pertama. Setelah diklik, status pertandingan akan berubah menjadi Live dan Anda bisa mulai mencatat setiap kejadian di lapangan.',
+                        title: 'Mulai Pertandingan',
+                    }
+                ]);
+                setRunTour(true);
+            }
+        } else if (['1st_half', '2nd_half'].includes(match.status)) {
+            const hasSeen = localStorage.getItem('tour_match_live');
+            if (!hasSeen) {
+                setTourSteps([
+                    {
+                        target: '.tour-add-goal-home',
+                        content: 'Gunakan tombol ini untuk mencatat gol yang dicetak oleh tim Home. Anda akan diminta untuk memasukkan nama pencetak gol, jenis gol, dan menit kejadiannya.',
+                        title: 'Catat Gol Home',
+                        disableBeacon: true,
+                    },
+                    {
+                        target: '.tour-add-goal-away',
+                        content: 'Gunakan tombol ini untuk mencatat gol yang dicetak oleh tim Away dengan detail yang sama seperti tim Home.',
+                        title: 'Catat Gol Away',
+                    },
+                    {
+                        target: '.tour-fulltime',
+                        content: 'Klik Fulltime apabila waktu normal pertandingan telah berakhir. Setelah ini, Anda akan diarahkan untuk mengonfirmasi hasil akhir atau masuk ke sesi penalti jika diperlukan.',
+                        title: 'Akhiri Pertandingan',
+                    }
+                ]);
+                setRunTour(true);
+            }
+        } else if (match.status === 'fulltime_pending') {
+            const hasSeen = localStorage.getItem('tour_match_fulltime');
+            if (!hasSeen) {
+                setTourSteps([
+                    {
+                        target: '.tour-confirm-match',
+                        content: 'Setelah memastikan semua skor yang tercatat (serta hasil penalti, jika ada) sudah sesuai dengan hasil pertandingan, klik tombol ini untuk memvalidasi secara permanen dan merubah status jadwal menjadi Selesai.',
+                        title: 'Konfirmasi Hasil Akhir',
+                        disableBeacon: true,
+                    }
+                ]);
+                setRunTour(true);
+            }
+        }
+    }, [match.status, loading, isActionLoading]);
+
+    const handleJoyrideCallback = (data) => {
+        const { status } = data;
+        const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
+
+        if (finishedStatuses.includes(status)) {
+            setRunTour(false);
+            if (match.status === 'scheduled') {
+                localStorage.setItem('tour_match_scheduled', 'true');
+            } else if (['1st_half', '2nd_half'].includes(match.status)) {
+                localStorage.setItem('tour_match_live', 'true');
+            } else if (match.status === 'fulltime_pending') {
+                localStorage.setItem('tour_match_fulltime', 'true');
+            }
+        }
+    };
 
 
     // Fetch Match Data Function
@@ -213,20 +300,23 @@ export default function MatchManagement() {
         const finalType = (eventType === 'goal' && goalType === 'Own Goal') ? 'own_goal' : eventType
 
         try {
-            // 1. Sync to server (Create Event)
-            await createEventServer({
-                type: finalType,
-                team: selectedTeam,
-                player: finalPlayerName,
-                time: eventTime,
-                detail: eventType === 'goal' ? goalType : cardType
-            })
+            // Submit multiple times based on eventMultiplier
+            for (let i = 0; i < eventMultiplier; i++) {
+                // 1. Sync to server (Create Event)
+                await createEventServer({
+                    type: finalType,
+                    team: selectedTeam,
+                    player: finalPlayerName,
+                    time: eventTime, // All events get the same time for now, or you could increment it
+                    detail: eventType === 'goal' ? goalType : cardType
+                })
+            }
 
-            // 2. Success - Save State & Trigger Effects
+            // 2. Success - Save State & Trigger Effects (Run once)
             saveState()
 
             if (eventType === 'goal') {
-                // Trigger Celebration
+                // Trigger Celebration (Run once)
                 setCelebrationData({
                     player: finalPlayerName,
                     teamName: selectedTeam === 'home' ? match.homeTeam.name : match.awayTeam.name,
@@ -243,6 +333,7 @@ export default function MatchManagement() {
             setSelectedPlayer('')
             setManualPlayerName('')
             setIsManualInput(false)
+            setEventMultiplier(1)
 
         } catch (error) {
             console.error("Submit failed", error)
@@ -321,6 +412,7 @@ export default function MatchManagement() {
     const [cardType, setCardType] = useState('Yellow Card') // Yellow Card, Red Card
     const [isManualInput, setIsManualInput] = useState(false)
     const [manualPlayerName, setManualPlayerName] = useState('')
+    const [eventMultiplier, setEventMultiplier] = useState(1) // Number of events to add
 
     // Celebration State
     const [showGoalCelebration, setShowGoalCelebration] = useState(false)
@@ -549,6 +641,7 @@ export default function MatchManagement() {
         setCardType('Yellow Card')
         setIsManualInput(false)
         setManualPlayerName('')
+        setEventMultiplier(1)
         setShowEventModal(true)
     }
 
@@ -602,6 +695,50 @@ export default function MatchManagement() {
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto relative">
+            <Joyride
+                steps={tourSteps}
+                run={runTour}
+                continuous
+                showProgress
+                showSkipButton
+                callback={handleJoyrideCallback}
+                styles={{
+                    options: {
+                        arrowColor: '#121212',
+                        backgroundColor: '#121212',
+                        overlayColor: 'rgba(5, 5, 5, 0.5)',
+                        primaryColor: '#02FE02',
+                        textColor: '#fff',
+                        zIndex: 1000,
+                    },
+                    tooltipContainer: {
+                        textAlign: 'left'
+                    },
+                    buttonNext: {
+                        backgroundColor: '#02FE02',
+                        color: '#000',
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        fontWeight: 'bold',
+                        outline: 'none',
+                    },
+                    buttonBack: {
+                        color: '#fff',
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        outline: 'none',
+                    },
+                    buttonSkip: {
+                        color: '#fff',
+                        fontFamily: 'Space Grotesk, sans-serif'
+                    }
+                }}
+                locale={{
+                    back: 'Kembali',
+                    close: 'Tutup',
+                    last: 'Selesai',
+                    next: 'Lanjut',
+                    skip: 'Lewati',
+                }}
+            />
             {/* Goal Celebration Overlay */}
             {showGoalCelebration && celebrationData && (
                 <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-300">
@@ -679,7 +816,7 @@ export default function MatchManagement() {
             </button>
 
             {/* Scoreboard Main */}
-            <Card className="overflow-hidden">
+            <Card className="tour-main-card overflow-hidden">
                 <div className="bg-[#0a0a0a] p-6 sm:p-10 text-center relative">
                     {/* Match Info Bar - Round/Stage */}
                     <div className="absolute top-2 left-4 flex items-center gap-2 text-xs text-gray-500">
@@ -881,7 +1018,7 @@ export default function MatchManagement() {
                     {/* Left: Home Actions */}
                     <div className="flex-1 flex justify-start">
                         {['1st_half', '2nd_half'].includes(match.status) && (
-                            <Button variant="secondary" onClick={() => handleAddEvent('goal', 'home')} disabled={isActionLoading}>
+                            <Button variant="secondary" className="tour-add-goal-home" onClick={() => handleAddEvent('goal', 'home')} disabled={isActionLoading}>
                                 + Goal Home
                             </Button>
                         )}
@@ -891,7 +1028,7 @@ export default function MatchManagement() {
                     <div className="flex flex-col items-center gap-2">
                         {/* Duration Selector */}
                         {match.status === 'scheduled' && (
-                            <div className="flex flex-col sm:flex-row items-center gap-2 mb-2 bg-black/30 p-2 rounded-lg w-full sm:w-auto">
+                            <div className="tour-duration flex flex-col sm:flex-row items-center gap-2 mb-2 bg-black/30 p-2 rounded-lg w-full sm:w-auto">
                                 <span className="text-xs text-gray-400 whitespace-nowrap">Waktu Match:</span>
                                 <div className="flex flex-wrap justify-center gap-1">
                                     {[4, 5, 6, 7, 8, 9, 10, 12, 15, 45].map(d => (
@@ -912,7 +1049,7 @@ export default function MatchManagement() {
 
                         <div className="flex flex-wrap justify-center gap-2">
                             {match.status === 'scheduled' && (
-                                <Button onClick={handleStartMatch} className="bg-neonGreen hover:bg-neonGreen/80 text-black" disabled={isActionLoading}>
+                                <Button onClick={handleStartMatch} className="tour-kickoff bg-neonGreen hover:bg-neonGreen/80 text-black" disabled={isActionLoading}>
                                     {isActionLoading ? 'Loading...' : <><Play className="w-4 h-4 mr-2" /> Kick Off ({halfDuration}')</>}
                                 </Button>
                             )}
@@ -938,7 +1075,7 @@ export default function MatchManagement() {
 
                             {/* Fulltime / Confirm */}
                             {(match.status === '1st_half' || match.status === '2nd_half' || match.status === 'halftime') && (
-                                <Button variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={handleFinishMatch} disabled={isActionLoading}>
+                                <Button variant="ghost" className="tour-fulltime text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={handleFinishMatch} disabled={isActionLoading}>
                                     {isActionLoading ? 'Loading...' : <><Flag className="w-4 h-4 mr-2" /> Fulltime</>}
                                 </Button>
                             )}
@@ -995,7 +1132,7 @@ export default function MatchManagement() {
 
                                         if (!needsPenalty) {
                                             return (
-                                                <Button className="bg-neonGreen hover:bg-neonGreen/80 text-black animate-pulse" onClick={handleConfirmMatch}>
+                                                <Button className="tour-confirm-match bg-neonGreen hover:bg-neonGreen/80 text-black animate-pulse" onClick={handleConfirmMatch}>
                                                     <CheckCircle className="w-4 h-4 mr-2" /> Confirm Match Result
                                                 </Button>
                                             );
@@ -1029,7 +1166,7 @@ export default function MatchManagement() {
                     {/* Right: Away Actions */}
                     <div className="flex-1 flex justify-end">
                         {['1st_half', '2nd_half'].includes(match.status) && (
-                            <Button variant="secondary" onClick={() => handleAddEvent('goal', 'away')} disabled={isActionLoading}>
+                            <Button variant="secondary" className="tour-add-goal-away" onClick={() => handleAddEvent('goal', 'away')} disabled={isActionLoading}>
                                 + Goal Away
                             </Button>
                         )}
@@ -1381,20 +1518,50 @@ export default function MatchManagement() {
                                     </div>
                                 )}
 
-                                <div>
-                                    <label className="block text-sm text-gray-400 mb-1">Waktu (Menit)</label>
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        className="w-full bg-black/50 border border-white/10 rounded-lg p-3 outline-none focus:border-neonGreen"
-                                        value={eventTime}
-                                        onChange={(e) => {
-                                            const val = e.target.value
-                                            if (val === '' || /^\d+$/.test(val)) {
-                                                setEventTime(val)
-                                            }
-                                        }}
-                                    />
+                                <div className="flex gap-4 items-end">
+                                    <div className="flex-1">
+                                        <label className="block text-sm text-gray-400 mb-1">Waktu (Menit)</label>
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            className="w-full bg-black/50 border border-white/10 rounded-lg p-3 outline-none focus:border-neonGreen text-white"
+                                            value={eventTime}
+                                            onChange={(e) => {
+                                                const val = e.target.value
+                                                if (val === '' || /^\d+$/.test(val)) {
+                                                    setEventTime(val)
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="w-1/3">
+                                        <label className="block text-sm text-gray-400 mb-1">Jumlah {eventType === 'goal' ? 'Gol' : 'Kartu'}</label>
+                                        <div className="flex items-center">
+                                            <div className="bg-white/10 px-3 py-3 rounded-l-lg border-y border-l border-white/10 text-gray-400 font-bold">x</div>
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                className="w-full bg-black/50 border border-white/10 rounded-r-lg p-3 outline-none focus:border-neonGreen text-white"
+                                                value={eventMultiplier}
+                                                onChange={(e) => {
+                                                    const val = e.target.value
+                                                    if (val === '' || /^\d+$/.test(val)) {
+                                                        const numVal = parseInt(val, 10);
+                                                        if (!isNaN(numVal) && numVal > 0) {
+                                                            setEventMultiplier(numVal);
+                                                        } else if (val === '') {
+                                                            setEventMultiplier('');
+                                                        }
+                                                    }
+                                                }}
+                                                onBlur={(e) => {
+                                                    if (e.target.value === '' || parseInt(e.target.value, 10) < 1) {
+                                                        setEventMultiplier(1);
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="flex gap-3 mt-6">

@@ -631,26 +631,26 @@ router.patch('/:id', authenticateToken, async (req, res) => {
                 );
 
                 // NOTIFICATION: Match Completed
+                // Use actual DB scores (req.body may not include them)
+                const finalHomeScore = homeScore !== undefined ? Number(homeScore) : (currentMatch.home_score || 0);
+                const finalAwayScore = awayScore !== undefined ? Number(awayScore) : (currentMatch.away_score || 0);
+
                 // Fetch participants to get user_ids
                 const [users] = await connection.query(
                     `SELECT user_id FROM participants WHERE id IN (?, ?) AND user_id IS NOT NULL`,
                     [currentMatch.home_participant_id, currentMatch.away_participant_id]
                 );
 
-                const resultTitle = homeScore > awayScore ? 'Anda Menang! 🎉' : (awayScore > homeScore ? 'Anda Kalah 😔' : 'Seri 🤝');
-                // Note: The title needs to be customized per user, but for simplicity sending a generic result first or custom loop
-
                 for (const u of users) {
                     // Determine result for this specific user
-                    // We need to know if u.user_id belongs to home or away
                     const [pRows] = await connection.query('SELECT id FROM participants WHERE user_id = ? AND id IN (?, ?)', [u.user_id, currentMatch.home_participant_id, currentMatch.away_participant_id]);
                     if (pRows.length > 0) {
                         const pid = pRows[0].id;
                         const isHome = pid === currentMatch.home_participant_id;
 
                         let myLabel = 'Seri';
-                        if (homeScore > awayScore) myLabel = isHome ? 'Menang' : 'Kalah';
-                        else if (awayScore > homeScore) myLabel = isHome ? 'Kalah' : 'Menang';
+                        if (finalHomeScore > finalAwayScore) myLabel = isHome ? 'Menang' : 'Kalah';
+                        else if (finalAwayScore > finalHomeScore) myLabel = isHome ? 'Kalah' : 'Menang';
 
                         const emoji = myLabel === 'Menang' ? '🎉' : (myLabel === 'Kalah' ? '😔' : '🤝');
 
@@ -658,7 +658,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
                             u.user_id,
                             'match_completed',
                             `Pertandingan Selesai - ${myLabel} ${emoji}`,
-                            `Skor Akhir: ${homeScore} - ${awayScore}`,
+                            `Skor Akhir: ${finalHomeScore} - ${finalAwayScore}`,
                             { match_id: id, tournament_id: currentMatch.tournament_id }
                             , connection);
                     }
