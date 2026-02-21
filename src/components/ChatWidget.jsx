@@ -187,7 +187,7 @@ export default function ChatWidget() {
     }, [isOpen]);
 
     return (
-        <>
+        <div className="chat-widget-container">
             {/* Trigger Button */}
             <button
                 onClick={() => setIsOpen(true)}
@@ -392,6 +392,6 @@ export default function ChatWidget() {
                     </form>
                 </div>
             </div>
-        </>
+        </div>
     );
 }

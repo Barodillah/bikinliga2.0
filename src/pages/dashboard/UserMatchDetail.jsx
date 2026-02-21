@@ -436,8 +436,8 @@ export default function UserMatchDetail() {
                                                 </div>
                                                 <p className="text-xs text-gray-500 mt-2 italic">
                                                     {match.analysis.historyType === 'all_time'
-                                                        ? "Prediksi AI: Gabungan statistik riwayat pertemuan User (All Time) dan tren 3 pertandingan terakhir."
-                                                        : "Prediksi AI: Berdasarkan performa head-to-head di turnamen ini (weighted)."}
+                                                        ? "Prediksi AI: Kombinasi H2H (20%), performa liga (50%), dan statistik gol (30%)."
+                                                        : "Prediksi AI: Kombinasi H2H turnamen, klasemen, dan statistik gol (weighted)."}
                                                 </p>
                                             </div>
                                         ) : (

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
-import { Trophy, Users, Calendar, BarChart2, ArrowLeft, TrendingUp, Activity, Sparkles, Brain, Goal, Newspaper, Gift, ChevronRight, ArrowRight, Grid3X3, GitMerge, DollarSign, Medal, Crown, Percent, Target, Share2, Lock, Maximize2, Minimize2 } from 'lucide-react'
+import { Trophy, Users, Calendar, BarChart2, ArrowLeft, ArrowUp, TrendingUp, Activity, Sparkles, Brain, Goal, Newspaper, Gift, ChevronRight, ArrowRight, Grid3X3, GitMerge, DollarSign, Medal, Crown, Percent, Target, Share2, Lock, Maximize2, Minimize2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -132,6 +133,44 @@ export default function UserTournamentDetail() {
     const [winnerData, setWinnerData] = useState(null)
     const [shareModalOpen, setShareModalOpen] = useState(false)
     const carouselRef = useRef(null)
+    const fixtureRoundRefs = useRef({})
+    const [showScrollTop, setShowScrollTop] = useState(false)
+
+    useEffect(() => {
+        const mainEl = document.querySelector('main')
+        if (!mainEl) return
+        const handleScroll = () => setShowScrollTop(mainEl.scrollTop > 300)
+        mainEl.addEventListener('scroll', handleScroll)
+        return () => mainEl.removeEventListener('scroll', handleScroll)
+    }, [])
+
+    const scrollToTop = () => {
+        const mainEl = document.querySelector('main')
+        if (mainEl) mainEl.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
+    // Auto-scroll to first scheduled round when fixtures tab is active
+    useEffect(() => {
+        if (activeTab !== 'fixtures' || matches.length === 0) return
+        // Find the first round that has a scheduled match
+        const roundsWithScheduled = Object.entries(
+            matches.reduce((acc, m) => {
+                if (!acc[m.round]) acc[m.round] = []
+                acc[m.round].push(m)
+                return acc
+            }, {})
+        ).find(([, roundMatches]) => roundMatches.some(m => m.status === 'scheduled'))
+
+        if (roundsWithScheduled) {
+            const roundKey = roundsWithScheduled[0]
+            setTimeout(() => {
+                const el = fixtureRoundRefs.current[roundKey]
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }
+            }, 300)
+        }
+    }, [activeTab, matches])
 
     // AI Chat State
     const [chatMessages, setChatMessages] = useState([
@@ -153,6 +192,16 @@ export default function UserTournamentDetail() {
     const [userSubscription, setUserSubscription] = useState(null)
     const [loadingSubscription, setLoadingSubscription] = useState(true)
     const [chatLocked, setChatLocked] = useState(false) // derived state if needed
+
+    // Hide ChatWidget when AI fullscreen is active
+    useEffect(() => {
+        if (isFullscreen) {
+            document.body.classList.add('ai-fullscreen')
+        } else {
+            document.body.classList.remove('ai-fullscreen')
+        }
+        return () => document.body.classList.remove('ai-fullscreen')
+    }, [isFullscreen])
 
     useEffect(() => {
         const fetchSubscription = async () => {
@@ -176,6 +225,26 @@ export default function UserTournamentDetail() {
 
     const isPremiumUser = userSubscription?.plan_name?.toLowerCase().includes('captain') || userSubscription?.plan_name?.toLowerCase().includes('pro') || userSubscription?.plan_name?.toLowerCase().includes('superadmin');
     const isPro = userSubscription?.plan_name?.toLowerCase().includes('pro') || userSubscription?.plan_name?.toLowerCase().includes('superadmin');
+
+    // Top Scorer Face URL
+    const [topScorerFaceUrl, setTopScorerFaceUrl] = useState('https://www.efootballdb.com/img/players/player_noface.png');
+    useEffect(() => {
+        let isMounted = true;
+        setTopScorerFaceUrl('https://www.efootballdb.com/img/players/player_noface.png');
+        const fetchFace = async () => {
+            if (!topScorers?.[0]?.name) return;
+            try {
+                const res = await authFetch(`/api/external/player-face?q=${encodeURIComponent(topScorers[0].name)}`);
+                if (!res.ok) throw new Error('Network error');
+                const json = await res.json();
+                if (isMounted && json.status === true && json.data?.length > 0) {
+                    setTopScorerFaceUrl(json.data[0].link);
+                }
+            } catch (e) { /* fallback stays */ }
+        };
+        fetchFace();
+        return () => { isMounted = false; };
+    }, [topScorers?.[0]?.name]);
 
     console.log('DEBUG: isPremiumUser:', isPremiumUser, 'Plan:', userSubscription?.plan_name);
 
@@ -1485,7 +1554,7 @@ export default function UserTournamentDetail() {
                                 className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide snap-x snap-mandatory scroll-smooth"
                                 style={{ scrollBehavior: 'smooth' }}
                             >
-                                {matches.filter(m => m.status === 'completed' || m.status === 'finished').slice(0, 8).map((match, i) => (
+                                {matches.filter(m => m.status === 'completed' || m.status === 'finished').sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)).slice(0, 8).map((match, i) => (
                                     <div key={match.id} className="flex-shrink-0 w-[calc(100%-32px)] sm:w-[280px] snap-start first:ml-0 last:mr-4">
                                         <MatchCard
                                             home={{
@@ -1508,6 +1577,65 @@ export default function UserTournamentDetail() {
                                 ))}
                             </div>
                         </div>
+
+                        {/* Next Matches - User's upcoming scheduled matches */}
+                        {(() => {
+                            const userNextMatches = matches
+                                .filter(m => m.status === 'scheduled' && userParticipantId && (
+                                    String(m.home_participant_id) === String(userParticipantId) ||
+                                    String(m.away_participant_id) === String(userParticipantId)
+                                ))
+                                .slice(0, 3);
+
+                            return userNextMatches.length > 0 ? (
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between px-1">
+                                        <h3 className="font-bold text-lg flex items-center gap-2">
+                                            <Calendar className="w-5 h-5 text-blue-400" />
+                                            Pertandingan Mendatang
+                                        </h3>
+                                        <button onClick={() => setActiveTab('fixtures')} className="text-xs text-gray-400 hover:text-white transition">Lihat Semua</button>
+                                    </div>
+                                    <div className="grid gap-3">
+                                        {userNextMatches.map(match => (
+                                            <Card key={match.id} className="border-l-4 border-l-blue-500 cursor-pointer hover:bg-white/5 transition" onClick={() => handleMatchClick(match.id)}>
+                                                <CardContent className="p-3 sm:p-4">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold overflow-hidden shrink-0 ${String(match.home_participant_id) === String(userParticipantId) ? 'bg-neonGreen/20 ring-2 ring-neonGreen/40' : 'bg-white/10'}`}>
+                                                                {match.home_logo ? (
+                                                                    <img src={match.home_logo} alt="" className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    (match.home_team_name || match.home_player_name || '?').charAt(0)
+                                                                )}
+                                                            </div>
+                                                            <span className={`text-xs font-medium truncate ${String(match.home_participant_id) === String(userParticipantId) ? 'text-neonGreen font-bold' : ''}`}>{match.home_team_name || match.home_player_name}</span>
+                                                        </div>
+                                                        <div className="text-xs font-bold text-gray-500 shrink-0">VS</div>
+                                                        <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                                                            <span className={`text-xs font-medium truncate text-right ${String(match.away_participant_id) === String(userParticipantId) ? 'text-neonGreen font-bold' : ''}`}>{match.away_team_name || match.away_player_name}</span>
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold overflow-hidden shrink-0 ${String(match.away_participant_id) === String(userParticipantId) ? 'bg-neonGreen/20 ring-2 ring-neonGreen/40' : 'bg-white/10'}`}>
+                                                                {match.away_logo ? (
+                                                                    <img src={match.away_logo} alt="" className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    (match.away_team_name || match.away_player_name || '?').charAt(0)
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center justify-between mt-2">
+                                                        <span className="text-[10px] text-gray-500">
+                                                            {isLeague ? `Matchday ${match.round}` : `Round ${match.round}`}
+                                                        </span>
+                                                        <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">Scheduled</span>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null;
+                        })()}
 
                         {/* Standings Snapshot - Logic Updated for Group/Stage Context */}
                         {!isKnockout && (isLeague || (isGroupKO && standings.some(s => String(s.user_id) === String(user?.id)))) && (
@@ -1561,7 +1689,12 @@ export default function UserTournamentDetail() {
                                     <CardContent className="p-4 flex flex-row items-center gap-4">
                                         <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 p-0.5 flex-shrink-0">
                                             <div className="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
-                                                <Users className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
+                                                <img
+                                                    src={topScorerFaceUrl}
+                                                    alt={topScorers[0].name}
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => { e.target.src = 'https://www.efootballdb.com/img/players/player_noface.png' }}
+                                                />
                                             </div>
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -1579,56 +1712,6 @@ export default function UserTournamentDetail() {
                                 )}
                             </Card>
                         </div>
-
-                        {/* Upcoming Match Highlight - Full Width on Mobile */}
-                        <Card className="border-l-4 border-l-blue-500 w-full">
-                            <CardContent className="p-4">
-                                {matches.find(m => m.status === 'scheduled') ? (
-                                    (() => {
-                                        const nextMatch = matches.find(m => m.status === 'scheduled');
-                                        return (
-                                            <div className="text-center w-full">
-                                                <div className="flex justify-between items-start mb-3">
-                                                    <div className="text-xs font-bold text-blue-400 uppercase">Next Big Match</div>
-                                                    <div className="text-xs text-gray-500 bg-white/5 px-2 py-1 rounded">{formatDate(nextMatch.start_time)}</div>
-                                                </div>
-                                                <div className="flex items-center justify-center gap-4 sm:gap-6 py-2">
-                                                    <div className="text-center">
-                                                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-blue-500/20 text-blue-400 ring-4 ring-blue-500/10 flex items-center justify-center text-sm sm:text-base font-bold mx-auto mb-1 overflow-hidden">
-                                                            {nextMatch.home_logo ? (
-                                                                <img src={nextMatch.home_logo} alt={nextMatch.home_team_name || nextMatch.home_player_name} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                (nextMatch.home_team_name || nextMatch.home_player_name || '?').charAt(0)
-                                                            )}
-                                                        </div>
-                                                        <div className="text-xs text-gray-400 truncate max-w-[80px]">{nextMatch.home_team_name || nextMatch.home_player_name}</div>
-                                                    </div>
-                                                    <div className="text-lg sm:text-xl font-bold text-gray-500">VS</div>
-                                                    <div className="text-center">
-                                                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-red-500/20 text-red-400 ring-4 ring-red-500/10 flex items-center justify-center text-sm sm:text-base font-bold mx-auto mb-1 overflow-hidden">
-                                                            {nextMatch.away_logo ? (
-                                                                <img src={nextMatch.away_logo} alt={nextMatch.away_team_name || nextMatch.away_player_name} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                (nextMatch.away_team_name || nextMatch.away_player_name || '?').charAt(0)
-                                                            )}
-                                                        </div>
-                                                        <div className="text-xs text-gray-400 truncate max-w-[80px]">{nextMatch.away_team_name || nextMatch.away_player_name}</div>
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={() => handleMatchClick(nextMatch.id)}
-                                                    className="w-full mt-3 py-2 rounded-lg bg-blue-500/10 text-blue-400 text-sm font-bold hover:bg-blue-500/20 transition"
-                                                >
-                                                    Lihat Preview
-                                                </button>
-                                            </div>
-                                        )
-                                    })()
-                                ) : (
-                                    <div className="text-center text-gray-500 py-8">Tidak ada pertandingan mendatang</div>
-                                )}
-                            </CardContent>
-                        </Card>
                     </div>
                 )
             }
@@ -1715,7 +1798,7 @@ export default function UserTournamentDetail() {
                                         acc[roundKey].push(match);
                                         return acc;
                                     }, {})).map(([round, roundMatches]) => (
-                                        <div key={round} className="space-y-4">
+                                        <div key={round} className="space-y-4" ref={el => fixtureRoundRefs.current[round] = el}>
                                             <div className="flex items-center gap-4">
                                                 <div className="h-px bg-white/10 flex-1"></div>
                                                 <h3 className="font-display font-bold text-neonGreen">
@@ -1804,6 +1887,21 @@ export default function UserTournamentDetail() {
                 onClose={() => setShareModalOpen(false)}
                 sharedContent={sharedContent}
             />
+
+            {/* Back to Top */}
+            <AnimatePresence>
+                {showScrollTop && activeTab === 'fixtures' && (
+                    <motion.button
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.5 }}
+                        onClick={scrollToTop}
+                        className="fixed bottom-24 right-6 z-[49] p-4 rounded-full bg-white/10 hover:bg-white/20 text-white shadow-lg backdrop-blur-md border border-white/20 transition-all hover:-translate-y-1"
+                    >
+                        <ArrowUp className="w-5 h-5" />
+                    </motion.button>
+                )}
+            </AnimatePresence>
         </div >
     )
 }

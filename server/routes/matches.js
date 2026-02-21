@@ -195,103 +195,143 @@ router.get('/:id', optionalAuth, async (req, res) => {
             pastMatches = history;
         }
 
-        // Calculate Win Probability (Stats)
-        // 1. All Time Stats
-        let allTime = { home: 0, away: 0, draw: 0, total: 0 };
+        // === WIN PROBABILITY CALCULATION (Weighted Formula) ===
+        // 1. Head-to-Head Stats from pastMatches
+        let h2h = { homeWins: 0, awayWins: 0, draws: 0, total: 0 };
         pastMatches.forEach(m => {
-            const currentHomeIdentifier = useUserHistory ? match.home_user_id : match.home_participant_id;
-            const mHomeIdentifier = useUserHistory ? m.h_uid : m.home_participant_id;
-            const isCurrentHomeSide = (mHomeIdentifier == currentHomeIdentifier);
-
+            const currentHomeId = useUserHistory ? match.home_user_id : match.home_participant_id;
+            const mHomeId = useUserHistory ? m.h_uid : m.home_participant_id;
+            const isCurrentHomeSide = (mHomeId == currentHomeId);
             const hScore = m.home_score || 0;
             const aScore = m.away_score || 0;
 
             if (hScore > aScore) {
-                if (isCurrentHomeSide) allTime.home++; else allTime.away++;
+                if (isCurrentHomeSide) h2h.homeWins++; else h2h.awayWins++;
             } else if (aScore > hScore) {
-                if (isCurrentHomeSide) allTime.away++; else allTime.home++;
+                if (isCurrentHomeSide) h2h.awayWins++; else h2h.homeWins++;
             } else {
-                allTime.draw++;
+                h2h.draws++;
             }
-            allTime.total++;
+            h2h.total++;
         });
 
-        // 2. Recent Form (Last 3)
-        let recent = { home: 0, away: 0, draw: 0, total: 0 };
-        const recentMatches = pastMatches.slice(0, 3);
-        recentMatches.forEach(m => {
-            const currentHomeIdentifier = useUserHistory ? match.home_user_id : match.home_participant_id;
-            const mHomeIdentifier = useUserHistory ? m.h_uid : m.home_participant_id;
-            const isCurrentHomeSide = (mHomeIdentifier == currentHomeIdentifier);
+        // 2. Fetch Team Stats (league performance + goals)
+        let teamA = { matches: 0, wins: 0, draws: 0, goals_scored: 0, goals_conceded: 0 };
+        let teamB = { matches: 0, wins: 0, draws: 0, goals_scored: 0, goals_conceded: 0 };
 
-            const hScore = m.home_score || 0;
-            const aScore = m.away_score || 0;
-
-            if (hScore > aScore) {
-                if (isCurrentHomeSide) recent.home++; else recent.away++;
-            } else if (aScore > hScore) {
-                if (isCurrentHomeSide) recent.away++; else recent.home++;
-            } else {
-                recent.draw++;
+        if (useUserHistory) {
+            // All-time mode: use user_statistics table
+            const [statsA] = await db.query(
+                'SELECT total_matches, total_wins, total_draws, goals_for, goals_against FROM user_statistics WHERE user_id = ?',
+                [match.home_user_id]
+            );
+            const [statsB] = await db.query(
+                'SELECT total_matches, total_wins, total_draws, goals_for, goals_against FROM user_statistics WHERE user_id = ?',
+                [match.away_user_id]
+            );
+            if (statsA.length > 0) {
+                teamA = { matches: statsA[0].total_matches || 0, wins: statsA[0].total_wins || 0, draws: statsA[0].total_draws || 0, goals_scored: statsA[0].goals_for || 0, goals_conceded: statsA[0].goals_against || 0 };
             }
-            recent.total++;
-        });
+            if (statsB.length > 0) {
+                teamB = { matches: statsB[0].total_matches || 0, wins: statsB[0].total_wins || 0, draws: statsB[0].total_draws || 0, goals_scored: statsB[0].goals_for || 0, goals_conceded: statsB[0].goals_against || 0 };
+            }
+        } else {
+            // Tournament mode: use standings table
+            const [standA] = await db.query(
+                'SELECT played, won, drawn, goals_for, goals_against FROM standings WHERE tournament_id = ? AND participant_id = ?',
+                [match.tournament_id, match.home_participant_id]
+            );
+            const [standB] = await db.query(
+                'SELECT played, won, drawn, goals_for, goals_against FROM standings WHERE tournament_id = ? AND participant_id = ?',
+                [match.tournament_id, match.away_participant_id]
+            );
+            if (standA.length > 0) {
+                teamA = { matches: standA[0].played || 0, wins: standA[0].won || 0, draws: standA[0].drawn || 0, goals_scored: standA[0].goals_for || 0, goals_conceded: standA[0].goals_against || 0 };
+            }
+            if (standB.length > 0) {
+                teamB = { matches: standB[0].played || 0, wins: standB[0].won || 0, draws: standB[0].drawn || 0, goals_scored: standB[0].goals_for || 0, goals_conceded: standB[0].goals_against || 0 };
+            }
+        }
 
-        const totalPast = pastMatches.length;
+        // 3. Compute probabilities
+        const totalLeagueMatches = (teamA.matches + teamB.matches) / 2;
+        const hasH2H = h2h.total > 0;
+        const hasLeagueData = totalLeagueMatches > 0;
+
         let analysis = {
-            winProbability: {
-                home: 33, // Default if no data
-                draw: 34,
-                away: 33
-            },
+            winProbability: { home: 33, draw: 34, away: 33 }, // Default
             headToHead: [],
             historyType
         };
 
-        if (allTime.total > 0) {
-            // Calculate Percentages with Laplace Smoothing (Add +1 to each bucket)
-            // This prevents 100% or 0% probabilities for upcoming matches.
-            const calcPct = (counts) => {
-                // Smoothing: +1 to each, total + 3
-                const smoothedHome = counts.home + 1;
-                const smoothedDraw = counts.draw + 1;
-                const smoothedAway = counts.away + 1;
-                const smoothedTotal = counts.total + 3;
+        if (hasH2H || hasLeagueData) {
+            // Weights depend on whether H2H data exists
+            const weights = hasH2H
+                ? { head_to_head: 0.2, league_performance: 0.5, goal_stats: 0.3 }
+                : { head_to_head: 0, league_performance: 0.6, goal_stats: 0.4 };
 
-                return {
-                    home: (smoothedHome / smoothedTotal) * 100,
-                    draw: (smoothedDraw / smoothedTotal) * 100,
-                    away: (smoothedAway / smoothedTotal) * 100
-                };
-            };
-
-            const allTimePct = calcPct(allTime);
-
-            let finalHome, finalDraw, finalAway;
-
-            if (recent.total > 0) {
-                const recentPct = calcPct(recent);
-                // Blend 50% All Time, 50% Recent
-                finalHome = (allTimePct.home + recentPct.home) / 2;
-                finalDraw = (allTimePct.draw + recentPct.draw) / 2;
-                finalAway = (allTimePct.away + recentPct.away) / 2;
-            } else {
-                finalHome = allTimePct.home;
-                finalDraw = allTimePct.draw;
-                finalAway = allTimePct.away;
+            // H2H probabilities
+            let prob_h2h_home = 0, prob_h2h_away = 0, prob_h2h_draw = 0;
+            if (hasH2H) {
+                prob_h2h_home = h2h.homeWins / h2h.total;
+                prob_h2h_away = h2h.awayWins / h2h.total;
+                prob_h2h_draw = h2h.draws / h2h.total;
             }
 
-            analysis.winProbability = {
-                home: Math.round(finalHome),
-                draw: Math.round(finalDraw),
-                away: Math.round(finalAway)
-            };
+            // League performance probabilities
+            let prob_league_home = 0, prob_league_away = 0, prob_league_draw = 0;
+            let prob_goals_home = 0, prob_goals_away = 0;
 
-            // Normalize to 100% just in case of rounding entries
-            const total = analysis.winProbability.home + analysis.winProbability.draw + analysis.winProbability.away;
-            if (total !== 100) {
-                const diff = 100 - total;
-                analysis.winProbability.draw += diff; // Dump diff into draw
+            if (hasLeagueData) {
+                prob_league_home = teamA.wins / totalLeagueMatches;
+                prob_league_away = teamB.wins / totalLeagueMatches;
+                prob_league_draw = (teamA.draws / totalLeagueMatches + teamB.draws / totalLeagueMatches) / 2;
+
+                // Goal statistics (offense vs defense)
+                const teamA_offense = teamA.goals_scored / totalLeagueMatches;
+                const teamB_defense = teamB.goals_conceded / totalLeagueMatches;
+                const teamB_offense = teamB.goals_scored / totalLeagueMatches;
+                const teamA_defense = teamA.goals_conceded / totalLeagueMatches;
+
+                const sumA = teamA_offense + teamB_defense;
+                const sumB = teamB_offense + teamA_defense;
+                prob_goals_home = sumA > 0 ? teamA_offense / sumA : 0;
+                prob_goals_away = sumB > 0 ? teamB_offense / sumB : 0;
+
+                // Guard against NaN
+                if (isNaN(prob_goals_home)) prob_goals_home = 0;
+                if (isNaN(prob_goals_away)) prob_goals_away = 0;
+            }
+
+            // Final weighted probabilities
+            const teamA_probability =
+                (prob_h2h_home * weights.head_to_head) +
+                (prob_league_home * weights.league_performance) +
+                (prob_goals_home * weights.goal_stats);
+
+            const teamB_probability =
+                (prob_h2h_away * weights.head_to_head) +
+                (prob_league_away * weights.league_performance) +
+                (prob_goals_away * weights.goal_stats);
+
+            const draw_probability =
+                (prob_h2h_draw * weights.head_to_head) +
+                (prob_league_draw * weights.league_performance);
+
+            // Normalize to 100%
+            const totalProb = teamA_probability + teamB_probability + draw_probability;
+            if (totalProb > 0) {
+                analysis.winProbability = {
+                    home: Math.round((teamA_probability / totalProb) * 100),
+                    draw: Math.round((draw_probability / totalProb) * 100),
+                    away: Math.round((teamB_probability / totalProb) * 100)
+                };
+
+                // Fix rounding to ensure sum = 100
+                const sum = analysis.winProbability.home + analysis.winProbability.draw + analysis.winProbability.away;
+                if (sum !== 100) {
+                    analysis.winProbability.draw += (100 - sum);
+                }
             }
         }
 

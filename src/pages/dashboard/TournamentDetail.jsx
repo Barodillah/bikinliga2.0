@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Trophy, Users, Calendar, BarChart2, Settings, Share2, Download, ArrowLeft, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2, Gift, DollarSign, Percent, Save, Loader2, User, Phone, Shield, Sparkles, Medal, Crown, Target, ListFilter, MessageSquare, MessageCircle, Send, ChevronDown, UserCheck, ShieldCheck, Mail } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Trophy, Users, Calendar, BarChart2, Settings, Share2, Download, ArrowLeft, ArrowUp, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2, Gift, DollarSign, Percent, Save, Loader2, User, Phone, Shield, Sparkles, Medal, Crown, Target, ListFilter, MessageSquare, MessageCircle, Send, ChevronDown, UserCheck, ShieldCheck, Mail } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -856,6 +856,42 @@ export default function TournamentDetail() {
     const [statistics, setStatistics] = useState(null)
     const [statisticsLoading, setStatisticsLoading] = useState(false)
     const [winnerData, setWinnerData] = useState(null)
+    const [showScrollTop, setShowScrollTop] = useState(false)
+
+    useEffect(() => {
+        const mainEl = document.querySelector('main')
+        if (!mainEl) return
+        const handleScroll = () => setShowScrollTop(mainEl.scrollTop > 300)
+        mainEl.addEventListener('scroll', handleScroll)
+        return () => mainEl.removeEventListener('scroll', handleScroll)
+    }, [])
+
+    const scrollToTop = () => {
+        const mainEl = document.querySelector('main')
+        if (mainEl) mainEl.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
+    // Auto-scroll to first scheduled round when fixtures tab is active
+    useEffect(() => {
+        if (activeTab !== 'fixtures' || matches.length === 0) return
+        const roundsWithScheduled = Object.entries(
+            matches.reduce((acc, m) => {
+                if (!acc[m.round]) acc[m.round] = []
+                acc[m.round].push(m)
+                return acc
+            }, {})
+        ).find(([, roundMatches]) => roundMatches.some(m => m.status === 'scheduled'))
+
+        if (roundsWithScheduled) {
+            const roundKey = roundsWithScheduled[0]
+            setTimeout(() => {
+                const el = fixturesRefs.current[roundKey]
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }
+            }, 300)
+        }
+    }, [activeTab, matches])
 
     // Export Image Refs
     const standingsRef = useRef(null)
@@ -2543,21 +2579,24 @@ export default function TournamentDetail() {
 
 
             {/* Tabs */}
-            <div className="border-b border-white/10 -mx-4 px-4 lg:mx-0 lg:px-0 mb-4 relative">
-                {/* Left fade indicator */}
-                <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#050505] to-transparent z-10 pointer-events-none lg:hidden" />
-                {/* Right fade indicator */}
-                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#050505] to-transparent z-10 pointer-events-none lg:hidden" />
+            <div className="border-b border-white/10 -mx-4 px-4 lg:mx-0 lg:px-0 mb-4">
                 <div
-                    className="flex gap-1 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory lg:snap-none"
-                    style={{ WebkitOverflowScrolling: 'touch' }}
+                    ref={(el) => {
+                        if (el) {
+                            el.style.overflowX = 'auto'
+                            el.style.overflowY = 'hidden'
+                            el.style.WebkitOverflowScrolling = 'touch'
+                        }
+                    }}
+                    className="flex gap-1 overflow-x-auto scrollbar-hide"
+                    style={{ overflowX: 'auto' }}
                 >
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
                             id={tab.id === 'players' ? 'tour-participants-tab' : tab.id === 'news' ? 'tour-news-tab' : tab.id === 'fixtures' ? 'tour-fixtures-tab' : undefined}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap snap-start flex-shrink-0 ${activeTab === tab.id
+                            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${activeTab === tab.id
                                 ? 'border-neonGreen text-neonGreen'
                                 : 'border-transparent text-gray-400 hover:text-white'
                                 }`}
@@ -3915,14 +3954,14 @@ export default function TournamentDetail() {
                             {isOrganizer && (
                                 <div className="flex items-center gap-4">
                                     <div className="flex items-center gap-3 px-4 py-2 bg-black/40 border border-white/10 rounded-xl">
-                                        <span className="text-sm font-medium text-gray-400">Status Fitur:</span>
+                                        <span className="text-sm font-medium text-gray-400 whitespace-nowrap">Status Fitur:</span>
                                         <button
                                             onClick={() => setPrizeSettings(prev => ({ ...prev, enabled: !prev.enabled }))}
-                                            className={`relative w-12 h-6 rounded-full transition-all duration-300 ${prizeSettings.enabled ? 'bg-neonGreen shadow-[0_0_10px_rgba(57,255,20,0.4)]' : 'bg-gray-600'}`}
+                                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-300 focus:outline-none ${prizeSettings.enabled ? 'bg-neonGreen shadow-[0_0_10px_rgba(57,255,20,0.3)]' : 'bg-gray-600'}`}
                                         >
-                                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${prizeSettings.enabled ? 'left-7' : 'left-1'}`} />
+                                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-300 ease-in-out ${prizeSettings.enabled ? 'translate-x-5' : 'translate-x-0'}`} />
                                         </button>
-                                        <span className={`text-xs font-black tracking-widest ${prizeSettings.enabled ? 'text-neonGreen' : 'text-gray-500'}`}>
+                                        <span className={`text-xs font-black tracking-widest whitespace-nowrap w-[60px] ${prizeSettings.enabled ? 'text-neonGreen' : 'text-gray-500'}`}>
                                             {prizeSettings.enabled ? 'AKTIF' : 'NONAKTIF'}
                                         </span>
                                     </div>
@@ -4630,6 +4669,21 @@ export default function TournamentDetail() {
                 text={`Lihat turnamen ${tournamentData?.name} di BikinLiga!`}
                 title="Bagikan Turnamen"
             />
+
+            {/* Back to Top */}
+            <AnimatePresence>
+                {showScrollTop && activeTab === 'fixtures' && (
+                    <motion.button
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.5 }}
+                        onClick={scrollToTop}
+                        className="fixed bottom-24 right-6 z-[49] p-4 rounded-full bg-white/10 hover:bg-white/20 text-white shadow-lg backdrop-blur-md border border-white/20 transition-all hover:-translate-y-1"
+                    >
+                        <ArrowUp className="w-5 h-5" />
+                    </motion.button>
+                )}
+            </AnimatePresence>
         </div>
     )
 }

@@ -1125,7 +1125,10 @@ router.get('/:idOrSlug/statistics', optionalAuth, async (req, res) => {
 
         // 3. Fetch Participants to map names
         const [participants] = await connection.query(
-            `SELECT id, name, team_name FROM participants WHERE tournament_id = ?`,
+            `SELECT p.id, p.name, p.team_name, p.logo_url, u.username 
+             FROM participants p 
+             LEFT JOIN users u ON p.user_id = u.id 
+             WHERE p.tournament_id = ?`,
             [tournament.id]
         );
 
@@ -1163,6 +1166,9 @@ router.get('/:idOrSlug/statistics', optionalAuth, async (req, res) => {
             teamStats[p.id] = {
                 id: p.id,
                 name: p.team_name || p.name,
+                playerName: p.team_name ? p.name : null,
+                username: p.username || null,
+                logo: p.logo_url || null,
                 played: 0,
                 won: 0,
                 lost: 0,
@@ -1227,6 +1233,19 @@ router.get('/:idOrSlug/statistics', optionalAuth, async (req, res) => {
         // Computed Aggregates
         const avgGoalsPerMatch = completedMatches > 0 ? (totalGoals / completedMatches).toFixed(1) : 0;
 
+        // Count total assigned matches per team (played + remaining)
+        const totalMatchesPerTeam = {};
+        matches.forEach(match => {
+            if (match.home_participant_id) {
+                totalMatchesPerTeam[match.home_participant_id] = (totalMatchesPerTeam[match.home_participant_id] || 0) + 1;
+            }
+            if (match.away_participant_id) {
+                totalMatchesPerTeam[match.away_participant_id] = (totalMatchesPerTeam[match.away_participant_id] || 0) + 1;
+            }
+        });
+
+        const totalTeams = participants.length;
+
         // Pre-calculate active survivors for Knockout to distribute 100% chance
         let activeKnockoutSurvivors = 0;
         if (tournament.type === 'knockout') {
@@ -1244,41 +1263,57 @@ router.get('/:idOrSlug/statistics', optionalAuth, async (req, res) => {
 
             let chance = 0;
 
-            // Updated Chance Calculation Logic
             if (tournament.type === 'knockout') {
                 const isEliminated = t.lost > 0 && tournament.match_format !== 'home_away';
 
                 if (isEliminated) {
                     chance = 0;
                 } else {
-                    // Chance is 100% divided by remaining participants
-                    // activeKnockoutSurvivors should be at least 1 (the winner) or total participants at start
-                    // If something is wrong (0), fallback to 0 or handled safe division
                     if (activeKnockoutSurvivors > 0) {
                         chance = 100 / activeKnockoutSurvivors;
-
-                        // Optional: Add very small decimal bonus for sorting based on performance
-                        // But keep the integer part consistent with the "pool division" logic
                         chance += (goalDiff * 0.01);
                     } else {
                         chance = 0;
                     }
                 }
             } else {
-                // League / Group
-                // Original logic: Win Rate + Goal Diff weight
-                chance = winRate + (goalDiff * 2);
+                // League / Group — PHP formula:
+                // poin = (won * 3) + (draw * 1)
+                const currentPoints = (t.won * 3) + (t.draw * 1);
+                const allMatches = totalMatchesPerTeam[t.id] || 0;
+                const remainingMatches = allMatches - t.played;
+                const maxPoin = currentPoints + (remainingMatches * 3);
+                const maxPoinLiga = ((totalTeams - 1) * 2) * 3;
+                chance = maxPoinLiga > 0 ? (maxPoin / maxPoinLiga) * 100 : 0;
             }
 
-            chance = Math.max(0, Math.min(99, chance)); // Clamp 0-99
+            chance = Math.max(0, Math.min(100, chance));
 
             return {
                 ...t,
                 winRate: Math.round(winRate),
                 productivity: productivity,
-                chance: Math.round(chance)
+                chance: parseFloat(chance.toFixed(2))
             };
         });
+
+        // Special case for league rank 1: if 2nd place maxPoin < 1st place current points => 100%
+        if (tournament.type === 'league' && teamStatsArray.length >= 2) {
+            // Sort by chance descending to find top 2
+            teamStatsArray.sort((a, b) => b.chance - a.chance);
+            const first = teamStatsArray[0];
+            const second = teamStatsArray[1];
+
+            const firstPoints = (first.won * 3) + (first.draw * 1);
+            const secondAllMatches = totalMatchesPerTeam[second.id] || 0;
+            const secondRemainingMatches = secondAllMatches - second.played;
+            const secondPoints = (second.won * 3) + (second.draw * 1);
+            const secondMaxPoin = secondPoints + (secondRemainingMatches * 3);
+
+            if (secondMaxPoin < firstPoints) {
+                first.chance = 100;
+            }
+        }
 
         // Find Most Goals & Most Conceded
         const sortedByGoals = [...teamStatsArray].sort((a, b) => b.goalsFor - a.goalsFor);

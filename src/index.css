@@ -188,3 +188,8 @@ body {
     font-size: 16px !important;
   }
 }
+
+/* Hide ChatWidget when AI fullscreen is active */
+body.ai-fullscreen .chat-widget-container {
+  display: none !important;
+}

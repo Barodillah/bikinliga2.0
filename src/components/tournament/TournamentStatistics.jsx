@@ -1,9 +1,12 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { BarChart, Activity, ShieldAlert, Award, TrendingUp, Percent } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../ui/Card'
 import AdSlot from '../ui/AdSlot'
 
 export default function TournamentStatistics({ stats, loading }) {
+    const navigate = useNavigate()
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[40vh]">
@@ -88,13 +91,26 @@ export default function TournamentStatistics({ stats, loading }) {
                             </thead>
                             <tbody className="divide-y divide-white/5">
                                 {teamStats.map((team, idx) => (
-                                    <tr key={team.id} className="hover:bg-white/5 transition">
+                                    <tr
+                                        key={team.id}
+                                        className={`transition ${team.username ? 'hover:bg-white/10 cursor-pointer' : 'hover:bg-white/5'}`}
+                                        onClick={() => team.username && navigate(`/dashboard/profile/${team.username}`)}
+                                    >
                                         <td className="p-4 font-medium">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold shrink-0">
-                                                    {team.name.substring(0, 2).toUpperCase()}
+                                                {team.logo ? (
+                                                    <img src={team.logo} alt={team.name} className="w-8 h-8 rounded-lg object-contain bg-white/5 shrink-0" />
+                                                ) : (
+                                                    <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold shrink-0">
+                                                        {team.name.substring(0, 2).toUpperCase()}
+                                                    </div>
+                                                )}
+                                                <div className="min-w-0">
+                                                    <span className="truncate block max-w-[150px]">{team.name}</span>
+                                                    {team.playerName && (
+                                                        <span className="truncate block max-w-[150px] text-[11px] text-gray-500">{team.playerName}</span>
+                                                    )}
                                                 </div>
-                                                <span className="truncate max-w-[150px]">{team.name}</span>
                                             </div>
                                         </td>
                                         <td className="p-4 text-center">
