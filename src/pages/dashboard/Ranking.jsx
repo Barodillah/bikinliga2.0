@@ -62,18 +62,43 @@ export default function Ranking() {
     }
 
     const handleDetailClick = async (player) => {
-        setSelectedPlayer(player);
+        setSelectedPlayer({ ...player, mostGoal: null });
         try {
             const cleanUsername = player.username.replace('@', '');
-            const res = await fetch(`/api/rankings/user/${cleanUsername}`);
-            const data = await res.json();
-            if (data.success && data.recent_matches) {
-                setSelectedPlayer(prev => ({
-                    ...prev,
-                    recentMatches: data.recent_matches,
-                    totalTournaments: data.totalTournaments !== undefined ? data.totalTournaments : prev.totalTournaments
-                }));
+
+            // Fetch stats + most goal in parallel
+            const [statsRes, goalRes] = await Promise.all([
+                fetch(`/api/rankings/user/${cleanUsername}`),
+                fetch(`/api/rankings/user/${cleanUsername}/most-goal`)
+            ]);
+
+            const statsData = await statsRes.json();
+            const goalData = await goalRes.json();
+
+            let mostGoal = null;
+            if (goalData.success && goalData.data) {
+                // Fetch face for the most-goal player
+                let faceUrl = 'https://www.efootballdb.com/img/players/player_noface.png';
+                try {
+                    const faceRes = await fetch(`/api/external/player-face?q=${encodeURIComponent(goalData.data.name)}`);
+                    if (faceRes.ok) {
+                        const faceData = await faceRes.json();
+                        if (faceData.status === true && faceData.data && faceData.data.length > 0) {
+                            faceUrl = faceData.data[0].link;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch face:", e);
+                }
+                mostGoal = { name: goalData.data.name, goals: goalData.data.goals, face: faceUrl };
             }
+
+            setSelectedPlayer(prev => ({
+                ...prev,
+                recentMatches: statsData.success && statsData.recent_matches ? statsData.recent_matches : prev.recentMatches,
+                totalTournaments: statsData.totalTournaments !== undefined ? statsData.totalTournaments : prev.totalTournaments,
+                mostGoal
+            }));
         } catch (err) {
             console.error("Failed to fetch player detail:", err);
         }
@@ -447,9 +472,31 @@ export default function Ranking() {
                             <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                                 <div className="flex items-center gap-2 text-gray-400 mb-2">
                                     <Gamepad2 className="w-4 h-4 text-purple-500" />
-                                    <span className="text-sm">Role</span>
+                                    <span className="text-sm">Most Goal Played</span>
                                 </div>
-                                <div className="text-lg font-display font-bold text-white">{selectedPlayer.role || 'Flex'}</div>
+                                {selectedPlayer.mostGoal ? (
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-purple-500/50 bg-black flex-shrink-0">
+                                            <img
+                                                src={selectedPlayer.mostGoal.face}
+                                                alt={selectedPlayer.mostGoal.name}
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => { e.target.src = 'https://www.efootballdb.com/img/players/player_noface.png' }}
+                                            />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-bold text-white truncate">{selectedPlayer.mostGoal.name}</div>
+                                            <div className="text-xs text-purple-400 font-medium">{selectedPlayer.mostGoal.goals} goals</div>
+                                        </div>
+                                    </div>
+                                ) : selectedPlayer.mostGoal === null && selectedPlayer.recentMatches?.length > 0 ? (
+                                    <div className="flex items-center gap-2 text-gray-500">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <span className="text-sm">Loading...</span>
+                                    </div>
+                                ) : (
+                                    <div className="text-lg font-display font-bold text-white">-</div>
+                                )}
                             </div>
                         </div>
 

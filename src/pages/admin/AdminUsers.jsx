@@ -232,6 +232,7 @@ export default function AdminUsers() {
                         <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-medium">
                             <tr>
                                 <th className="px-6 py-3">User</th>
+                                <th className="px-6 py-3">Contact</th>
                                 <th className="px-6 py-3">Role & Status</th>
                                 <th className="px-6 py-3">Wallet Balance</th>
                                 <th className="px-6 py-3">Statistics</th>
@@ -256,10 +257,27 @@ export default function AdminUsers() {
                                                         <UserBadge tier={user.subscription_plan} size="sm" />
                                                     </div>
                                                     <div className="text-xs text-gray-500">@{user.username}</div>
-                                                    <div className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
-                                                        <Mail className="w-3 h-3" /> {user.email}
-                                                    </div>
                                                 </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                                    <Mail className="w-3 h-3 flex-shrink-0" />
+                                                    <span className="truncate max-w-[180px]">{user.email}</span>
+                                                </div>
+                                                {user.phone && (
+                                                    <a
+                                                        href={`https://wa.me/62${user.phone.replace(/^0+/, '')}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-center gap-1.5 text-xs text-green-600 hover:text-green-700 hover:underline transition"
+                                                        onClick={e => e.stopPropagation()}
+                                                    >
+                                                        <Phone className="w-3 h-3 flex-shrink-0" />
+                                                        {user.phone}
+                                                    </a>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
@@ -350,7 +368,7 @@ export default function AdminUsers() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                                    <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                                         No users found matching your criteria
                                     </td>
                                 </tr>

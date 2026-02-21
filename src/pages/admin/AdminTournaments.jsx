@@ -188,7 +188,7 @@ export default function AdminTournaments() {
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-2 text-xs text-gray-600" title="Participants">
                                                     <Users className="w-3.5 h-3.5" />
-                                                    <span className="font-medium">{tournament.players || 0}</span>
+                                                    <span className="font-medium">{tournament.participant_count || 0}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 text-xs text-gray-600" title="Matches">
                                                     <Calendar className="w-3.5 h-3.5" />

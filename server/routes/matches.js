@@ -149,7 +149,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
             // Fetch ALL finished matches between these two USERS across ANY tournament
             // Join participants to get user_ids
             const [history] = await db.query(
-                `SELECT m.id, m.home_score, m.away_score, m.created_at, m.status,
+                `SELECT m.id, m.home_score, m.away_score, m.created_at, m.updated_at, m.status,
                         t.name as tournament_name,
                         p1.user_id as h_uid, p2.user_id as a_uid,
                         p1.team_name as h_team_name, p2.team_name as a_team_name,
@@ -165,7 +165,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
                     (p1.user_id = ? AND p2.user_id = ?) OR
                     (p1.user_id = ? AND p2.user_id = ?)
                  )
-                 ORDER BY m.created_at DESC`,
+                 ORDER BY m.updated_at DESC`,
                 [match.id, match.home_user_id, match.away_user_id, match.away_user_id, match.home_user_id]
             );
             pastMatches = history;
@@ -173,7 +173,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
             historyType = 'tournament';
             // Fetch finished matches between these two PARTICIPANTS in THIS tournament
             const [history] = await db.query(
-                `SELECT m.id, m.home_score, m.away_score, m.created_at, m.status,
+                `SELECT m.id, m.home_score, m.away_score, m.created_at, m.updated_at, m.status,
                         t.name as tournament_name,
                         p1.team_name as h_team_name, p2.team_name as a_team_name,
                         p1.name as h_username, p2.name as a_username,
@@ -189,7 +189,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
                     (m.home_participant_id = ? AND m.away_participant_id = ?) OR
                     (m.home_participant_id = ? AND m.away_participant_id = ?)
                  )
-                 ORDER BY m.created_at DESC`,
+                 ORDER BY m.updated_at DESC`,
                 [match.tournament_id, match.id, match.home_participant_id, match.away_participant_id, match.away_participant_id, match.home_participant_id]
             );
             pastMatches = history;
@@ -325,7 +325,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
                 awayScore: isHome ? m.away_score : m.home_score,
                 tournament: m.tournament_name, // Or 'Friendly' etc.
                 isHome: isHome, // Helper for frontend to know alignment
-                date: m.created_at
+                date: m.updated_at || m.created_at
             };
         });
 

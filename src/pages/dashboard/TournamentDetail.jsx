@@ -628,63 +628,62 @@ function EditParticipantModal({ isOpen, onClose, participant, onSave, onDelete, 
 // Group Stage Component
 function GroupStage({ groups }) {
     return (
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-4 md:gap-6">
             {groups.map((group) => (
-                <Card key={group.name} hover={false} className="min-w-0">
-                    <CardHeader className="py-3">
-                        <h3 className="font-display font-bold text-neonGreen">{group.name}</h3>
+                <Card key={group.name} hover={false} className="min-w-0 overflow-hidden">
+                    <CardHeader className="py-2 md:py-3 px-3 md:px-4">
+                        <h3 className="font-display font-bold text-neonGreen text-sm md:text-base">{group.name}</h3>
                     </CardHeader>
-                    <CardContent className="p-0 overflow-x-auto scroll-container">
-                        <table className="w-full text-sm" style={{ minWidth: '500px' }}>
+                    <CardContent className="p-0">
+                        <table className="w-full text-xs md:text-sm">
                             <thead>
-                                <tr className="border-b border-white/10 text-gray-400">
-                                    <th className="py-2 px-1 text-center w-8 sticky left-0 z-10 bg-[#0a0a0a]">#</th>
-                                    <th className="py-2 px-1 text-left sticky left-8 z-10 bg-[#0a0a0a] border-r border-white/5 shadow-xl w-12 md:w-32">Tim</th>
-                                    <th className="py-2 px-3 text-center">P</th>
-                                    <th className="py-2 px-3 text-center">W</th>
-                                    <th className="py-2 px-3 text-center">D</th>
-                                    <th className="py-2 px-3 text-center">L</th>
-                                    <th className="py-2 px-3 text-center">GD</th>
-                                    <th className="py-2 px-3 text-center">Pts</th>
+                                <tr className="border-b border-white/10 text-gray-400 text-[10px] md:text-xs uppercase tracking-wider">
+                                    <th className="py-1.5 md:py-2 px-1 text-center w-6 md:w-8">#</th>
+                                    <th className="py-1.5 md:py-2 px-1 md:px-2 text-left">Tim</th>
+                                    <th className="py-1.5 md:py-2 px-1 md:px-2 text-center w-6 md:w-8">P</th>
+                                    <th className="py-1.5 md:py-2 px-1 md:px-2 text-center w-6 md:w-8">W</th>
+                                    <th className="py-1.5 md:py-2 px-1 md:px-2 text-center w-6 md:w-8">D</th>
+                                    <th className="py-1.5 md:py-2 px-1 md:px-2 text-center w-6 md:w-8">L</th>
+                                    <th className="py-1.5 md:py-2 px-1 md:px-2 text-center w-7 md:w-9">GD</th>
+                                    <th className="py-1.5 md:py-2 px-1 md:px-2 text-center w-7 md:w-9">Pts</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {group.teams.map((team, i) => (
-                                    <tr key={team.name} className={`border-b border-white/5 ${i < 2 ? 'bg-neonGreen/5' : ''}`}>
-                                        <td className="py-2 px-1 sticky left-0 z-10 bg-[#0a0a0a]">
-                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${i < 2 ? 'bg-neonGreen text-black' : 'bg-white/10'
-                                                }`}>
+                                    <tr key={team.name} className={`border-b border-white/5 transition-colors ${i < 2 ? 'bg-neonGreen/5' : 'hover:bg-white/[0.02]'}`}>
+                                        <td className="py-1.5 md:py-2 px-1 text-center">
+                                            <div className={`w-4 h-4 md:w-5 md:h-5 rounded-full flex items-center justify-center text-[9px] md:text-[10px] font-bold mx-auto ${i < 2 ? 'bg-neonGreen text-black' : 'bg-white/10 text-gray-400'}`}>
                                                 {i + 1}
                                             </div>
                                         </td>
-                                        <td className="py-2 px-1 font-medium sticky left-8 z-10 bg-[#0a0a0a] border-r border-white/5 shadow-xl w-12 md:w-32">
-                                            <div className="flex items-center gap-2">
+                                        <td className="py-1.5 md:py-2 px-1 md:px-2 font-medium">
+                                            <div className="flex items-center gap-1.5 md:gap-2">
                                                 {team.logo ? (
-                                                    <img src={team.logo} alt={team.name} className="w-6 h-6 rounded-lg object-cover flex-shrink-0" />
+                                                    <img src={team.logo} alt={team.name} className="w-5 h-5 md:w-6 md:h-6 rounded-md object-cover flex-shrink-0" />
                                                 ) : (
-                                                    <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-[8px] font-bold flex-shrink-0">
+                                                    <div className="w-5 h-5 md:w-6 md:h-6 rounded-md bg-white/10 flex items-center justify-center text-[7px] md:text-[8px] font-bold flex-shrink-0 text-gray-400">
                                                         {team.name?.substring(0, 2).toUpperCase()}
                                                     </div>
                                                 )}
-                                                <span className="whitespace-normal leading-tight text-[10px] md:text-sm break-words">{team.name}</span>
+                                                <span className="truncate text-[11px] md:text-sm max-w-[80px] md:max-w-none">{team.name}</span>
                                             </div>
                                         </td>
-                                        <td className="py-2 px-3 text-center text-gray-400">{team.played}</td>
-                                        <td className="py-2 px-3 text-center text-neonGreen">{team.won}</td>
-                                        <td className="py-2 px-3 text-center text-yellow-400">{team.drawn}</td>
-                                        <td className="py-2 px-3 text-center text-red-400">{team.lost}</td>
-                                        <td className="py-2 px-3 text-center">
-                                            <span className={team.gd > 0 ? 'text-neonGreen' : team.gd < 0 ? 'text-red-400' : ''}>
+                                        <td className="py-1.5 md:py-2 px-1 md:px-2 text-center text-gray-400">{team.played}</td>
+                                        <td className="py-1.5 md:py-2 px-1 md:px-2 text-center text-neonGreen">{team.won}</td>
+                                        <td className="py-1.5 md:py-2 px-1 md:px-2 text-center text-yellow-400">{team.drawn}</td>
+                                        <td className="py-1.5 md:py-2 px-1 md:px-2 text-center text-red-400">{team.lost}</td>
+                                        <td className="py-1.5 md:py-2 px-1 md:px-2 text-center">
+                                            <span className={team.gd > 0 ? 'text-neonGreen' : team.gd < 0 ? 'text-red-400' : 'text-gray-500'}>
                                                 {team.gd > 0 ? '+' : ''}{team.gd}
                                             </span>
                                         </td>
-                                        <td className="py-2 px-3 text-center font-display font-bold">{team.pts}</td>
+                                        <td className="py-1.5 md:py-2 px-1 md:px-2 text-center font-display font-bold text-white">{team.pts}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
-                        <div className="p-2 text-xs text-gray-500 flex items-center gap-2">
-                            <div className="w-3 h-3 rounded bg-neonGreen/30"></div>
+                        <div className="px-3 py-1.5 text-[10px] md:text-xs text-gray-500 flex items-center gap-1.5 border-t border-white/5">
+                            <div className="w-2.5 h-2.5 rounded-sm bg-neonGreen/30"></div>
                             Lolos ke Knockout Stage
                         </div>
                     </CardContent>

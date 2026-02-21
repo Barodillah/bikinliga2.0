@@ -108,4 +108,40 @@ router.get('/user/:username', async (req, res) => {
     }
 });
 
+// Get Most Goal Player for a User
+router.get('/user/:username/most-goal', async (req, res) => {
+    try {
+        const { username } = req.params;
+        const [users] = await db.query('SELECT id FROM users WHERE username = ?', [username]);
+
+        if (users.length === 0) return res.status(404).json({ success: false, message: 'User not found' });
+
+        const userId = users[0].id;
+
+        // Query match_events for goal types, joined with participants owned by this user
+        const [rows] = await db.query(
+            `SELECT me.player_name, COUNT(*) as total_goals
+             FROM match_events me
+             JOIN participants p ON me.participant_id = p.id
+             WHERE p.user_id = ?
+               AND me.type IN ('goal', 'penalty_goal', 'own_goal')
+               AND me.player_name IS NOT NULL
+               AND me.player_name != ''
+             GROUP BY me.player_name
+             ORDER BY total_goals DESC
+             LIMIT 1`,
+            [userId]
+        );
+
+        if (rows.length === 0) {
+            return res.json({ success: true, data: null });
+        }
+
+        res.json({ success: true, data: { name: rows[0].player_name, goals: rows[0].total_goals } });
+    } catch (error) {
+        console.error('Fetch most goal error:', error);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
 export default router;

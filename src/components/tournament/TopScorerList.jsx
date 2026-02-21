@@ -22,6 +22,38 @@ const TopScorerList = React.forwardRef(({ compact = false, scorers = [], highlig
     const data = compact ? scorers.slice(0, 5) : scorers
     const topScorer = data[0]
 
+    const [faceUrl, setFaceUrl] = React.useState('https://www.efootballdb.com/img/players/player_noface.png');
+
+    React.useEffect(() => {
+        let isMounted = true;
+        setFaceUrl('https://www.efootballdb.com/img/players/player_noface.png');
+
+        const fetchFace = async () => {
+            if (!topScorer?.name) return;
+            try {
+                const res = await fetch(`/api/external/player-face?q=${encodeURIComponent(topScorer.name)}`);
+                if (!res.ok) throw new Error('Network error');
+                const json = await res.json();
+                if (isMounted) {
+                    if (json.status === true && json.data && json.data.length > 0) {
+                        setFaceUrl(json.data[0].link);
+                    } else {
+                        setFaceUrl('https://www.efootballdb.com/img/players/player_noface.png');
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching face:', error);
+                if (isMounted) {
+                    setFaceUrl('https://www.efootballdb.com/img/players/player_noface.png');
+                }
+            }
+        };
+
+        fetchFace();
+
+        return () => { isMounted = false; };
+    }, [topScorer?.name]);
+
     return (
         <div className="space-y-6" ref={ref}>
             {!compact && topScorer && (
@@ -33,8 +65,13 @@ const TopScorerList = React.forwardRef(({ compact = false, scorers = [], highlig
                                 <Trophy className="w-48 h-48 text-neonGreen" />
                             </div>
                             <CardContent className="flex items-center gap-6 relative z-10 p-6">
-                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-full ring-4 ring-neonGreen/50 bg-black flex items-center justify-center shadow-[0_0_30px_rgba(34,197,94,0.3)]">
-                                    <Trophy className="w-12 h-12 md:w-16 md:h-16 text-neonGreen" />
+                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-full ring-4 ring-neonGreen/50 bg-black flex items-center justify-center shadow-[0_0_30px_rgba(34,197,94,0.3)] overflow-hidden">
+                                    <img
+                                        src={faceUrl}
+                                        alt={topScorer.name}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => { e.target.src = 'https://www.efootballdb.com/img/players/player_noface.png' }}
+                                    />
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-2">

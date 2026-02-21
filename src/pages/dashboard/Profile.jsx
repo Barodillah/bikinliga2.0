@@ -18,6 +18,8 @@ export default function Profile() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [user, setUser] = useState(null)
+    const [mostGoal, setMostGoal] = useState(null)
+    const [showAllMatches, setShowAllMatches] = useState(false)
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -27,16 +29,35 @@ export default function Profile() {
                 // If username starts with @, strip it
                 const searchUsername = username.startsWith('@') ? username.substring(1) : username;
 
-                // Parallel Fetch: User Profile & Ranking Stats & Achievements
-                const [profileRes, statsRes, achievementsRes] = await Promise.all([
+                // Parallel Fetch: User Profile & Ranking Stats & Achievements & Most Goal
+                const [profileRes, statsRes, achievementsRes, goalRes] = await Promise.all([
                     authFetch(`/api/user/public/${searchUsername}`),
                     fetch(`/api/rankings/user/${searchUsername}`),
-                    fetch(`/api/achievements/user/${searchUsername}`)
+                    fetch(`/api/achievements/user/${searchUsername}`),
+                    fetch(`/api/rankings/user/${searchUsername}/most-goal`)
                 ]);
 
                 const profileData = await profileRes.json()
                 const statsData = await statsRes.json()
                 const achievementsData = await achievementsRes.json()
+                const goalData = await goalRes.json()
+
+                // Fetch face for most-goal player
+                if (goalData.success && goalData.data) {
+                    let faceUrl = 'https://www.efootballdb.com/img/players/player_noface.png';
+                    try {
+                        const faceRes = await fetch(`/api/external/player-face?q=${encodeURIComponent(goalData.data.name)}`);
+                        if (faceRes.ok) {
+                            const faceData = await faceRes.json();
+                            if (faceData.status === true && faceData.data && faceData.data.length > 0) {
+                                faceUrl = faceData.data[0].link;
+                            }
+                        }
+                    } catch (e) { console.error('Failed to fetch face:', e); }
+                    setMostGoal({ name: goalData.data.name, goals: goalData.data.goals, face: faceUrl });
+                } else {
+                    setMostGoal(null);
+                }
 
                 if (!profileData.success) {
                     throw new Error(profileData.message || 'User not found')
@@ -212,7 +233,7 @@ export default function Profile() {
                 {(user.preferences?.showWinRate !== false) && (
                     <StatCard
                         label="Win Rate"
-                        value={user.winRate}
+                        value={`${user.stats?.win_rate || 0}%`}
                         icon={Trophy}
                         color="text-neonGreen"
                         bg="bg-neonGreen/10"
@@ -307,12 +328,19 @@ export default function Profile() {
                                     <Swords className="w-5 h-5 text-neonPink" />
                                     Recent Matches
                                 </h3>
-                                <button className="text-xs text-neonGreen hover:underline">View All</button>
+                                {user.recentMatchesDetails?.length > 5 && (
+                                    <button
+                                        className="text-xs text-neonGreen hover:underline"
+                                        onClick={() => setShowAllMatches(prev => !prev)}
+                                    >
+                                        {showAllMatches ? 'Show Less' : `View All (${user.recentMatchesDetails.length})`}
+                                    </button>
+                                )}
                             </div>
 
                             <div className="space-y-3">
                                 {user.recentMatchesDetails?.length > 0 ? (
-                                    user.recentMatchesDetails.map((match, i) => (
+                                    (showAllMatches ? user.recentMatchesDetails.slice(0, 10) : user.recentMatchesDetails.slice(0, 5)).map((match, i) => (
                                         <div key={i} className="group flex flex-col md:flex-row items-center justify-between p-4 rounded-xl bg-cardBg border border-white/5 hover:border-white/10 hover:bg-white/5 transition relative overflow-hidden">
 
                                             {/* Status Strip */}
@@ -324,6 +352,14 @@ export default function Profile() {
                                                 </div>
                                                 <div>
                                                     <h4 className="font-bold text-white text-lg group-hover:text-neonPink transition">{match.opponent}</h4>
+                                                    {match.tournamentName && (
+                                                        <div className="flex items-center gap-1.5 text-[10px] text-gray-500 mt-0.5">
+                                                            <Trophy className="w-3 h-3 text-yellow-500/60" />
+                                                            <Link to={`/t/${match.tournamentSlug}`} className="hover:text-neonGreen transition truncate max-w-[180px]" onClick={e => e.stopPropagation()}>
+                                                                {match.tournamentName}
+                                                            </Link>
+                                                        </div>
+                                                    )}
                                                     <div className="flex items-center gap-2 text-xs text-gray-400">
                                                         <Calendar className="w-3 h-3" />
                                                         {new Date(match.date).toLocaleDateString()}
@@ -360,6 +396,30 @@ export default function Profile() {
                 {/* Right Column: Sidebar */}
                 <div className="space-y-8">
 
+                    {/* Most Goal Played */}
+                    {mostGoal && (
+                        <div className="bg-cardBg border border-white/10 rounded-2xl p-6">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Gamepad2 className="w-5 h-5 text-purple-500" />
+                                <h3 className="font-display font-bold text-white text-lg">Most Goal Played</h3>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-purple-500/50 bg-black flex-shrink-0">
+                                    <img
+                                        src={mostGoal.face}
+                                        alt={mostGoal.name}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => { e.target.src = 'https://www.efootballdb.com/img/players/player_noface.png' }}
+                                    />
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="text-base font-bold text-white truncate">{mostGoal.name}</div>
+                                    <div className="text-sm text-purple-400 font-medium">{mostGoal.goals} goals</div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Achievements */}
                     <div className="bg-cardBg border border-white/10 rounded-2xl p-6">
                         <div className="flex items-center justify-between mb-4">
@@ -372,9 +432,8 @@ export default function Profile() {
                             </span>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
-                            {user.achievements && user.achievements.length > 0 ? (
-                                user.achievements.map((achievement) => {
-                                    const isUnlocked = !!achievement.unlocked_at;
+                            {user.achievements && user.achievements.filter(a => a.unlocked_at && a.is_showcased).length > 0 ? (
+                                user.achievements.filter(a => a.unlocked_at && a.is_showcased).map((achievement) => {
                                     const isShowcased = !!achievement.is_showcased;
                                     // Map icon string to Lucide component if possible, else default
                                     const IconComponent = {
@@ -466,42 +525,36 @@ export default function Profile() {
                                         <div
                                             key={achievement.id}
                                             className={`cursor-default border rounded-xl p-3 flex flex-col items-center gap-2 transition relative group hover:z-50
-                                                ${isUnlocked
-                                                    ? (isShowcased
-                                                        ? `bg-gradient-to-br ${colors.gradient} via-black ${colors.border} shadow-[0_0_20px_-5px_var(--tw-shadow-color)] ${colors.shadow}`
-                                                        : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10')
-                                                    : 'bg-black/20 border-white/5 grayscale opacity-50'
+                                                ${isShowcased
+                                                    ? `bg-gradient-to-br ${colors.gradient} via-black ${colors.border} shadow-[0_0_20px_-5px_var(--tw-shadow-color)] ${colors.shadow}`
+                                                    : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10'
                                                 }`}
                                             title={`${achievement.name}: ${achievement.description}`}
-                                            style={isUnlocked && isShowcased ? { '--tw-shadow-color': colors.shadowColor } : {}}
+                                            style={isShowcased ? { '--tw-shadow-color': colors.shadowColor } : {}}
                                         >
                                             {/* Shine effect wrapper - contained within card bounds */}
                                             <div className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none">
-                                                {isShowcased && isUnlocked && (
+                                                {isShowcased && (
                                                     <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition duration-700 transform -translate-x-full group-hover:translate-x-full" />
                                                 )}
                                             </div>
 
                                             <div className={`relative z-10 p-2 rounded-full ${isShowcased ? `${colors.iconBg} shadow-[0_0_10px_var(--tw-shadow-color)] ${colors.shadow}` : 'bg-white/5'}`}>
-                                                <IconComponent className={`w-5 h-5 ${isUnlocked ? (isShowcased ? `${colors.text} drop-shadow-[0_0_3px_currentColor]` : 'text-gray-400') : 'text-gray-600'} transition`} />
+                                                <IconComponent className={`w-5 h-5 ${isShowcased ? `${colors.text} drop-shadow-[0_0_3px_currentColor]` : 'text-gray-400'} transition`} />
                                             </div>
 
                                             <div className="relative z-10 text-center w-full">
                                                 <div className={`text-xs font-bold line-clamp-1 ${isShowcased ? `${colors.text} drop-shadow-[0_0_2px_currentColor]` : 'text-white'}`}>{achievement.name}</div>
-                                                {isUnlocked ? (
-                                                    <div className="text-[9px] text-gray-400 mt-0.5 font-mono opacity-80">
-                                                        {new Date(achievement.unlocked_at).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric', year: '2-digit' })}
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-[9px] text-gray-600 mt-0.5 italic">Locked</div>
-                                                )}
+                                                <div className="text-[9px] text-gray-400 mt-0.5 font-mono opacity-80">
+                                                    {new Date(achievement.unlocked_at).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric', year: '2-digit' })}
+                                                </div>
                                             </div>
 
                                             {/* Tooltip on hover - Outside overflow-hidden */}
                                             <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-gray-900 border border-white/10 p-2 rounded-lg text-xs opacity-0 group-hover:opacity-100 pointer-events-none transition z-50 shadow-xl">
                                                 <div className="font-bold text-white mb-1">{achievement.name}</div>
                                                 <div className="text-gray-400">{achievement.description}</div>
-                                                {isUnlocked && <div className={`${colors.text} mt-1 text-[10px]`}>Unlocked: {new Date(achievement.unlocked_at).toLocaleDateString()}</div>}
+                                                {achievement.unlocked_at && <div className={`${colors.text} mt-1 text-[10px]`}>Unlocked: {new Date(achievement.unlocked_at).toLocaleDateString()}</div>}
                                             </div>
                                         </div>
                                     )

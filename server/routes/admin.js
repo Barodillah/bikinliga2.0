@@ -105,7 +105,8 @@ router.get('/tournaments', async (req, res) => {
                 u.name as creator_name,
                 u.username as creator_username,
                 u.avatar_url as creator_avatar,
-                (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id) as match_count
+                (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id) as match_count,
+                (SELECT COUNT(*) FROM participants p WHERE p.tournament_id = t.id) as participant_count
             FROM tournaments t
             LEFT JOIN users u ON t.organizer_id = u.id
             ORDER BY t.created_at DESC

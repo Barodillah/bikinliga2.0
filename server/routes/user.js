@@ -333,15 +333,17 @@ router.get('/public/:username', async (req, res) => {
         // 3. Fetch Match Stats (Points, Win Rate, Matches)
         // Rule: Points (Win=3, Draw=1, Loss=0) based on COMPLETED matches
         const matches = await query(
-            `SELECT m.id, m.home_score, m.away_score, m.status, m.created_at,
+            `SELECT m.id, m.home_score, m.away_score, m.status, m.created_at, m.updated_at,
                     p1.user_id as home_user_id, p1.name as home_name,
-                    p2.user_id as away_user_id, p2.name as away_name
+                    p2.user_id as away_user_id, p2.name as away_name,
+                    t.name as tournament_name, t.slug as tournament_slug
              FROM matches m
              JOIN participants p1 ON m.home_participant_id = p1.id
              JOIN participants p2 ON m.away_participant_id = p2.id
+             LEFT JOIN tournaments t ON m.tournament_id = t.id
              WHERE (p1.user_id = ? OR p2.user_id = ?)
              AND m.status = 'completed'
-             ORDER BY m.created_at DESC`,
+             ORDER BY m.updated_at DESC`,
             [user.id, user.id]
         );
 
@@ -351,7 +353,7 @@ router.get('/public/:username', async (req, res) => {
         let losses = 0;
         let totalMatches = matches.length;
 
-        const recentMatches = matches.slice(0, 5).map(m => {
+        const recentMatches = matches.slice(0, 10).map(m => {
             const isHome = m.home_user_id === user.id;
             const myScore = isHome ? (m.home_score || 0) : (m.away_score || 0);
             const opScore = isHome ? (m.away_score || 0) : (m.home_score || 0);
@@ -373,7 +375,9 @@ router.get('/public/:username', async (req, res) => {
                 result,
                 opponent: isHome ? m.away_name : m.home_name,
                 score: `${myScore} - ${opScore}`,
-                date: m.created_at
+                date: m.updated_at || m.created_at,
+                tournamentName: m.tournament_name || null,
+                tournamentSlug: m.tournament_slug || null
             };
         });
 
