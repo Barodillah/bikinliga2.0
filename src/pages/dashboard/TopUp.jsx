@@ -490,8 +490,10 @@ export default function TopUp() {
 
         try {
             const token = localStorage.getItem('token');
-            // ID di database sama dengan Invoice Number untuk topup DOKU
-            const response = await authFetch(`${API_URL}/user/topup/status/${selectedTx.id}`, {
+            // Untuk DOKU Checkout, Invoice Number disimpan di kolom reference_id.
+            // Di mapping frontend, reference_id di-map ke property 'method'.
+            const invoiceNumber = selectedTx.method;
+            const response = await authFetch(`${API_URL}/user/topup/status/${invoiceNumber}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
