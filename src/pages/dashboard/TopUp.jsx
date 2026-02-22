@@ -230,6 +230,8 @@ export default function TopUp() {
     const [adClickUrl, setAdClickUrl] = useState('')
     const [isVideoLoading, setIsVideoLoading] = useState(false)
     const [hasAdTimeout, setHasAdTimeout] = useState(false)
+    const [selectedTx, setSelectedTx] = useState(null)
+    const [isCheckingStatus, setIsCheckingStatus] = useState(false)
     const [billingDetails, setBillingDetails] = useState({
         fullName: user?.name || '',
         email: user?.email || '',
@@ -480,6 +482,63 @@ export default function TopUp() {
         // Mock Premium Upgrade
         success("Upgrade successful! (Mock)")
         setShowPremiumModal(false)
+    }
+
+    const handleCheckStatus = async () => {
+        if (!selectedTx || selectedTx.type !== 'topup') return;
+        setIsCheckingStatus(true);
+
+        try {
+            const token = localStorage.getItem('token');
+            // ID di database sama dengan Invoice Number untuk topup DOKU
+            const response = await authFetch(`${API_URL}/user/topup/status/${selectedTx.id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                if (data.status !== selectedTx.status) {
+                    success(`Status diperbarui menjadi: ${data.status}`);
+                    // Perbarui state lokal
+                    setSelectedTx({ ...selectedTx, status: data.status });
+
+                    // Refresh data wallet & riwayat transaksi
+                    if (typeof refreshWallet === 'function') refreshWallet();
+                    if (typeof refreshUser === 'function') refreshUser();
+
+                    // Re-fetch transactions
+                    const txRes = await authFetch(`${API_URL}/user/transactions?limit=20`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const txData = await txRes.json();
+                    if (txData.success) {
+                        const mapped = txData.data.map(tx => ({
+                            id: tx.id,
+                            type: tx.type,
+                            category: tx.category || tx.type,
+                            amount: tx.type === 'spend' ? -Math.abs(tx.amount) : tx.amount,
+                            date: new Date(tx.created_at).toLocaleString('en-GB', {
+                                day: 'numeric', month: 'short', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit'
+                            }),
+                            status: tx.status,
+                            desc: tx.description,
+                            method: tx.reference_id || 'Wallet'
+                        }));
+                        setTransactions(mapped);
+                    }
+                } else {
+                    info('Status pembayaran masih pending');
+                }
+            } else {
+                throw new Error(data.message || 'Gagal mengecek status');
+            }
+        } catch (error) {
+            console.error('Check status error:', error);
+            toastError(error.message);
+        } finally {
+            setIsCheckingStatus(false);
+        }
     }
 
     const handleWatchAd = () => {
@@ -911,7 +970,10 @@ export default function TopUp() {
                                                 {tx.date}
                                             </td>
                                             <td className="px-4 py-4 text-right">
-                                                <button className="text-xs text-gray-500 hover:text-white transition">
+                                                <button
+                                                    onClick={() => setSelectedTx(tx)}
+                                                    className="text-xs text-gray-500 hover:text-white transition"
+                                                >
                                                     Details
                                                 </button>
                                             </td>
@@ -924,7 +986,11 @@ export default function TopUp() {
                         {/* Mobile View (List Cards) */}
                         <div className="md:hidden space-y-4">
                             {filteredTransactions.map((tx) => (
-                                <div key={tx.id} className="p-4 rounded-xl bg-white/5 border border-white/5">
+                                <div
+                                    key={tx.id}
+                                    onClick={() => setSelectedTx(tx)}
+                                    className="p-4 rounded-xl bg-white/5 border border-white/5 active:bg-white/10 transition cursor-pointer"
+                                >
                                     <div className="flex items-start justify-between mb-3">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${tx.amount > 0 ? 'bg-neonGreen/10 text-neonGreen' : 'bg-red-500/10 text-red-500'
@@ -1261,6 +1327,69 @@ export default function TopUp() {
                         </p>
                     </div>
                 </form>
+            </Modal>
+
+            {/* Transaction Detail Modal */}
+            <Modal
+                isOpen={!!selectedTx}
+                onClose={() => setSelectedTx(null)}
+                title="Transaction Detail"
+            >
+                {selectedTx && (
+                    <div className="p-4 space-y-4 text-sm">
+                        <div className="bg-white/5 rounded-xl p-4 border border-white/5 space-y-3">
+                            <div className="flex justify-between">
+                                <span className="text-gray-400">Transaction ID</span>
+                                <span className="text-white font-mono text-xs">{selectedTx.id}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-400">Date</span>
+                                <span className="text-white">{selectedTx.date}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-400">Description</span>
+                                <span className="text-white font-bold">{selectedTx.desc}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-400">Amount</span>
+                                <span className={`font-bold font-display ${selectedTx.amount > 0 ? 'text-neonGreen' : 'text-white'}`}>
+                                    {selectedTx.amount > 0 ? '+' : ''}{selectedTx.amount} Coins
+                                </span>
+                            </div>
+                            {selectedTx.method && selectedTx.method !== 'Wallet' && (
+                                <div className="flex justify-between">
+                                    <span className="text-gray-400">Reference / Method</span>
+                                    <span className="text-white font-mono text-xs">{selectedTx.method}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between items-center pt-3 border-t border-white/10">
+                                <span className="text-gray-400">Status</span>
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium uppercase ${selectedTx.status === 'success' ? 'bg-green-500/10 text-green-400' :
+                                    selectedTx.status === 'pending' ? 'bg-yellow-500/10 text-yellow-400' :
+                                        'bg-red-500/10 text-red-400'
+                                    }`}>
+                                    {selectedTx.status}
+                                </span>
+                            </div>
+
+                            {selectedTx.status === 'pending' && selectedTx.type === 'topup' && (
+                                <div className="pt-3">
+                                    <Button
+                                        onClick={handleCheckStatus}
+                                        disabled={isCheckingStatus}
+                                        className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all active:scale-95"
+                                    >
+                                        {isCheckingStatus ? 'Memeriksa...' : 'Refresh Status'}
+                                    </Button>
+                                    <p className="text-[10px] text-gray-500 text-center mt-2 leading-relaxed">
+                                        Status pembayaran mungkin butuh beberapa menit untuk update.<br />
+                                        Pastikan Anda sudah menyelesaikan pembayaran di merchant.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </Modal>
         </div >
     )

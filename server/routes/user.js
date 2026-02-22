@@ -642,5 +642,30 @@ router.post('/topup/webhook', async (req, res) => {
         res.status(500).send('Internal Error');
     }
 });
+// GET /api/user/topup/status/:invoice - Check Transaction Status
+router.get('/topup/status/:invoice', authMiddleware, async (req, res) => {
+    try {
+        const invoice = req.params.invoice;
+        const connection = await getConnection();
+
+        try {
+            const [txs] = await connection.execute(
+                'SELECT status FROM transactions WHERE reference_id = ? AND user_id = ? AND type = "topup"',
+                [invoice, req.user.id]
+            );
+
+            if (txs.length === 0) {
+                return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
+            }
+
+            res.json({ success: true, status: txs[0].status });
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Check status error:', error);
+        res.status(500).json({ success: false, message: 'Gagal mengecek status transaksi' });
+    }
+});
 
 export default router;

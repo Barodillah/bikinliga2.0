@@ -58,7 +58,8 @@ export async function createCheckoutSession(params) {
     const payload = {
         order: {
             amount: parseInt(params.amount),
-            invoice_number: params.invoiceNumber
+            invoice_number: params.invoiceNumber,
+            callback_url: params.callbackUrl
         },
         payment: {
             payment_due_date: 60
