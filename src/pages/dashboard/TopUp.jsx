@@ -33,8 +33,9 @@ const SUBSCRIPTION_PLANS = [
         id: 'captain',
         name: 'Captain',
         db_id: 2,
-        price: 'Rp 49.000',
-        period: '/ 30 Hari',
+        price: '1.960 Coins',
+        coins: 1960,
+        period: '/ 6 Bulan',
         features: [
             'Max 5 Tournaments',
             'Max 32 Participants',
@@ -48,8 +49,9 @@ const SUBSCRIPTION_PLANS = [
         id: 'pro_league',
         name: 'Pro League',
         db_id: 3,
-        price: 'Rp 149.000',
-        period: '/ 30 Hari',
+        price: '5.960 Coins',
+        coins: 5960,
+        period: '/ 6 Bulan',
         features: [
             'Unlimited Tournaments',
             'Max 64 Participants',
@@ -161,6 +163,53 @@ export default function TopUp() {
                         method: tx.reference_id || 'Wallet'
                     }))
                     setTransactions(mapped)
+
+                    // Auto-check pending topup transactions
+                    const pendingTopups = mapped.filter(tx => tx.type === 'topup' && tx.status === 'pending')
+                    if (pendingTopups.length > 0) {
+                        for (const pendingTx of pendingTopups) {
+                            try {
+                                const invoiceNumber = pendingTx.method;
+                                const checkRes = await authFetch(`${API_URL}/user/topup/status/${invoiceNumber}`, {
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                });
+                                const checkData = await checkRes.json();
+
+                                if (checkData.success && checkData.status !== 'pending') {
+                                    // Make a recursive or re-fetch call to update the UI
+                                    const updatedRes = await authFetch(`${API_URL}/user/transactions?limit=20`, {
+                                        headers: { 'Authorization': `Bearer ${token}` }
+                                    });
+                                    const updatedData = await updatedRes.json();
+                                    if (updatedData.success) {
+                                        setTransactions(updatedData.data.map(tx => ({
+                                            id: tx.id,
+                                            type: tx.type,
+                                            category: tx.category || tx.type,
+                                            amount: tx.type === 'spend' ? -Math.abs(tx.amount) : tx.amount,
+                                            date: new Date(tx.created_at).toLocaleString('en-GB', {
+                                                day: 'numeric', month: 'short', year: 'numeric',
+                                                hour: '2-digit', minute: '2-digit'
+                                            }),
+                                            status: tx.status,
+                                            desc: tx.description,
+                                            method: tx.reference_id || 'Wallet'
+                                        })))
+                                    }
+                                    if (typeof refreshWallet === 'function') refreshWallet();
+                                    if (typeof refreshUser === 'function') refreshUser();
+
+                                    if (checkData.status === 'success') {
+                                        success(`Pembayaran untuk ${pendingTx.desc} berhasil!`)
+                                    } else {
+                                        toastError(`Pembayaran untuk ${pendingTx.desc} gagal atau kadaluarsa.`)
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Auto check pending error', e)
+                            }
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('Fetch transactions error:', error)
@@ -227,6 +276,7 @@ export default function TopUp() {
     const [showPaymentModal, setShowPaymentModal] = useState(false)
     const [selectedPackage, setSelectedPackage] = useState(null)
     const [isClaiming, setIsClaiming] = useState(false)
+    const [isUpgrading, setIsUpgrading] = useState(false)
     const [adClickUrl, setAdClickUrl] = useState('')
     const [isVideoLoading, setIsVideoLoading] = useState(false)
     const [hasAdTimeout, setHasAdTimeout] = useState(false)
@@ -478,10 +528,35 @@ export default function TopUp() {
         }
     }
 
-    const handlePremiumConfirm = () => {
-        // Mock Premium Upgrade
-        success("Upgrade successful! (Mock)")
-        setShowPremiumModal(false)
+    const handlePremiumConfirm = async (plan) => {
+        setIsUpgrading(true)
+        try {
+            const token = localStorage.getItem('token')
+            const res = await authFetch(`${API_URL}/user/subscription/upgrade`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ plan_id: plan.db_id }),
+                credentials: 'include'
+            })
+
+            const data = await res.json()
+            if (data.success) {
+                success(`Berhasil upgrade ke paket ${plan.name}!`)
+                setShowPremiumModal(false)
+                if (typeof refreshWallet === 'function') refreshWallet()
+                if (typeof refreshUser === 'function') refreshUser()
+            } else {
+                throw new Error(data.message || 'Gagal upgrade paket')
+            }
+        } catch (error) {
+            console.error('Upgrade error:', error)
+            toastError(error.message || 'Terjadi kesalahan saat upgrade')
+        } finally {
+            setIsUpgrading(false)
+        }
     }
 
     const handleCheckStatus = async () => {
@@ -1202,14 +1277,25 @@ export default function TopUp() {
 
                                     <div className="mt-auto">
                                         <div className="mb-4">
-                                            <span className="text-xl font-bold text-white">{plan.price}</span>
-                                            <span className="text-xs text-gray-500"> {plan.period}</span>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <img src="/coin.png" className="w-6 h-6 object-contain" alt="Coin" />
+                                                <span className="text-xl font-bold text-white">{plan.price}</span>
+                                            </div>
+                                            <span className="text-xs text-gray-500">{plan.period}</span>
                                         </div>
                                         <Button
                                             onClick={() => handlePremiumConfirm(plan)}
+                                            disabled={isUpgrading}
                                             className={`w-full bg-gradient-to-r ${style.buttonGradient || style.gradient} text-black font-bold border-none`}
                                         >
-                                            Pilih {plan.name}
+                                            {isUpgrading ? (
+                                                <div className="flex items-center justify-center">
+                                                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                                    Processing...
+                                                </div>
+                                            ) : (
+                                                `Pilih ${plan.name}`
+                                            )}
                                         </Button>
                                     </div>
                                 </div>
@@ -1321,8 +1407,19 @@ export default function TopUp() {
                     </div>
 
                     <div className="pt-2">
-                        <Button type="submit" className="w-full bg-neonPink hover:bg-neonPink/90 border-none text-white shadow-lg shadow-neonPink/20">
-                            Process Payment
+                        <Button
+                            type="submit"
+                            disabled={isLoadingTx}
+                            className="w-full bg-neonPink hover:bg-neonPink/90 border-none text-white shadow-lg shadow-neonPink/20 flex items-center justify-center"
+                        >
+                            {isLoadingTx ? (
+                                <>
+                                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                    Processing...
+                                </>
+                            ) : (
+                                "Process Payment"
+                            )}
                         </Button>
                         <p className="text-center text-[10px] text-gray-500 mt-3">
                             By continuing, you agree to our Terms of Service and Privacy Policy.

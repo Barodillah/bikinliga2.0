@@ -715,4 +715,87 @@ router.get('/topup/status/:invoice', authMiddleware, async (req, res) => {
     }
 });
 
+// POST /api/user/subscription/upgrade - Upgrade subscription using coins
+router.post('/subscription/upgrade', authMiddleware, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { plan_id } = req.body;
+
+        if (!plan_id) {
+            return res.status(400).json({ success: false, message: 'Plan ID harus diisi' });
+        }
+
+        // Determine required coins based on plan
+        let requiredCoins = 0;
+        let planName = '';
+        if (plan_id === 2) {
+            requiredCoins = 1960;
+            planName = 'Captain';
+        } else if (plan_id === 3) {
+            requiredCoins = 5960;
+            planName = 'Pro League';
+        } else {
+            return res.status(400).json({ success: false, message: 'Plan ID tidak valid' });
+        }
+
+        const connection = await getConnection();
+        try {
+            await connection.beginTransaction();
+
+            // 1. Check wallet balance
+            const [wallets] = await connection.execute('SELECT id, balance FROM wallets WHERE user_id = ? FOR UPDATE', [userId]);
+            if (wallets.length === 0) {
+                throw new Error('Wallet tidak ditemukan');
+            }
+
+            const wallet = wallets[0];
+            if (parseFloat(wallet.balance) < requiredCoins) {
+                throw new Error('Saldo koin tidak mencukupi untuk upgrade ini');
+            }
+
+            // 2. Deduct coins from wallet
+            const newBalance = parseFloat(wallet.balance) - requiredCoins;
+            await connection.execute('UPDATE wallets SET balance = ? WHERE id = ?', [newBalance, wallet.id]);
+
+            // 3. Create spend transaction
+            const txId = uuidv4();
+            await connection.execute(
+                `INSERT INTO transactions (id, wallet_id, type, amount, category, description, status) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [txId, wallet.id, 'spend', -requiredCoins, 'Purchase', `Upgrade to ${planName} Plan (6 Months)`, 'success']
+            );
+
+            // 4. Deactivate current active subscriptions
+            await connection.execute(
+                `UPDATE user_subscriptions SET status = 'expired' WHERE user_id = ? AND status = 'active'`,
+                [userId]
+            );
+
+            // 5. Insert new subscription
+            const subId = uuidv4();
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + 6);
+
+            await connection.execute(
+                `INSERT INTO user_subscriptions (id, user_id, plan_id, status, end_date) 
+                 VALUES (?, ?, ?, ?, ?)`,
+                [subId, userId, plan_id, 'active', endDate]
+            );
+
+            await connection.commit();
+
+            res.json({ success: true, message: `Berhasil upgrade ke paket ${planName}` });
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+
+    } catch (error) {
+        console.error('Subscription upgrade error:', error);
+        res.status(500).json({ success: false, message: error.message || 'Terjadi kesalahan sistem' });
+    }
+});
+
 export default router;
