@@ -530,7 +530,7 @@ export default function TopUp() {
                         setTransactions(mapped);
                     }
                 } else {
-                    info('Status pembayaran masih pending');
+                    success('Status pembayaran masih pending');
                 }
             } else {
                 throw new Error(data.message || 'Gagal mengecek status');
