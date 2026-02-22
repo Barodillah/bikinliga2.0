@@ -669,6 +669,16 @@ router.get('/me', authMiddleware, async (req, res) => {
             users.preferences = profiles.preferences;
         }
 
+        // Check if user has claimed ad reward today
+        const adRewardTx = await query(
+            `SELECT t.id FROM transactions t
+             JOIN wallets w ON t.wallet_id = w.id
+             WHERE w.user_id = ? AND t.type = 'reward' AND t.category = 'Ad Reward' AND DATE(t.created_at) = CURDATE()
+             LIMIT 1`,
+            [req.user.id]
+        );
+        const hasClaimedAdRewardToday = adRewardTx.length > 0;
+
         res.json({
             success: true,
             data: {
@@ -685,7 +695,7 @@ router.get('/me', authMiddleware, async (req, res) => {
                     winRate: winRate,
                     needsUsername: !req.user.username,
                     needsCoinClaim: !req.user.has_claimed_login_coin,
-                    hasPassword: !!users?.password,
+                    has_claimed_ad_reward_today: hasClaimedAdRewardToday,
                     hasPassword: !!users?.password,
                     bio: users?.bio || '',
                     preferences: users?.preferences || null

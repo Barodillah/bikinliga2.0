@@ -10,6 +10,7 @@ import Modal from '../../components/ui/Modal'
 import ConfirmationModal from '../../components/ui/ConfirmationModal'
 import { useToast } from '../../contexts/ToastContext'
 import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
+import { useLocation } from 'react-router-dom'
 
 const TOPUP_PACKAGES = [
     { coins: 100, price: 'Rp 15.000', bonus: 0, popular: false },
@@ -21,7 +22,7 @@ const MOCK_TRANSACTIONS = [
     { id: 'TRX-882910', type: 'topup', category: 'Deposit', amount: 500, date: '18 Jan 2024, 14:30', status: 'success', desc: 'Top Up via GoPay', method: 'GoPay' },
     { id: 'TRX-882911', type: 'bonus', category: 'Reward', amount: 50, date: '18 Jan 2024, 14:31', status: 'success', desc: 'Bonus Top Up', method: 'System' },
     { id: 'TRX-773201', type: 'spend', category: 'Purchase', amount: -100, date: '17 Jan 2024, 09:15', status: 'success', desc: 'Create Tournament "Liga Santai"', method: 'Wallet' },
-    { id: 'TRX-771102', type: 'ad_reward', category: 'Ad Reward', amount: 5, date: '16 Jan 2024, 20:45', status: 'success', desc: 'Watch Ad Reward', method: 'AdMob' },
+    { id: 'TRX-771102', type: 'reward', category: 'Ad Reward', amount: 5, date: '16 Jan 2024, 20:45', status: 'success', desc: 'Watch Ad Reward', method: 'AdMob' },
     { id: 'TRX-662912', type: 'spend', category: 'Purchase', amount: -50, date: '15 Jan 2024, 11:20', status: 'pending', desc: 'Premium Badge Purchase', method: 'Wallet' },
     { id: 'TRX-551023', type: 'topup', category: 'Deposit', amount: 1000, date: '10 Jan 2024, 10:00', status: 'failed', desc: 'Top Up via Transfer', method: 'Bank Transfer' },
 ]
@@ -64,10 +65,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 
 export default function TopUp() {
     const { subscriptionTier, isFree, isPremium } = useAds()
-    const { wallet, subscription, refreshWallet, user } = useAuth()
+    const { wallet, subscription, refreshWallet, user, refreshUser } = useAuth()
     const [amountCoins, setAmountCoins] = useState('')
     const [amountIdr, setAmountIdr] = useState('')
     const [error, setError] = useState('')
+    const location = useLocation()
 
     // State for interactive features
     const [transactions, setTransactions] = useState([])
@@ -224,6 +226,10 @@ export default function TopUp() {
     const [showPremiumModal, setShowPremiumModal] = useState(false)
     const [showPaymentModal, setShowPaymentModal] = useState(false)
     const [selectedPackage, setSelectedPackage] = useState(null)
+    const [isClaiming, setIsClaiming] = useState(false)
+    const [adClickUrl, setAdClickUrl] = useState('')
+    const [isVideoLoading, setIsVideoLoading] = useState(false)
+    const [hasAdTimeout, setHasAdTimeout] = useState(false)
     const [billingDetails, setBillingDetails] = useState({
         fullName: 'John Doe',
         email: 'john@user.com',
@@ -237,6 +243,7 @@ export default function TopUp() {
     useEffect(() => {
         let videoElement = null
         let isCancelled = false
+        let loadTimeoutMs = null
 
         const initAd = async () => {
             if (!adRef.current) return
@@ -270,6 +277,14 @@ export default function TopUp() {
                         break
                     }
                 }
+                // Get ClickThrough URL
+                const videoClicks = xmlDoc.getElementsByTagName('VideoClicks')
+                if (videoClicks.length > 0) {
+                    const clickThroughs = videoClicks[0].getElementsByTagName('ClickThrough')
+                    if (clickThroughs.length > 0 && clickThroughs[0].textContent) {
+                        setAdClickUrl(clickThroughs[0].textContent.trim())
+                    }
+                }
             } catch (error) {
                 console.error("Failed to load VAST, using fallback video:", error)
             }
@@ -290,6 +305,16 @@ export default function TopUp() {
             // Prevent context menu
             videoElement.oncontextmenu = (e) => e.preventDefault()
 
+            videoElement.oncanplay = () => {
+                if (!isCancelled) setIsVideoLoading(false)
+            }
+            videoElement.onerror = () => {
+                if (!isCancelled) {
+                    setHasAdTimeout(true)
+                    setIsVideoLoading(false)
+                }
+            }
+
             // Sync Timer with Video Duration
             videoElement.ontimeupdate = () => {
                 const duration = videoElement.duration
@@ -308,6 +333,13 @@ export default function TopUp() {
             }
 
             adRef.current.appendChild(videoElement)
+
+            loadTimeoutMs = setTimeout(() => {
+                if (videoElement && (videoElement.readyState === 0 || videoElement.networkState === 3) && !isCancelled) {
+                    setHasAdTimeout(true)
+                    setIsVideoLoading(false)
+                }
+            }, 10000)
         }
 
         if (isAdModalOpen && adStatus === 'playing') {
@@ -316,6 +348,7 @@ export default function TopUp() {
 
         return () => {
             isCancelled = true
+            if (loadTimeoutMs) clearTimeout(loadTimeoutMs)
             if (videoElement) {
                 videoElement.pause()
                 videoElement.src = ''
@@ -363,7 +396,7 @@ export default function TopUp() {
         if (activeFilter === 'All') return transactions
         if (activeFilter === 'Deposit') return transactions.filter(t => t.type === 'topup')
         if (activeFilter === 'Spend') return transactions.filter(t => t.type === 'spend')
-        if (activeFilter === 'Reward') return transactions.filter(t => t.type === 'bonus' || t.type === 'ad_reward')
+        if (activeFilter === 'Reward') return transactions.filter(t => t.type === 'bonus' || t.type === 'reward')
         return transactions
     }
 
@@ -426,8 +459,11 @@ export default function TopUp() {
 
     const handleWatchAd = () => {
         // Reset Ad State
+        setAdClickUrl('')
         setAdStatus('playing')
         setAdTimer(15) // 15 seconds ad
+        setIsVideoLoading(true)
+        setHasAdTimeout(false)
         setIsAdModalOpen(true)
     }
 
@@ -436,8 +472,24 @@ export default function TopUp() {
         // Placeholder for cleanup if needed
     }, [])
 
+    // Handle Hash Scroll
+    useEffect(() => {
+        if (location.hash === '#tour-topup-ads') {
+            const el = document.getElementById('tour-topup-ads')
+            if (el) {
+                setTimeout(() => {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    // Optional: highlight element briefly
+                    el.classList.add('ring-4', 'ring-neonGreen', 'transition-all', 'duration-500')
+                    setTimeout(() => el.classList.remove('ring-4', 'ring-neonGreen'), 2000)
+                }, 300)
+            }
+        }
+    }, [location.hash])
+
     // Claim Reward
     const handleClaimReward = async () => {
+        setIsClaiming(true)
         // Rate: 5 coins per 30 seconds -> 1 coin per 6 seconds
         const rewardAmount = Math.max(1, Math.round((maxDuration / 30) * 5))
 
@@ -462,7 +514,7 @@ export default function TopUp() {
                 // Add the new transaction manually to reflect immediately, or just refresh
                 const newTx = {
                     id: `TRX-${Math.floor(Math.random() * 900000) + 100000}`,
-                    type: 'ad_reward',
+                    type: 'reward',
                     category: 'Ad Reward',
                     amount: rewardAmount,
                     date: new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
@@ -475,8 +527,9 @@ export default function TopUp() {
                 // Refresh global wallet state if possible, or trigger a re-fetch
                 if (typeof refreshWallet === 'function') {
                     refreshWallet()
-                } else if (wallet) {
-                    // Fallback to local state manual update if you don't use refreshWallet
+                }
+                if (typeof refreshUser === 'function') {
+                    refreshUser()
                 }
             } else {
                 throw new Error(data.message || 'Failed to claim reward')
@@ -485,6 +538,7 @@ export default function TopUp() {
             console.error('Claim error:', err)
             // Error handling, maybe show a toast
         } finally {
+            setIsClaiming(false)
             setIsAdModalOpen(false)
             setAdStatus('idle')
         }
@@ -902,24 +956,50 @@ export default function TopUp() {
                 <div className="flex flex-col items-center justify-center w-full h-full p-4 lg:p-8">
                     {adStatus === 'playing' ? (
                         <div className="w-full h-full flex flex-col items-center">
-                            <div id="adsterra-container" className="flex-1 w-full bg-black/50 overflow-hidden relative flex items-center justify-center rounded-xl shadow-2xl">
-                                <div ref={adRef} className="w-full h-full flex items-center justify-center bg-black">
-                                    {/* VAST Video Player will be inserted here by useEffect */}
-                                </div>
+                            <div
+                                id="adsterra-container"
+                                className={`flex-1 w-full bg-black/50 overflow-hidden relative flex items-center justify-center rounded-xl shadow-2xl ${adClickUrl && !hasAdTimeout ? 'cursor-pointer' : ''}`}
+                                onClick={() => { if (adClickUrl && !hasAdTimeout) window.open(adClickUrl, '_blank') }}
+                            >
+                                {hasAdTimeout ? (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/95 z-30">
+                                        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+                                        <h4 className="text-white font-bold mb-2 text-xl">Video Gagal Dimuat</h4>
+                                        <p className="text-gray-400 text-sm mb-6 text-center max-w-sm">
+                                            Koneksi lambat atau iklan sedang tidak tersedia. Silakan dicoba lagi atau tutup iklan ini.
+                                        </p>
+                                        <div className="flex gap-4">
+                                            <Button variant="outline" onClick={(e) => { e.stopPropagation(); setIsAdModalOpen(false); setAdStatus('idle') }}>Tutup</Button>
+                                            <Button className="bg-neonGreen text-black hover:bg-neonGreen/80 border-none" onClick={(e) => { e.stopPropagation(); handleWatchAd() }}>Coba Lagi</Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {isVideoLoading && (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-20">
+                                                <Loader2 className="w-10 h-10 animate-spin text-neonGreen mb-4" />
+                                                <p className="text-white font-medium">Memuat Iklan...</p>
+                                            </div>
+                                        )}
+                                        <div ref={adRef} className={`w-full h-full flex items-center justify-center bg-black pointer-events-none transition-opacity duration-300 ${isVideoLoading ? 'opacity-0' : 'opacity-100'}`}>
+                                            {/* VAST Video Player will be inserted here by useEffect */}
+                                        </div>
 
-                                {/* Timer Overlay: Keep it to simulate/enforce watch time */}
-                                <div className="absolute bottom-6 left-6 right-6 z-10">
-                                    <div className="h-1.5 bg-white/20 rounded-full overflow-hidden shadow-sm">
-                                        <div
-                                            className="h-full bg-indigo-500 transition-all duration-100 ease-linear shadow-[0_0_10px_rgba(99,102,241,0.5)]"
-                                            style={{ width: `${maxDuration > 0 ? ((maxDuration - adTimer) / maxDuration) * 100 : 0}%` }}
-                                        />
-                                    </div>
-                                    <div className="flex justify-between text-base md:text-lg text-white mt-3 font-bold drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
-                                        <span>Advertisement</span>
-                                        <span>{adTimer}s remaining</span>
-                                    </div>
-                                </div>
+                                        {/* Timer Overlay */}
+                                        <div className="absolute bottom-6 left-6 right-6 z-10 pointer-events-none">
+                                            <div className="h-1.5 bg-white/20 rounded-full overflow-hidden shadow-sm">
+                                                <div
+                                                    className="h-full bg-indigo-500 transition-all duration-100 ease-linear shadow-[0_0_10px_rgba(99,102,241,0.5)]"
+                                                    style={{ width: `${maxDuration > 0 ? ((maxDuration - adTimer) / maxDuration) * 100 : 0}%` }}
+                                                />
+                                            </div>
+                                            <div className="flex justify-between text-base md:text-lg text-white mt-3 font-bold drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
+                                                <span>Advertisement</span>
+                                                <span>{adTimer}s remaining</span>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                             <div className="mt-6 md:mt-8 text-center shrink-0">
                                 <h4 className="text-xl md:text-2xl text-white font-bold mb-2">Watching Advertisement...</h4>
@@ -937,9 +1017,17 @@ export default function TopUp() {
                             </p>
                             <Button
                                 onClick={handleClaimReward}
+                                disabled={isClaiming}
                                 className="w-full bg-green-600 hover:bg-green-500 border-none text-white shadow-lg shadow-green-900/20"
                             >
-                                Claim {Math.max(1, Math.round((maxDuration / 30) * 5))} Coins
+                                {isClaiming ? (
+                                    <>
+                                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    `Claim ${Math.max(1, Math.round((maxDuration / 30) * 5))} Coins`
+                                )}
                             </Button>
                         </>
                     )}

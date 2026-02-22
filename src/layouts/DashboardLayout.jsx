@@ -247,10 +247,12 @@ export default function DashboardLayout() {
                                 </span>
                             </div>
                             <Link
-                                to="/dashboard/topup"
-                                className={`relative block w-full text-center py-2 rounded-lg bg-gradient-to-r ${subStyle.buttonGradient} text-black text-sm font-bold hover:opacity-90 transition`}
+                                to={!user?.has_claimed_ad_reward_today ? '/dashboard/topup#tour-topup-ads' : '/dashboard/topup'}
+                                className={`relative block w-full text-center py-2 rounded-lg bg-gradient-to-r ${subStyle.buttonGradient} text-black text-sm font-bold hover:opacity-90 transition transform ${!user?.has_claimed_ad_reward_today ? 'scale-105 shadow-[0_0_15px_rgba(2,254,2,0.4)] animate-pulse' : ''}`}
                             >
-                                {subscription?.plan === 'free' ? 'Upgrade' : 'Top Up'}
+                                {!user?.has_claimed_ad_reward_today
+                                    ? 'Claim Coin'
+                                    : (subscription?.plan === 'free' ? 'Upgrade' : 'Top Up')}
                             </Link>
                         </div>
                     </div>
@@ -395,15 +397,23 @@ export default function DashboardLayout() {
                     {/* User Menu */}
                     <div className="flex items-center gap-4">
                         {/* Virtual Coins */}
-                        <Link
-                            to="/dashboard/topup"
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 transition"
-                        >
-                            <img src="/coin.png" alt="Coin" className="w-5 h-5" />
-                            <span className="font-display font-bold text-yellow-400">
-                                {Math.floor(wallet?.balance || 0).toLocaleString()}
-                            </span>
-                        </Link>
+                        <div className="relative">
+                            <Link
+                                to={!user?.has_claimed_ad_reward_today ? '/dashboard/topup#tour-topup-ads' : '/dashboard/topup'}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition ${!user?.has_claimed_ad_reward_today ? 'bg-neonGreen/20 hover:bg-neonGreen/30 transform scale-105 shadow-[0_0_15px_rgba(2,254,2,0.4)]' : 'bg-yellow-500/10 hover:bg-yellow-500/20'}`}
+                            >
+                                <img src="/coin.png" alt="Coin" className="w-5 h-5" />
+                                <span className={`font-display font-bold ${!user?.has_claimed_ad_reward_today ? 'text-neonGreen' : 'text-yellow-400'}`}>
+                                    {Math.floor(wallet?.balance || 0).toLocaleString()}
+                                </span>
+                            </Link>
+
+                            {!user?.has_claimed_ad_reward_today && (
+                                <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-neonGreen text-black text-[10px] font-bold rounded shadow-lg whitespace-nowrap pointer-events-none animate-bounce before:content-[''] before:absolute before:-top-1 before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-b-neonGreen z-50">
+                                    Claim Coin
+                                </div>
+                            )}
+                        </div>
 
                         {/* Notification Bell */}
                         <div className="relative">

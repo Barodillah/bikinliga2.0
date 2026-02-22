@@ -213,7 +213,7 @@ router.post('/claim-ad-reward', authMiddleware, async (req, res) => {
             await connection.execute(
                 `INSERT INTO transactions (id, wallet_id, type, amount, category, description, status) 
                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [txId, wallet.id, 'ad_reward', coins, 'Ad Reward', 'Watch Ad Reward', 'success']
+                [txId, wallet.id, 'reward', coins, 'Ad Reward', 'Watch Ad Reward', 'success']
             );
 
             await connection.commit();
