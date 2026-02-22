@@ -139,3 +139,45 @@ export function verifyNotificationSignature(reqHeaders, body, secretKey) {
 
     return computedSignature === receivedSignature;
 }
+
+/**
+ * Check Order Status (Non SNAP)
+ * Queries DOKU directly using GET /orders/v1/status/:invoiceNumber
+ */
+export async function checkOrderStatus(invoiceNumber) {
+    const requestId = crypto.randomUUID();
+    const timestamp = new Date().toISOString().split('.')[0] + 'Z';
+    const targetPath = `/orders/v1/status/${invoiceNumber}`;
+
+    // Generate Signature specifically for GET request (no body/digest)
+    const componentSignature =
+        `Client-Id:${DOKU_CLIENT_ID}\n` +
+        `Request-Id:${requestId}\n` +
+        `Request-Timestamp:${timestamp}\n` +
+        `Request-Target:${targetPath}`;
+
+    const computedSignature = crypto
+        .createHmac('sha256', DOKU_SECRET_KEY)
+        .update(componentSignature)
+        .digest('base64');
+
+    const headers = {
+        'Client-Id': DOKU_CLIENT_ID,
+        'Request-Id': requestId,
+        'Request-Timestamp': timestamp,
+        'Signature': `HMACSHA256=${computedSignature}`
+    };
+
+    try {
+        const response = await fetch(`${DOKU_API_URL}${targetPath}`, {
+            method: 'GET',
+            headers
+        });
+
+        const data = await response.json();
+        return data; // { order: { invoice_number }, transaction: { status: 'SUCCESS' / 'PENDING' / 'FAILED' } }
+    } catch (error) {
+        console.error('DOKU Check Status Error:', error.message);
+        throw error;
+    }
+}

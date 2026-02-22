@@ -2,7 +2,7 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { query, getConnection } from '../config/db.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { createCheckoutSession, verifyNotificationSignature } from '../utils/doku.js';
+import { createCheckoutSession, verifyNotificationSignature, checkOrderStatus } from '../utils/doku.js';
 
 const router = express.Router();
 
@@ -650,7 +650,7 @@ router.get('/topup/status/:invoice', authMiddleware, async (req, res) => {
 
         try {
             const [txs] = await connection.execute(
-                `SELECT t.status 
+                `SELECT t.id, t.status, t.wallet_id, t.amount
                  FROM transactions t
                  JOIN wallets w ON t.wallet_id = w.id
                  WHERE t.reference_id = ? AND w.user_id = ? AND t.type = "topup"`,
@@ -661,7 +661,51 @@ router.get('/topup/status/:invoice', authMiddleware, async (req, res) => {
                 return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
             }
 
-            res.json({ success: true, status: txs[0].status });
+            const localTx = txs[0];
+
+            // Jika status masih pending di DB, kita cek ke DOKU
+            if (localTx.status === 'pending') {
+                try {
+                    const dokuStatus = await checkOrderStatus(invoice);
+                    const realStatus = dokuStatus?.transaction?.status; // 'SUCCESS', 'FAILED', 'PENDING'
+
+                    if (realStatus === 'SUCCESS') {
+                        // Update status transaksi & tambah koin
+                        await connection.beginTransaction();
+                        try {
+                            // 1. Tambah coin ke wallet
+                            await connection.execute(
+                                'UPDATE wallets SET balance = balance + ? WHERE id = ?',
+                                [localTx.amount, localTx.wallet_id]
+                            );
+
+                            // 2. Tandai transaksi success
+                            await connection.execute(
+                                'UPDATE transactions SET status = "success" WHERE id = ?',
+                                [localTx.id]
+                            );
+
+                            await connection.commit();
+                            return res.json({ success: true, status: 'success' });
+                        } catch (txError) {
+                            await connection.rollback();
+                            throw txError;
+                        }
+                    } else if (realStatus === 'FAILED' || realStatus === 'EXPIRED') {
+                        // Update status jadi failed
+                        await connection.execute(
+                            'UPDATE transactions SET status = "failed" WHERE id = ?',
+                            [localTx.id]
+                        );
+                        return res.json({ success: true, status: 'failed' });
+                    }
+                } catch (dokuError) {
+                    console.error('Failed checking status to DOKU:', dokuError);
+                    // Jika gagal cek ke DOKU, kita kembalikan status DB saat ini
+                }
+            }
+
+            res.json({ success: true, status: localTx.status });
         } finally {
             connection.release();
         }
