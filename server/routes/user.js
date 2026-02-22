@@ -650,7 +650,10 @@ router.get('/topup/status/:invoice', authMiddleware, async (req, res) => {
 
         try {
             const [txs] = await connection.execute(
-                'SELECT status FROM transactions WHERE reference_id = ? AND user_id = ? AND type = "topup"',
+                `SELECT t.status 
+                 FROM transactions t
+                 JOIN wallets w ON t.wallet_id = w.id
+                 WHERE t.reference_id = ? AND w.user_id = ? AND t.type = "topup"`,
                 [invoice, req.user.id]
             );
 
