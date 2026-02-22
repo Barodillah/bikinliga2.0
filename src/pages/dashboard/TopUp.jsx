@@ -82,7 +82,7 @@ export default function TopUp() {
     const [adStatus, setAdStatus] = useState('idle') // idle, playing, completed
 
     const adRef = React.useRef(null)
-    const { success } = useToast()
+    const { success, error: toastError } = useToast()
 
     // Get subscription tier styling
     const getSubscriptionStyle = (plan) => {
@@ -231,13 +231,28 @@ export default function TopUp() {
     const [isVideoLoading, setIsVideoLoading] = useState(false)
     const [hasAdTimeout, setHasAdTimeout] = useState(false)
     const [billingDetails, setBillingDetails] = useState({
-        fullName: 'John Doe',
-        email: 'john@user.com',
-        phone: '08123456789',
-        address: '',
-        city: '',
-        zipCode: ''
+        fullName: user?.name || '',
+        email: user?.email || '',
+        phone: user?.phone || '',
+        address: user?.address || '',
+        city: user?.city || '',
+        zipCode: user?.zip_code || ''
     })
+
+    // Sync billing details when user data is loaded
+    useEffect(() => {
+        if (user) {
+            setBillingDetails(prev => ({
+                ...prev,
+                fullName: user.name || prev.fullName,
+                email: user.email || prev.email,
+                phone: user.phone || prev.phone,
+                address: user.address || prev.address,
+                city: user.city || prev.city,
+                zipCode: user.zip_code || prev.zipCode
+            }))
+        }
+    }, [user])
 
     // VAST Ad Logic (Dynamic Fetch)
     useEffect(() => {
@@ -425,29 +440,39 @@ export default function TopUp() {
         setShowPaymentModal(true)
     }
 
-    const handlePaymentConfirm = (e) => {
+    const handlePaymentConfirm = async (e) => {
         e.preventDefault()
+        setIsLoadingTx(true) // Reuse loading state or add new one
 
-        // Mock Payment Process
-        const newTx = {
-            id: `TRX-${Math.floor(Math.random() * 900000) + 100000}`,
-            type: 'topup',
-            category: 'Deposit',
-            amount: selectedPackage.coins + selectedPackage.bonus,
-            date: new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-            status: 'success',
-            desc: selectedPackage.name,
-            method: 'Bank Transfer'
-        }
+        try {
+            const token = localStorage.getItem('token')
+            const response = await authFetch(`${API_URL}/user/topup/create-payment`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    amount: selectedPackage.amountIdr,
+                    coins: selectedPackage.coins + (selectedPackage.bonus || 0),
+                    package_name: selectedPackage.name,
+                    billing: billingDetails
+                }),
+                credentials: 'include'
+            })
 
-        setBalance(prev => prev + (selectedPackage.coins + selectedPackage.bonus))
-        setTransactions(prev => [newTx, ...prev])
-        setShowPaymentModal(false)
-
-        // Reset manual form if needed
-        if (selectedPackage.name === 'Manual Top Up') {
-            setAmountIdr('')
-            setAmountCoins('')
+            const data = await response.json()
+            if (data.success && data.data.payment_url) {
+                // Redirect to DOKU Checkout
+                window.location.href = data.data.payment_url
+            } else {
+                throw new Error(data.message || 'Gagal membuat pembayaran')
+            }
+        } catch (err) {
+            console.error('Payment error:', err)
+            toastError(err.message || 'Gagal memproses pembayaran')
+        } finally {
+            setIsLoadingTx(false)
         }
     }
 
@@ -472,8 +497,24 @@ export default function TopUp() {
         // Placeholder for cleanup if needed
     }, [])
 
-    // Handle Hash Scroll
+    // Handle Hash Scroll & Payment Status
     useEffect(() => {
+        const query = new URLSearchParams(location.search)
+        const status = query.get('status')
+        const invoice = query.get('invoice')
+
+        if (status === 'check' && invoice) {
+            success(`Pembayaran sedang diproses untuk invoice ${invoice}`)
+            // Remove query params from URL
+            window.history.replaceState({}, document.title, window.location.pathname)
+
+            // Refresh wallet after a short delay
+            setTimeout(() => {
+                if (typeof refreshWallet === 'function') refreshWallet()
+                if (typeof refreshUser === 'function') refreshUser()
+            }, 3000)
+        }
+
         if (location.hash === '#tour-topup-ads') {
             const el = document.getElementById('tour-topup-ads')
             if (el) {
@@ -485,7 +526,7 @@ export default function TopUp() {
                 }, 300)
             }
         }
-    }, [location.hash])
+    }, [location.hash, location.search])
 
     // Claim Reward
     const handleClaimReward = async () => {

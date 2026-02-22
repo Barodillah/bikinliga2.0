@@ -2,6 +2,7 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { query, getConnection } from '../config/db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { createCheckoutSession, verifyNotificationSignature } from '../utils/doku.js';
 
 const router = express.Router();
 
@@ -497,6 +498,148 @@ router.get('/public/:username', async (req, res) => {
     } catch (error) {
         console.error('Get public profile error:', error);
         res.status(500).json({ success: false, message: 'Gagal memuat profil' });
+    }
+});
+
+// POST /api/user/topup/create-payment - Create DOKU payment session
+router.post('/topup/create-payment', authMiddleware, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { amount, coins, package_name } = req.body;
+
+        if (!amount || amount < 10000) {
+            return res.status(400).json({ success: false, message: 'Minimal pembayaran Rp 10.000' });
+        }
+
+        const connection = await getConnection();
+        try {
+            console.log('DEBUG DOKU: Creating payment for user', userId, 'amount', amount);
+            await connection.beginTransaction();
+
+            // 1. Get Wallet
+            const [wallets] = await connection.execute('SELECT id FROM wallets WHERE user_id = ?', [userId]);
+            if (wallets.length === 0) {
+                console.error('DEBUG DOKU: Wallet not found for user', userId);
+                throw new Error('Wallet tidak ditemukan');
+            }
+            const walletId = wallets[0].id;
+
+            // 2. Create Pending Transaction
+            const txId = `TX-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            const invoiceNumber = `INV-${Date.now()}`;
+
+            console.log('DEBUG DOKU: Creating transaction', txId, 'invoice', invoiceNumber);
+            await connection.execute(
+                `INSERT INTO transactions (id, wallet_id, type, amount, category, description, status, reference_id) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [txId, walletId, 'topup', coins, 'Deposit', `Top Up ${coins} Coins - ${package_name}`, 'pending', invoiceNumber]
+            );
+
+            // 3. Create DOKU Checkout Session
+            console.log('DEBUG DOKU: Calling DOKU API...');
+            const checkoutData = await createCheckoutSession({
+                amount: amount,
+                invoiceNumber: invoiceNumber,
+                callbackUrl: `${process.env.VITE_BASE_URL}/dashboard/topup?status=check&invoice=${invoiceNumber}`,
+                customerId: userId.toString(),
+                customerName: req.user.name,
+                customerEmail: req.user.email,
+                customerPhone: req.user.phone || '08123456789',
+                lineItems: [
+                    {
+                        name: `Top Up ${coins} Coins`,
+                        price: amount,
+                        quantity: 1
+                    }
+                ]
+            });
+            console.log('DEBUG DOKU: DOKU API Response:', JSON.stringify(checkoutData));
+
+            if (checkoutData && checkoutData.response && checkoutData.response.payment && checkoutData.response.payment.url) {
+                await connection.commit();
+                res.json({
+                    success: true,
+                    data: {
+                        payment_url: checkoutData.response.payment.url,
+                        invoice_number: invoiceNumber,
+                        transaction_id: txId
+                    }
+                });
+            } else {
+                console.error('DEBUG DOKU: DOKU API Error response:', checkoutData);
+                throw new Error(checkoutData.message || (checkoutData.error ? JSON.stringify(checkoutData.error) : 'Gagal membuat sesi pembayaran DOKU'));
+            }
+        } catch (error) {
+            console.error('DEBUG DOKU: Caught error in route:', error);
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Create payment error:', error);
+        res.status(500).json({ success: false, message: error.message || 'Terjadi kesalahan sistem' });
+    }
+});
+
+// POST /api/user/topup/webhook - DOKU Webhook Notification
+router.post('/topup/webhook', async (req, res) => {
+    try {
+        const body = req.body;
+        const headers = req.headers;
+
+        console.log('DOKU WEBHOOK RECEIVED:', JSON.stringify(body));
+
+        // Signature Verification (Optional but recommended)
+        // const isValid = verifyNotificationSignature(headers, body, process.env.DOKU_SECRET_KEY);
+        // if (!isValid) return res.status(401).send('Invalid Signature');
+
+        const invoiceNumber = body.order?.invoice_number;
+        const status = body.transaction?.status;
+
+        if (status === 'SUCCESS' && invoiceNumber) {
+            const connection = await getConnection();
+            try {
+                await connection.beginTransaction();
+
+                // 1. Find Transaction
+                const [txs] = await connection.execute(
+                    'SELECT id, wallet_id, amount, status FROM transactions WHERE reference_id = ? AND type = "topup"',
+                    [invoiceNumber]
+                );
+
+                if (txs.length > 0 && txs[0].status === 'pending') {
+                    const tx = txs[0];
+                    const coinsToReceive = tx.amount;
+
+                    // 2. Update Wallet
+                    await connection.execute(
+                        'UPDATE wallets SET balance = balance + ? WHERE id = ?',
+                        [coinsToReceive, tx.wallet_id]
+                    );
+
+                    // 3. Mark Transaction as Success
+                    await connection.execute(
+                        'UPDATE transactions SET status = "success" WHERE id = ?',
+                        [tx.id]
+                    );
+
+                    await connection.commit();
+                    console.log('TOPUP SUCCESS VIA WEBHOOK:', invoiceNumber);
+                }
+            } catch (error) {
+                await connection.rollback();
+                console.error('Webhook process error:', error);
+            } finally {
+                connection.release();
+            }
+        }
+
+        // DOKU expects 200 OK
+        res.status(200).send('OK');
+    } catch (error) {
+        console.error('Webhook route error:', error);
+        res.status(500).send('Internal Error');
     }
 });
 
