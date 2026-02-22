@@ -7,6 +7,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', v
         md: 'max-w-lg',
         lg: 'max-w-2xl',
         xl: 'max-w-4xl',
+        fullScreen: 'w-full h-full max-w-full m-0 rounded-none',
     }
 
     const variants = {
@@ -54,10 +55,10 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', v
             />
 
             {/* Modal */}
-            <div className="min-h-full flex items-center justify-center p-4">
-                <div className={`relative ${sizes[size]} w-full rounded-2xl shadow-2xl transform transition-all ${theme.panel}`}>
+            <div className={`flex items-center justify-center p-4 ${size === 'fullScreen' ? 'fixed inset-0 p-0' : 'min-h-full'}`}>
+                <div className={`relative ${sizes[size]} w-full rounded-2xl shadow-2xl transform transition-all flex flex-col ${theme.panel}`}>
                     {/* Header */}
-                    <div className={`flex items-center justify-between p-6 border-b ${theme.header}`}>
+                    <div className={`flex items-center justify-between p-6 border-b shrink-0 ${theme.header}`}>
                         <h3 className={`text-xl font-display font-bold ${theme.title}`}>{title}</h3>
                         <button
                             onClick={onClose}
@@ -68,7 +69,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', v
                     </div>
 
                     {/* Content */}
-                    <div className="p-6">
+                    <div className={`p-6 flex-1 overflow-y-auto ${size === 'fullScreen' ? 'flex flex-col' : ''}`}>
                         {children}
                     </div>
                 </div>

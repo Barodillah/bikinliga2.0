@@ -175,6 +175,72 @@ router.post('/claim-login-coin', authMiddleware, async (req, res) => {
     }
 });
 
+// POST /api/user/claim-ad-reward - Claim coins from watching ads
+router.post('/claim-ad-reward', authMiddleware, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { coins } = req.body;
+
+        if (!coins || isNaN(coins) || coins <= 0) {
+            return res.status(400).json({ success: false, message: 'Jumlah koin tidak valid' });
+        }
+
+        const connection = await getConnection();
+        try {
+            await connection.beginTransaction();
+
+            // Get wallet
+            const [wallets] = await connection.execute(
+                'SELECT id, balance FROM wallets WHERE user_id = ?',
+                [userId]
+            );
+
+            if (wallets.length === 0) {
+                throw new Error('Wallet tidak ditemukan');
+            }
+
+            const wallet = wallets[0];
+            const newBalance = parseFloat(wallet.balance) + coins;
+
+            // Update wallet balance
+            await connection.execute(
+                'UPDATE wallets SET balance = ? WHERE id = ?',
+                [newBalance, wallet.id]
+            );
+
+            // Create transaction record
+            const txId = uuidv4();
+            await connection.execute(
+                `INSERT INTO transactions (id, wallet_id, type, amount, category, description, status) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [txId, wallet.id, 'ad_reward', coins, 'Ad Reward', 'Watch Ad Reward', 'success']
+            );
+
+            await connection.commit();
+
+            res.json({
+                success: true,
+                message: `Berhasil mendapatkan ${coins} koin`,
+                data: {
+                    amount: coins,
+                    newBalance: newBalance
+                }
+            });
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Claim ad reward error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Terjadi kesalahan saat mengklaim reward iklan'
+        });
+    }
+});
+
 // GET /api/user/profile - Get user profile
 router.get('/profile', authMiddleware, async (req, res) => {
     try {

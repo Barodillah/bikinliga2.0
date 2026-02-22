@@ -9,6 +9,7 @@ import Input from '../../components/ui/Input'
 import Modal from '../../components/ui/Modal'
 import ConfirmationModal from '../../components/ui/ConfirmationModal'
 import { useToast } from '../../contexts/ToastContext'
+import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
 
 const TOPUP_PACKAGES = [
     { coins: 100, price: 'Rp 15.000', bonus: 0, popular: false },
@@ -169,6 +170,53 @@ export default function TopUp() {
         fetchTransactions()
     }, [])
 
+    // Tour State
+    const [runTour, setRunTour] = useState(false);
+    const [tourSteps, setTourSteps] = useState([
+        {
+            target: '#tour-topup-subscription',
+            content: 'Di sini Anda dapat melihat status langganan saat ini dan saldo koin Anda. Anda juga bisa upgrade ke Premium untuk fitur tambahan.',
+            title: 'Status Langganan',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-topup-packages',
+            content: 'Pilih salah satu paket koin populer untuk Top Up instan. Dapatkan bonus koin untuk paket tertentu!',
+            title: 'Paket Populer',
+        },
+        {
+            target: '#tour-topup-manual',
+            content: 'Atau, Anda bisa memasukkan nominal Rupiah secara manual. Sistem akan otomatis menghitung koin yang akan Anda dapatkan.',
+            title: 'Top Up Manual',
+        },
+        {
+            target: '#tour-topup-ads',
+            content: 'Ingin koin gratis? Tonton video iklan pendek di sini dan dapatkan koin tambahan secara cuma-cuma!',
+            title: 'Koin Gratis',
+        },
+        {
+            target: '#tour-topup-history',
+            content: 'Semua riwayat masuk dan keluarnya koin akan tercatat rapi di tabel transaksi ini.',
+            title: 'Riwayat Transaksi',
+        }
+    ]);
+
+    useEffect(() => {
+        const tourSeen = localStorage.getItem('topup_tour_seen');
+        if (!tourSeen) {
+            setRunTour(true);
+        }
+    }, []);
+
+    const handleJoyrideCallback = (data) => {
+        const { status } = data;
+        const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
+        if (finishedStatuses.includes(status)) {
+            setRunTour(false);
+            localStorage.setItem('topup_tour_seen', 'true');
+        }
+    };
+
     // Ad Warning Modal
     const [adWarningModal, setAdWarningModal] = useState(false)
 
@@ -185,16 +233,48 @@ export default function TopUp() {
         zipCode: ''
     })
 
-    // VAST Ad Logic (Google Sample) - GUARANTEED VIDEO APPEARANCE
+    // VAST Ad Logic (Dynamic Fetch)
     useEffect(() => {
         let videoElement = null
+        let isCancelled = false
 
-        if (adRef.current) {
+        const initAd = async () => {
+            if (!adRef.current) return
+
             // Clear content
             adRef.current.innerHTML = ''
 
-            // Direct Google Preroll Video
-            const videoSrc = 'https://storage.googleapis.com/gvabox/media/samples/stock.mp4'
+            // Standard Fallback Video from the provided VAST XML
+            let videoSrc = 'https://www.silent-basis.pro/152327/199275/559488_449f5.mp4'
+            const vastUrl = 'https://sadpicture.com/d.m/Fmz-dzGpNkv/ZqGwUV/IepmY9huWZSUzlTktPET/Yk4BM/TDgSzwNYDaUstCNoj/g/xbO-DfM/0KO/QR'
+
+            try {
+                // Fetch dynamic VAST URL
+                const response = await fetch(vastUrl)
+                const xmlText = await response.text()
+                const parser = new DOMParser()
+                const xmlDoc = parser.parseFromString(xmlText, "text/xml")
+
+                // Track Impression
+                const impressions = xmlDoc.getElementsByTagName('Impression')
+                if (impressions.length > 0 && impressions[0].textContent) {
+                    fetch(impressions[0].textContent.trim(), { mode: 'no-cors' }).catch(() => { })
+                }
+
+                // Get nearest MP4 MediaFile
+                const mediaFiles = xmlDoc.getElementsByTagName('MediaFile')
+                for (let i = 0; i < mediaFiles.length; i++) {
+                    const type = mediaFiles[i].getAttribute('type')
+                    if (type === 'video/mp4' || type === 'video/webm') {
+                        videoSrc = mediaFiles[i].textContent.trim()
+                        break
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to load VAST, using fallback video:", error)
+            }
+
+            if (isCancelled) return
 
             // Native HTML5 Video Player
             videoElement = document.createElement('video')
@@ -205,7 +285,7 @@ export default function TopUp() {
             videoElement.controls = false // Disable user seeking
             videoElement.autoplay = true
             videoElement.playsInline = true
-            videoElement.muted = false // Ensure sound is on if possible, but browsers might block unmuted autoplay
+            videoElement.muted = false // Ensure sound is on if possible
 
             // Prevent context menu
             videoElement.oncontextmenu = (e) => e.preventDefault()
@@ -230,7 +310,12 @@ export default function TopUp() {
             adRef.current.appendChild(videoElement)
         }
 
+        if (isAdModalOpen && adStatus === 'playing') {
+            initAd()
+        }
+
         return () => {
+            isCancelled = true
             if (videoElement) {
                 videoElement.pause()
                 videoElement.src = ''
@@ -352,27 +437,105 @@ export default function TopUp() {
     }, [])
 
     // Claim Reward
-    const handleClaimReward = () => {
-        const rewardAmount = 5
-        const newTx = {
-            id: `TRX-${Math.floor(Math.random() * 900000) + 100000}`,
-            type: 'ad_reward',
-            category: 'Ad Reward',
-            amount: rewardAmount,
-            date: new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-            status: 'success',
-            desc: 'Watch Ad Reward',
-            method: 'Ad Vendor'
-        }
+    const handleClaimReward = async () => {
+        // Rate: 5 coins per 30 seconds -> 1 coin per 6 seconds
+        const rewardAmount = Math.max(1, Math.round((maxDuration / 30) * 5))
 
-        setBalance(prev => prev + rewardAmount)
-        setTransactions(prev => [newTx, ...prev])
-        setIsAdModalOpen(false)
-        setAdStatus('idle')
+        try {
+            const token = localStorage.getItem('token')
+            if (!token) throw new Error("Please login to claim rewards")
+
+            const response = await authFetch(`${API_URL}/user/claim-ad-reward`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ coins: rewardAmount }),
+                credentials: 'include'
+            })
+
+            const data = await response.json()
+            if (data.success) {
+                success(`Successfully earned ${rewardAmount} coins!`)
+
+                // Add the new transaction manually to reflect immediately, or just refresh
+                const newTx = {
+                    id: `TRX-${Math.floor(Math.random() * 900000) + 100000}`,
+                    type: 'ad_reward',
+                    category: 'Ad Reward',
+                    amount: rewardAmount,
+                    date: new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                    status: 'success',
+                    desc: 'Watch Ad Reward',
+                    method: 'Ad Vendor'
+                }
+
+                setTransactions(prev => [newTx, ...prev])
+                // Refresh global wallet state if possible, or trigger a re-fetch
+                if (typeof refreshWallet === 'function') {
+                    refreshWallet()
+                } else if (wallet) {
+                    // Fallback to local state manual update if you don't use refreshWallet
+                }
+            } else {
+                throw new Error(data.message || 'Failed to claim reward')
+            }
+        } catch (err) {
+            console.error('Claim error:', err)
+            // Error handling, maybe show a toast
+        } finally {
+            setIsAdModalOpen(false)
+            setAdStatus('idle')
+        }
     }
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto">
+            <ReactJoyride
+                steps={tourSteps}
+                run={runTour}
+                continuous
+                showProgress
+                showSkipButton
+                callback={handleJoyrideCallback}
+                styles={{
+                    options: {
+                        arrowColor: '#121212',
+                        backgroundColor: '#121212',
+                        overlayColor: 'rgba(5, 5, 5, 0.5)',
+                        primaryColor: '#02FE02',
+                        textColor: '#fff',
+                        zIndex: 1000,
+                    },
+                    tooltipContainer: {
+                        textAlign: 'left'
+                    },
+                    buttonNext: {
+                        backgroundColor: '#02FE02',
+                        color: '#000',
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        fontWeight: 'bold',
+                        outline: 'none',
+                    },
+                    buttonBack: {
+                        color: '#fff',
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        outline: 'none',
+                    },
+                    buttonSkip: {
+                        color: '#fff',
+                        fontFamily: 'Space Grotesk, sans-serif'
+                    }
+                }}
+                locale={{
+                    back: 'Kembali',
+                    close: 'Tutup',
+                    last: 'Selesai',
+                    next: 'Lanjut',
+                    skip: 'Lewati',
+                }}
+            />
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-display font-bold text-white">Top Up & Subscription</h1>
@@ -383,7 +546,7 @@ export default function TopUp() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Left Column: Subscription & Packages (spans 8) */}
                 <div className="lg:col-span-8 space-y-6">
-                    <Card className={`bg-gradient-to-br ${subStyle.gradient} ${subStyle.cardBorder} relative overflow-hidden`}>
+                    <Card id="tour-topup-subscription" className={`bg-gradient-to-br ${subStyle.gradient} ${subStyle.cardBorder} relative overflow-hidden`}>
                         {/* Decorative glow for premium tiers */}
                         {isPremiumPlan && (
                             <div className={`absolute -top-20 -right-20 w-40 h-40 ${subStyle.bg} rounded-full blur-3xl opacity-40`}></div>
@@ -446,7 +609,7 @@ export default function TopUp() {
                     </Card>
 
                     {/* Popular Top Up Options */}
-                    <div>
+                    <div id="tour-topup-packages">
                         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                             <Zap className="w-5 h-5 text-neonGreen" />
                             Popular Packages
@@ -491,7 +654,7 @@ export default function TopUp() {
                 {/* Right Column: Actions & History (spans 4) */}
                 <div className="lg:col-span-4 space-y-6">
                     {/* Manual Top Up */}
-                    <Card className="border-neonPink/20 overflow-visible">
+                    <Card id="tour-topup-manual" className="border-neonPink/20 overflow-visible">
                         <div className="p-6">
                             <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                                 <Plus className="w-5 h-5 text-neonPink" />
@@ -562,7 +725,7 @@ export default function TopUp() {
                     </Card>
 
                     {/* Free Coins Action */}
-                    <Card className="bg-gradient-to-br from-indigo-900/40 to-purple-900/40 border-indigo-500/30">
+                    <Card id="tour-topup-ads" className="bg-gradient-to-br from-indigo-900/40 to-purple-900/40 border-indigo-500/30">
                         <div className="p-6">
                             <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
                                 <PlayCircle className="w-5 h-5 text-indigo-400" />
@@ -572,7 +735,7 @@ export default function TopUp() {
                                 Watch a short video advertisement to earn free coins instantly.
                             </p>
                             <Button onClick={handleWatchAd} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-lg shadow-indigo-900/20">
-                                Watch Ads (+5 Coins)
+                                Watch Ads (Free Coins)
                             </Button>
                         </div>
                     </Card>
@@ -581,7 +744,7 @@ export default function TopUp() {
             </div>
 
             {/* Transaction History - Full Width */}
-            <div className="w-full">
+            <div id="tour-topup-history" className="w-full">
                 <Card>
                     <div className="p-6 sm:p-8">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -725,6 +888,7 @@ export default function TopUp() {
             {/* Ad Watch Modal */}
             <Modal
                 isOpen={isAdModalOpen}
+                size="fullScreen"
                 onClose={() => {
                     if (adStatus === 'playing') {
                         setAdWarningModal(true)
@@ -735,41 +899,33 @@ export default function TopUp() {
                 }}
                 title="Watch Ad for Free Coins"
             >
-                <div className="flex flex-col items-center justify-center p-4">
+                <div className="flex flex-col items-center justify-center w-full h-full p-4 lg:p-8">
                     {adStatus === 'playing' ? (
-                        <>
-                            <div id="adsterra-container" className="w-full aspect-video bg-black/50 rounded-xl overflow-hidden relative flex items-center justify-center">
-                                {/* 
-                                    INSTRUCTION:
-                                    Paste your Adsterra Script below. 
-                                    If it's a "Social Bar" or "Video Slider" script (usually one line src),
-                                    you might want to put it in useEffect to load it when modal opens.
-                                    
-                                    For "Web Banner" / "Native Banner" (iframe/script combos):
-                                */}
+                        <div className="w-full h-full flex flex-col items-center">
+                            <div id="adsterra-container" className="flex-1 w-full bg-black/50 overflow-hidden relative flex items-center justify-center rounded-xl shadow-2xl">
                                 <div ref={adRef} className="w-full h-full flex items-center justify-center bg-black">
-                                    {/* Video Player will be inserted here by useEffect */}
+                                    {/* VAST Video Player will be inserted here by useEffect */}
                                 </div>
 
                                 {/* Timer Overlay: Keep it to simulate/enforce watch time */}
-                                <div className="absolute bottom-4 left-4 right-4 z-10">
-                                    <div className="h-1 bg-white/20 rounded-full overflow-hidden">
+                                <div className="absolute bottom-6 left-6 right-6 z-10">
+                                    <div className="h-1.5 bg-white/20 rounded-full overflow-hidden shadow-sm">
                                         <div
-                                            className="h-full bg-indigo-500 transition-all duration-100 ease-linear"
+                                            className="h-full bg-indigo-500 transition-all duration-100 ease-linear shadow-[0_0_10px_rgba(99,102,241,0.5)]"
                                             style={{ width: `${maxDuration > 0 ? ((maxDuration - adTimer) / maxDuration) * 100 : 0}%` }}
                                         />
                                     </div>
-                                    <div className="flex justify-between text-xs text-white mt-2 font-medium drop-shadow-md">
+                                    <div className="flex justify-between text-base md:text-lg text-white mt-3 font-bold drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
                                         <span>Advertisement</span>
                                         <span>{adTimer}s remaining</span>
                                     </div>
                                 </div>
                             </div>
-                            <div className="mt-6 text-center">
-                                <h4 className="text-white font-bold mb-1">Watching Advertisement...</h4>
-                                <p className="text-sm text-gray-400">Please wait to earn your reward.</p>
+                            <div className="mt-6 md:mt-8 text-center shrink-0">
+                                <h4 className="text-xl md:text-2xl text-white font-bold mb-2">Watching Advertisement...</h4>
+                                <p className="text-base md:text-lg text-gray-400">Please wait to earn your reward.</p>
                             </div>
-                        </>
+                        </div>
                     ) : (
                         <>
                             <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mb-6 animate-in zoom-in duration-300">
@@ -777,13 +933,13 @@ export default function TopUp() {
                             </div>
                             <h4 className="text-xl font-bold text-white mb-2">Reward Unlocked!</h4>
                             <p className="text-gray-400 text-center mb-8">
-                                You have successfully earned <span className="text-neonGreen font-bold">+5 Coins</span>.
+                                You have successfully earned <span className="text-neonGreen font-bold">+{Math.max(1, Math.round((maxDuration / 30) * 5))} Coins</span>.
                             </p>
                             <Button
                                 onClick={handleClaimReward}
                                 className="w-full bg-green-600 hover:bg-green-500 border-none text-white shadow-lg shadow-green-900/20"
                             >
-                                Claim 5 Coins
+                                Claim {Math.max(1, Math.round((maxDuration / 30) * 5))} Coins
                             </Button>
                         </>
                     )}
