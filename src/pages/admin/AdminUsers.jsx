@@ -177,7 +177,7 @@ export default function AdminUsers() {
                     <div>
                         <p className="text-sm text-gray-500 font-medium">Active Users</p>
                         <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                            {users.filter(u => u.status === 'active').length}
+                            {users.filter(u => u.username).length}
                         </h3>
                     </div>
                     <div className="p-2 bg-green-100 text-green-600 rounded-lg">
@@ -285,11 +285,11 @@ export default function AdminUsers() {
                                                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${getRoleBadgeColor(user.role)}`}>
                                                     {user.role}
                                                 </span>
-                                                <span className={`flex items-center gap-1.5 text-xs font-medium ${user.status === 'active' ? 'text-green-600' : 'text-gray-500'
+                                                <span className={`flex items-center gap-1.5 text-xs font-medium ${user.username ? 'text-green-600' : 'text-gray-500'
                                                     }`}>
-                                                    <span className={`w-1.5 h-1.5 rounded-full ${user.status === 'active' ? 'bg-green-500' : 'bg-gray-400'
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${user.username ? 'bg-green-500' : 'bg-gray-400'
                                                         }`} />
-                                                    Active
+                                                    {user.username ? 'Active' : 'Inactive'}
                                                 </span>
                                             </div>
                                         </td>

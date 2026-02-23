@@ -4,6 +4,8 @@ import { unlockAchievement } from '../utils/achievements.js';
 
 import { createNotification, createBulkNotifications } from '../utils/notifications.js';
 import { logActivity } from '../utils/activity.js';
+import { checkOrderStatus } from '../utils/doku.js';
+import { getAndRecordCurrentPrice } from '../utils/economy.js';
 
 const router = express.Router();
 
@@ -418,6 +420,156 @@ router.post('/announcements', async (req, res) => {
     } catch (error) {
         console.error('Announcement Error:', error);
         res.status(500).json({ success: false, message: 'Failed to send announcement' });
+    }
+});
+
+// ==================== TRANSACTION ROUTES ====================
+
+// GET /admin/transactions/coin-price/current - Get real-time dynamic coin price
+router.get('/transactions/coin-price/current', async (req, res) => {
+    try {
+        const { price, supply, activeTournaments } = await getAndRecordCurrentPrice();
+
+        // Also get 24h ago, 7d ago, 30d ago prices for stats cards
+        const [dayAgo] = await query('SELECT price FROM coin_price_history WHERE recorded_at <= DATE_SUB(NOW(), INTERVAL 1 DAY) ORDER BY recorded_at DESC LIMIT 1');
+        const [weekAgo] = await query('SELECT price FROM coin_price_history WHERE recorded_at <= DATE_SUB(NOW(), INTERVAL 7 DAY) ORDER BY recorded_at DESC LIMIT 1');
+        const [monthAgo] = await query('SELECT price FROM coin_price_history WHERE recorded_at <= DATE_SUB(NOW(), INTERVAL 30 DAY) ORDER BY recorded_at DESC LIMIT 1');
+
+        res.json({
+            success: true,
+            data: {
+                currentPrice: price,
+                supply,
+                activeTournaments,
+                yesterdayPrice: dayAgo ? Number(dayAgo.price) : price,
+                weekAgoPrice: weekAgo ? Number(weekAgo.price) : price,
+                monthAgoPrice: monthAgo ? Number(monthAgo.price) : price
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching current coin price:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch coin price' });
+    }
+});
+
+// GET /admin/transactions/coin-price/history - Get 30d historical chart data
+router.get('/transactions/coin-price/history', async (req, res) => {
+    try {
+        // Fetch 1 record per day max for the last 30 days to build the chart
+        const sql = `
+            SELECT 
+                DATE(recorded_at) as date, 
+                MAX(price) as price,
+                MAX(circulating_supply) as supply,
+                MAX(active_tournaments) as tournaments
+            FROM coin_price_history
+            WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            GROUP BY DATE(recorded_at)
+            ORDER BY date ASC
+        `;
+        const history = await query(sql);
+        res.json({ success: true, data: history });
+    } catch (error) {
+        console.error('Error fetching coin price history:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch coin price history' });
+    }
+});
+
+// GET /admin/transactions/recent-coin-usage
+router.get('/transactions/recent-coin-usage', async (req, res) => {
+    try {
+        const sql = `
+            SELECT 
+                t.type, t.amount, t.created_at,
+                u.username as user
+            FROM transactions t
+            JOIN wallets w ON t.wallet_id = w.id
+            JOIN users u ON w.user_id = u.id
+            WHERE t.status = 'success'
+            ORDER BY t.created_at DESC
+            LIMIT 10
+        `;
+        const recent = await query(sql);
+        res.json({ success: true, data: recent });
+    } catch (error) {
+        console.error('Error fetching recent coin usage:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch recent transactions' });
+    }
+});
+
+
+// GET /admin/transactions/stats - Transaction summary stats
+router.get('/transactions/stats', async (req, res) => {
+    try {
+        const statsQuery = `
+            SELECT
+                COALESCE(SUM(CASE WHEN type = 'topup' AND status = 'success' THEN amount ELSE 0 END), 0) as total_topup_coins,
+                COUNT(CASE WHEN type = 'topup' THEN 1 END) as total_topup_count,
+                COUNT(CASE WHEN type = 'spend' THEN 1 END) as total_spend_count,
+                COUNT(DISTINCT CASE WHEN type = 'topup' AND status = 'success' THEN wallet_id END) as active_payers
+            FROM transactions
+        `;
+        const [stats] = await query(statsQuery);
+        res.json({ success: true, data: stats });
+    } catch (error) {
+        console.error('Transaction stats error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch transaction stats' });
+    }
+});
+
+// GET /admin/transactions/topup - All topup transactions with user info
+router.get('/transactions/topup', async (req, res) => {
+    try {
+        const sql = `
+            SELECT 
+                t.id, t.amount, t.category, t.description, t.status, t.reference_id, t.created_at,
+                u.name as user_name, u.email as user_email, u.avatar_url as user_avatar
+            FROM transactions t
+            JOIN wallets w ON t.wallet_id = w.id
+            JOIN users u ON w.user_id = u.id
+            WHERE t.type = 'topup'
+            ORDER BY t.created_at DESC
+            LIMIT 200
+        `;
+        const transactions = await query(sql);
+        res.json({ success: true, data: transactions });
+    } catch (error) {
+        console.error('Topup transactions error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch topup transactions' });
+    }
+});
+
+// GET /admin/transactions/spend - All spend transactions with user info
+router.get('/transactions/spend', async (req, res) => {
+    try {
+        const sql = `
+            SELECT 
+                t.id, t.amount, t.category, t.description, t.status, t.created_at,
+                u.name as user_name, u.email as user_email, u.avatar_url as user_avatar
+            FROM transactions t
+            JOIN wallets w ON t.wallet_id = w.id
+            JOIN users u ON w.user_id = u.id
+            WHERE t.type = 'spend'
+            ORDER BY t.created_at DESC
+            LIMIT 200
+        `;
+        const transactions = await query(sql);
+        res.json({ success: true, data: transactions });
+    } catch (error) {
+        console.error('Spend transactions error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch spend transactions' });
+    }
+});
+
+// GET /admin/transactions/doku-status/:invoiceNumber - Check DOKU order status
+router.get('/transactions/doku-status/:invoiceNumber', async (req, res) => {
+    try {
+        const { invoiceNumber } = req.params;
+        const dokuData = await checkOrderStatus(invoiceNumber);
+        res.json({ success: true, data: dokuData });
+    } catch (error) {
+        console.error('DOKU status check error:', error);
+        res.status(500).json({ success: false, message: 'Failed to check DOKU status' });
     }
 });
 

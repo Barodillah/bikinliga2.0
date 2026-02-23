@@ -1,31 +1,160 @@
-import React, { useState } from 'react'
-import { ArrowUpRight, ArrowDownLeft, Wallet, Search, Filter, Download, Users, Activity, Banknote } from 'lucide-react'
-
-const mockTopUpHistory = [
-    { id: 'TRX-001', user: 'John Doe', amount: 500, nominal: 75000, method: 'BCA VA', date: '2023-10-25 14:30', status: 'Success' },
-    { id: 'TRX-002', user: 'Sarah Smith', amount: 1000, nominal: 150000, method: 'GoPay', date: '2023-10-25 10:15', status: 'Pending' },
-    { id: 'TRX-003', user: 'Mike Ross', amount: 250, nominal: 37500, method: 'OVO', date: '2023-10-24 18:45', status: 'Success' },
-    { id: 'TRX-004', user: 'Rachel Green', amount: 500, nominal: 75000, method: 'BCA VA', date: '2023-10-24 09:20', status: 'Failed' },
-    { id: 'TRX-005', user: 'Monica Geller', amount: 100, nominal: 15000, method: 'Dana', date: '2023-10-23 16:10', status: 'Success' },
-]
-
-const stats = [
-    { title: 'Total Pendapatan', value: 'Rp 125.000.000', change: '+12.5%', icon: Banknote, color: 'text-green-600', bg: 'bg-green-100' },
-    { title: 'Total Transaksi', value: '1,429', change: '+8.2%', icon: Activity, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { title: 'Rata-rata Nilai', value: 'Rp 85.000', change: '-2.4%', icon: Wallet, color: 'text-purple-600', bg: 'bg-purple-100' },
-    { title: 'Pembayar Aktif', value: '892', change: '+5.7%', icon: Users, color: 'text-orange-600', bg: 'bg-orange-100' },
-]
-
-const mockCoinUsage = [
-    { id: 'USG-001', user: 'John Doe', action: 'Create Tournament', detail: 'MLBB Season 5', amount: 100, date: '2023-10-26 08:00' },
-    { id: 'USG-002', user: 'Mike Ross', action: 'Join Tournament', detail: 'Pubg Fast Cup', amount: 50, date: '2023-10-25 20:00' },
-    { id: 'USG-003', user: 'Chandler Bing', action: 'Boost Tournament', detail: 'Valorant Pro', amount: 20, date: '2023-10-25 15:30' },
-    { id: 'USG-004', user: 'Joey Tribbiani', action: 'Create Community', detail: 'Friends Gaming', amount: 200, date: '2023-10-24 12:45' },
-    { id: 'USG-005', user: 'Phoebe Buffay', action: 'Join Tournament', detail: 'Magic Chess Cup', amount: 50, date: '2023-10-23 10:00' },
-]
+import React, { useState, useEffect } from 'react'
+import { ArrowUpRight, ArrowDownLeft, Wallet, Search, Filter, Download, Users, Activity, Banknote, Loader2 } from 'lucide-react'
+import { api } from '../../utils/api'
 
 export default function AdminTransaction() {
     const [activeTab, setActiveTab] = useState('topup')
+    const [topupData, setTopupData] = useState([])
+    const [spendData, setSpendData] = useState([])
+    const [statsData, setStatsData] = useState(null)
+    const [dokuStatuses, setDokuStatuses] = useState({}) // keyed by reference_id
+    const [loading, setLoading] = useState(true)
+    const [dokuLoading, setDokuLoading] = useState({}) // keyed by reference_id
+
+    useEffect(() => {
+        fetchData()
+    }, [])
+
+    const fetchData = async () => {
+        try {
+            setLoading(true)
+            const [statsRes, topupRes, spendRes] = await Promise.all([
+                api.get('/api/admin/transactions/stats'),
+                api.get('/api/admin/transactions/topup'),
+                api.get('/api/admin/transactions/spend')
+            ])
+
+            if (statsRes.success) setStatsData(statsRes.data)
+            if (topupRes.success) {
+                setTopupData(topupRes.data)
+                // Fetch DOKU status for topup rows that have reference_id
+                fetchDokuStatuses(topupRes.data)
+            }
+            if (spendRes.success) setSpendData(spendRes.data)
+        } catch (error) {
+            console.error('Error fetching transaction data:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const fetchDokuStatuses = async (transactions) => {
+        // Only fetch for rows with reference_id and status pending or we want fresh data
+        const withRef = transactions.filter(t => t.reference_id)
+        if (withRef.length === 0) return
+
+        const loadingState = {}
+        withRef.forEach(t => { loadingState[t.reference_id] = true })
+        setDokuLoading(loadingState)
+
+        const results = {}
+        // Fetch all DOKU statuses in parallel (max 10 at a time to avoid hammering)
+        const chunks = []
+        for (let i = 0; i < withRef.length; i += 10) {
+            chunks.push(withRef.slice(i, i + 10))
+        }
+
+        for (const chunk of chunks) {
+            const promises = chunk.map(async (t) => {
+                try {
+                    const res = await api.get(`/api/admin/transactions/doku-status/${t.reference_id}`)
+                    if (res.success && res.data) {
+                        results[t.reference_id] = res.data
+                    }
+                } catch (err) {
+                    console.error(`Failed to fetch DOKU status for ${t.reference_id}:`, err)
+                }
+            })
+            await Promise.all(promises)
+        }
+
+        setDokuStatuses(results)
+        setDokuLoading({})
+    }
+
+    // Extract payment method from DOKU response
+    const getDokuMethod = (referenceId) => {
+        const doku = dokuStatuses[referenceId]
+        if (!doku) return null
+        // DOKU response structure: { transaction: { status, ... }, channel: { id: 'EMONEY_OVO' }, ... }
+        const channelId = doku?.channel?.id || doku?.service?.id || null
+        if (channelId) {
+            // Convert channel ID to readable name
+            const channelMap = {
+                'EMONEY_OVO': 'OVO',
+                'EMONEY_DANA': 'DANA',
+                'EMONEY_SHOPEEPAY': 'ShopeePay',
+                'EMONEY_LINKAJA': 'LinkAja',
+                'QRIS': 'QRIS',
+                'VIRTUAL_ACCOUNT_BCA': 'BCA VA',
+                'VIRTUAL_ACCOUNT_BNI': 'BNI VA',
+                'VIRTUAL_ACCOUNT_BRI': 'BRI VA',
+                'VIRTUAL_ACCOUNT_MANDIRI': 'Mandiri VA',
+                'VIRTUAL_ACCOUNT_PERMATA': 'Permata VA',
+                'VIRTUAL_ACCOUNT_CIMB': 'CIMB VA',
+                'CREDIT_CARD': 'Credit Card',
+            }
+            return channelMap[channelId] || channelId
+        }
+        return null
+    }
+
+    // Extract nominal IDR from DOKU response
+    const getDokuNominal = (referenceId) => {
+        const doku = dokuStatuses[referenceId]
+        if (!doku) return null
+        const amount = doku?.order?.amount
+        return amount ? parseInt(amount) : null
+    }
+
+    // Extract status from DOKU response
+    const getDokuStatus = (referenceId, dbStatus) => {
+        const doku = dokuStatuses[referenceId]
+        if (!doku) return dbStatus // fallback to DB status
+        const dokuTxStatus = doku?.transaction?.status
+        if (dokuTxStatus) {
+            return dokuTxStatus.toLowerCase() // 'SUCCESS' -> 'success', 'PENDING' -> 'pending', 'FAILED' -> 'failed'
+        }
+        return dbStatus
+    }
+
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '-'
+        return new Date(dateStr).toLocaleString('id-ID', {
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        })
+    }
+
+    const getStatusBadge = (status) => {
+        const s = (status || '').toLowerCase()
+        if (s === 'success') return 'bg-green-100 text-green-700'
+        if (s === 'pending') return 'bg-yellow-100 text-yellow-700'
+        if (s === 'failed' || s === 'expired') return 'bg-red-100 text-red-700'
+        return 'bg-gray-100 text-gray-700'
+    }
+
+    // Calculate total revenue from DOKU nominal IDR
+    const totalRevenue = Object.values(dokuStatuses).reduce((sum, doku) => {
+        const amount = doku?.order?.amount
+        return sum + (amount ? parseInt(amount) : 0)
+    }, 0)
+
+    const stats = [
+        { title: 'Total Revenue', value: `Rp ${totalRevenue.toLocaleString('id-ID')}`, change: 'From Top Up', icon: Banknote, color: 'text-green-600', bg: 'bg-green-100' },
+        { title: 'Total Top Up Transaksi', value: statsData?.total_topup_count?.toLocaleString('id-ID') || '0', change: 'All Time', icon: Activity, color: 'text-blue-600', bg: 'bg-blue-100' },
+        { title: 'Total Spend Transaksi', value: statsData?.total_spend_count?.toLocaleString('id-ID') || '0', change: 'All Time', icon: Wallet, color: 'text-purple-600', bg: 'bg-purple-100' },
+        { title: 'Total Top Up Coins', value: statsData?.total_topup_coins?.toLocaleString('id-ID') || '0', change: 'Successful', icon: Users, color: 'text-orange-600', bg: 'bg-orange-100' },
+    ]
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center p-12">
+                <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                <span className="ml-3 text-gray-500">Loading transactions...</span>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
@@ -40,8 +169,8 @@ export default function AdminTransaction() {
                         <div>
                             <p className="text-sm text-gray-500 font-medium">{stat.title}</p>
                             <h3 className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</h3>
-                            <span className={`text-xs font-medium ${stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                                {stat.change} <span className="text-gray-400 font-normal">vs last month</span>
+                            <span className="text-xs font-medium text-green-600">
+                                {stat.change}
                             </span>
                         </div>
                         <div className={`p-2 rounded-lg ${stat.bg} ${stat.color}`}>
@@ -68,7 +197,6 @@ export default function AdminTransaction() {
                 </button>
             </div>
 
-
             {/* Top Up History Card */}
             <div className={`bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden ${activeTab === 'topup' ? 'block' : 'hidden'}`}>
                 <div className="p-4 border-b border-gray-200 flex items-center justify-between">
@@ -81,9 +209,6 @@ export default function AdminTransaction() {
                             <p className="text-xs text-gray-500">Incoming transactions from user top-ups</p>
                         </div>
                     </div>
-                    <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg border border-gray-200">
-                        <Download className="w-4 h-4" />
-                    </button>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
@@ -99,31 +224,59 @@ export default function AdminTransaction() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {mockTopUpHistory.map((item) => (
-                                <tr key={item.id} className="hover:bg-gray-50 transition">
-                                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.id}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-600 font-medium">{item.user}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-500">{item.method}</td>
-                                    <td className="px-6 py-4 text-xs text-gray-400">{item.date}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                                        Rp {item.nominal.toLocaleString('id-ID')}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm font-bold text-gray-900">
-                                        <div className="flex items-center gap-1">
-                                            <img src="/coin.png" alt="Coin" className="w-4 h-4" />
-                                            {item.amount}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${item.status === 'Success' ? 'bg-green-100 text-green-700' :
-                                            item.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                'bg-red-100 text-red-700'
-                                            }`}>
-                                            {item.status}
-                                        </span>
+                            {topupData.length === 0 ? (
+                                <tr>
+                                    <td colSpan={8} className="px-6 py-8 text-center text-sm text-gray-400">
+                                        Belum ada transaksi top up.
                                     </td>
                                 </tr>
-                            ))}
+                            ) : (
+                                topupData.map((item) => {
+                                    const realStatus = item.reference_id ? getDokuStatus(item.reference_id, item.status) : item.status
+                                    const method = item.reference_id ? getDokuMethod(item.reference_id) : null
+                                    const nominal = item.reference_id ? getDokuNominal(item.reference_id) : null
+                                    const isLoadingDoku = dokuLoading[item.reference_id]
+
+                                    return (
+                                        <tr key={item.id} className="hover:bg-gray-50 transition">
+                                            <td className="px-6 py-4 text-sm font-medium text-gray-900 font-mono">
+                                                {item.id}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-600 font-medium">{item.user_name}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">
+                                                {isLoadingDoku ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin text-gray-300" />
+                                                ) : (
+                                                    method || <span className="text-gray-300">-</span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 text-xs text-gray-400">{formatDate(item.created_at)}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                                                {isLoadingDoku ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin text-gray-300" />
+                                                ) : (
+                                                    nominal ? `Rp ${nominal.toLocaleString('id-ID')}` : <span className="text-gray-300">-</span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm font-bold text-gray-900">
+                                                <div className="flex items-center gap-1">
+                                                    <img src="/coin.png" alt="Coin" className="w-4 h-4" />
+                                                    {item.amount}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {isLoadingDoku ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin text-gray-300" />
+                                                ) : (
+                                                    <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${getStatusBadge(realStatus)}`}>
+                                                        {realStatus}
+                                                    </span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    )
+                                })
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -141,9 +294,6 @@ export default function AdminTransaction() {
                             <p className="text-xs text-gray-500">Coins spent by users on platform activities</p>
                         </div>
                     </div>
-                    <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg border border-gray-200">
-                        <Download className="w-4 h-4" />
-                    </button>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
@@ -151,28 +301,38 @@ export default function AdminTransaction() {
                             <tr>
                                 <th className="px-6 py-3">Usage ID</th>
                                 <th className="px-6 py-3">User</th>
-                                <th className="px-6 py-3">Action</th>
-                                <th className="px-6 py-3">Detail</th>
+                                <th className="px-6 py-3">Category</th>
+                                <th className="px-6 py-3">Description</th>
                                 <th className="px-6 py-3">Date</th>
                                 <th className="px-6 py-3">Amount</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {mockCoinUsage.map((item) => (
-                                <tr key={item.id} className="hover:bg-gray-50 transition">
-                                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.id}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-600 font-medium">{item.user}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-500">{item.action}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-500 italic">{item.detail}</td>
-                                    <td className="px-6 py-4 text-xs text-gray-400">{item.date}</td>
-                                    <td className="px-6 py-4 text-sm font-bold text-red-600">
-                                        <div className="flex items-center gap-1">
-                                            -<img src="/coin.png" alt="Coin" className="w-4 h-4" />
-                                            {item.amount}
-                                        </div>
+                            {spendData.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-400">
+                                        Belum ada penggunaan coin.
                                     </td>
                                 </tr>
-                            ))}
+                            ) : (
+                                spendData.map((item) => (
+                                    <tr key={item.id} className="hover:bg-gray-50 transition">
+                                        <td className="px-6 py-4 text-sm font-medium text-gray-900 font-mono">{item.id}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-600 font-medium">{item.user_name}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-500">{item.category}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 italic max-w-[200px] truncate" title={item.description}>
+                                            {item.description}
+                                        </td>
+                                        <td className="px-6 py-4 text-xs text-gray-400">{formatDate(item.created_at)}</td>
+                                        <td className="px-6 py-4 text-sm font-bold text-red-600">
+                                            <div className="flex items-center gap-1">
+                                                -<img src="/coin.png" alt="Coin" className="w-4 h-4" />
+                                                {Math.abs(item.amount)}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>

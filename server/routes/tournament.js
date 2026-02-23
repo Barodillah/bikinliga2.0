@@ -1123,12 +1123,12 @@ router.get('/:idOrSlug/statistics', optionalAuth, async (req, res) => {
             [tournament.id]
         );
 
-        // 3. Fetch Participants to map names
+        // 3. Fetch Participants to map names (only approved)
         const [participants] = await connection.query(
             `SELECT p.id, p.name, p.team_name, p.logo_url, u.username 
              FROM participants p 
              LEFT JOIN users u ON p.user_id = u.id 
-             WHERE p.tournament_id = ?`,
+             WHERE p.tournament_id = ? AND p.status = 'approved'`,
             [tournament.id]
         );
 
