@@ -4,6 +4,62 @@ import { BarChart, Activity, ShieldAlert, Award, TrendingUp, Percent } from 'luc
 import Card, { CardContent, CardHeader } from '../ui/Card'
 import AdSlot from '../ui/AdSlot'
 
+const TopScorerCell = ({ playerName }) => {
+    const [faceUrl, setFaceUrl] = React.useState('https://www.efootballdb.com/img/players/player_noface.png');
+
+    React.useEffect(() => {
+        let isMounted = true;
+        setFaceUrl('https://www.efootballdb.com/img/players/player_noface.png');
+
+        const fetchFace = async () => {
+            if (!playerName || playerName === '-') return;
+
+            // The API returns playerName in the format "Player Name (Goals)", so we need to extract just the name
+            const searchName = playerName.split(' (')[0];
+
+            try {
+                const res = await fetch(`/api/external/player-face?q=${encodeURIComponent(searchName)}`);
+                if (!res.ok) throw new Error('Network error');
+                const json = await res.json();
+                if (isMounted) {
+                    if (json.status === true && json.data && json.data.length > 0) {
+                        setFaceUrl(json.data[0].link);
+                    } else {
+                        setFaceUrl('https://www.efootballdb.com/img/players/player_noface.png');
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching face:', error);
+                if (isMounted) {
+                    setFaceUrl('https://www.efootballdb.com/img/players/player_noface.png');
+                }
+            }
+        };
+
+        fetchFace();
+
+        return () => { isMounted = false; };
+    }, [playerName]);
+
+    if (!playerName || playerName === '-') {
+        return <span className="text-gray-600">-</span>;
+    }
+
+    return (
+        <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 ring-2 ring-neonPink shadow-[0_0_10px_rgba(254,0,201,0.6)] bg-black/50 flex items-center justify-center">
+                <img
+                    src={faceUrl}
+                    alt={playerName}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.target.src = 'https://www.efootballdb.com/img/players/player_noface.png' }}
+                />
+            </div>
+            <span className="truncate max-w-[120px]" title={playerName}>{playerName}</span>
+        </div>
+    );
+};
+
 export default function TournamentStatistics({ stats, loading }) {
     const navigate = useNavigate()
 
@@ -116,7 +172,9 @@ export default function TournamentStatistics({ stats, loading }) {
                                         <td className="p-4 text-center">
                                             <span className="font-bold text-neonGreen">{team.productivity}</span>
                                         </td>
-                                        <td className="p-4 text-sm text-gray-300">{team.topScorer !== '-' ? team.topScorer : <span className="text-gray-600">-</span>}</td>
+                                        <td className="p-4 text-sm text-gray-300">
+                                            <TopScorerCell playerName={team.topScorer} />
+                                        </td>
                                         <td className="p-4 text-center">
                                             <div className="inline-block px-2 py-1 rounded text-xs font-bold bg-blue-500/20 text-blue-400">
                                                 {team.winRate}%
