@@ -7,6 +7,7 @@ import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import AsyncPlayerSelect from '../../components/ui/AsyncPlayerSelect'
 import { authFetch } from '../../utils/api'
+import { useToast } from '../../contexts/ToastContext'
 
 // Initial State (will be populated from API)
 const initialMatchData = {
@@ -25,6 +26,7 @@ const initialMatchData = {
 export default function MatchManagement() {
     const { id, matchId } = useParams()
     const navigate = useNavigate()
+    const toast = useToast()
 
     // State
     // State
@@ -42,6 +44,11 @@ export default function MatchManagement() {
     const [showPreviousRoundModal, setShowPreviousRoundModal] = useState(false)
     const [previousRoundNumber, setPreviousRoundNumber] = useState(null)
     const [loadingMessage, setLoadingMessage] = useState('') // Custom loading overlay message
+
+    // Reset Match States
+    const [showResetModal, setShowResetModal] = useState(false)
+    const [resetPassword, setResetPassword] = useState('')
+    const [isResetting, setIsResetting] = useState(false)
 
     // Joyride States
     const [runTour, setRunTour] = useState(false)
@@ -588,6 +595,40 @@ export default function MatchManagement() {
 
     const [showConfirmModal, setShowConfirmModal] = useState(false)
 
+    const handleResetMatch = async (e) => {
+        e.preventDefault()
+        if (!resetPassword) return
+
+        setIsResetting(true)
+        try {
+            const response = await authFetch(`/api/matches/${matchId}/reset`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ password: resetPassword })
+            })
+
+            const data = await response.json()
+
+            if (data.success) {
+                toast.success('Berhasil mereset pertandingan')
+
+                // Refresh data
+                await fetchMatchData()
+            } else {
+                toast.error(data.message || 'Gagal reset pertandingan')
+            }
+        } catch (error) {
+            console.error('Error resetting match:', error)
+            toast.error('Terjadi kesalahan sistem')
+        } finally {
+            setIsResetting(false)
+            setShowResetModal(false)
+            setResetPassword('')
+        }
+    }
+
     const handleConfirmMatch = () => {
         setShowConfirmModal(true)
     }
@@ -838,6 +879,16 @@ export default function MatchManagement() {
                             </span>
                         )}
                     </div>
+
+                    {/* Reset Match Badge */}
+                    {match.status === 'finished' && (
+                        <div className="absolute top-2 right-4 z-[15] text-xs font-bold text-gray-500 hover:text-red-500 cursor-pointer transition-colors" title="Reset Match" onClick={() => setShowResetModal(true)}>
+                            <span className="bg-white/5 hover:bg-red-500/20 px-2 py-1 flex items-center gap-1 rounded">
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                Reset
+                            </span>
+                        </div>
+                    )}
 
                     {/* Winner/Result Banner */}
                     {match.status === 'finished' && (
@@ -1673,6 +1724,46 @@ export default function MatchManagement() {
                     </div>
                 )
             }
+
+            {/* RESET MATCH MODAL */}
+            <Modal
+                isOpen={showResetModal}
+                onClose={() => setShowResetModal(false)}
+                title={
+                    <div className="flex items-center gap-2 text-red-500">
+                        <RotateCcw className="w-5 h-5" /> Reset Match
+                    </div>
+                }
+                size="sm"
+            >
+                <div className="space-y-4">
+                    <div className="text-gray-300 text-sm">
+                        Anda akan mereset status pertandingan ini. Semua event dan skor mungkin akan dihapus.
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm text-gray-400">Masukkan Password Akun Anda</label>
+                        <input
+                            type="password"
+                            value={resetPassword}
+                            onChange={(e) => setResetPassword(e.target.value)}
+                            className="w-full bg-black/50 border border-white/10 rounded-lg p-3 outline-none focus:border-red-500 text-white"
+                            placeholder="Password"
+                        />
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                        <Button variant="outline" className="flex-1 border-white/10 hover:bg-white/5" onClick={() => setShowResetModal(false)}>
+                            Batal
+                        </Button>
+                        <Button
+                            className="flex-1 bg-red-500 hover:bg-red-600 text-white border-0"
+                            onClick={handleResetMatch}
+                            disabled={isResetting || !resetPassword}
+                        >
+                            {isResetting ? 'Memproses...' : 'Reset'}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
             {/* DEBUG INFO - REMOVE BEFORE PRODUCTION */}
             <div className="bg-black/80 p-4 rounded text-xs font-mono text-green-400 overflow-auto border border-green-500/30">
                 <h4 className="font-bold border-b border-green-500/30 mb-2">DEBUG MATCH STATE</h4>

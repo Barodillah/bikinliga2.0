@@ -1112,6 +1112,172 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// Reset Match Endpoint
+import bcrypt from 'bcryptjs';
+
+router.post('/:id/reset', authenticateToken, async (req, res) => {
+    const connection = await db.getConnection();
+    try {
+        const { id } = req.params;
+        const { password } = req.body;
+        const userId = req.user.id;
+
+        if (!password) {
+            return res.status(400).json({ success: false, message: 'Password dibutuhkan' });
+        }
+
+        // 1. Validate Password
+        const [users] = await connection.query('SELECT password FROM users WHERE id = ?', [userId]);
+        if (users.length === 0) {
+            return res.status(404).json({ success: false, message: 'User tidak ditemukan' });
+        }
+
+        const validPassword = await bcrypt.compare(password, users[0].password);
+        if (!validPassword) {
+            return res.status(401).json({ success: false, message: 'Password salah' });
+        }
+
+        await connection.beginTransaction();
+
+        // 2. Get current match details
+        const [matches] = await connection.query('SELECT * FROM matches WHERE id = ? FOR UPDATE', [id]);
+        if (matches.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, message: 'Match tidak ditemukan' });
+        }
+
+        const currentMatch = matches[0];
+
+        // 3. Clear match_events
+        await connection.query('DELETE FROM match_events WHERE match_id = ?', [id]);
+
+        // 4. Update match table (reset scores and status)
+        let newDetails = {};
+        try {
+            newDetails = typeof currentMatch.details === 'string' ? JSON.parse(currentMatch.details || '{}') : (currentMatch.details || {});
+            delete newDetails.period; // Clear the period
+        } catch (e) {
+            newDetails = {};
+        }
+
+        await connection.query(
+            `UPDATE matches 
+             SET home_score = NULL, away_score = NULL, home_penalty_score = NULL, away_penalty_score = NULL, 
+                 status = 'scheduled', details = ? 
+             WHERE id = ?`,
+            [JSON.stringify(newDetails), id]
+        );
+
+        // 5. Get participants (to find user_ids for user_statistics)
+        const [participants] = await connection.query(
+            'SELECT id, user_id FROM participants WHERE id IN (?, ?)',
+            [currentMatch.home_participant_id, currentMatch.away_participant_id]
+        );
+        const homePart = participants.find(p => p.id === currentMatch.home_participant_id);
+        const awayPart = participants.find(p => p.id === currentMatch.away_participant_id);
+
+        const hScore = currentMatch.home_score || 0;
+        const aScore = currentMatch.away_score || 0;
+
+        // Results
+        let hWin = 0, aWin = 0, hDraw = 0, aDraw = 0, hLoss = 0, aLoss = 0;
+        if (hScore > aScore) { hWin = 1; aLoss = 1; }
+        else if (aScore > hScore) { aWin = 1; hLoss = 1; }
+        else { hDraw = 1; aDraw = 1; }
+
+        // 6. Reverse Standings Data (if League or Group Stage Knockout)
+        const [tournaments] = await connection.query('SELECT type FROM tournaments WHERE id = ?', [currentMatch.tournament_id]);
+        if (tournaments.length > 0) {
+            const tournament = tournaments[0];
+            let gName = newDetails.groupName || null;
+            const isGroupMatch = (tournament.type === 'league') || (tournament.type === 'group_knockout' && gName);
+
+            if (isGroupMatch) {
+                let hPoints = 0, aPoints = 0;
+                if (hWin) hPoints = 3; else if (hDraw) hPoints = 1;
+                if (aWin) aPoints = 3; else if (aDraw) aPoints = 1;
+
+                const reverseStanding = async (participantId, points, won, draw, lost, gf, ga) => {
+                    if (!participantId) return;
+                    const gd = gf - ga;
+                    // Ensure we don't drop below 0
+                    await connection.query(
+                        `UPDATE standings SET 
+                            points = GREATEST(0, points - ?), 
+                            played = GREATEST(0, played - 1), 
+                            won = GREATEST(0, won - ?), 
+                            drawn = GREATEST(0, drawn - ?), 
+                            lost = GREATEST(0, lost - ?), 
+                            goals_for = GREATEST(0, goals_for - ?), 
+                            goals_against = GREATEST(0, goals_against - ?), 
+                            goal_difference = GREATEST(0, goal_difference - ?)
+                         WHERE tournament_id = ? AND participant_id = ?`,
+                        [points, won, draw, lost, gf, ga, gd, currentMatch.tournament_id, participantId]
+                    );
+                };
+
+                await reverseStanding(currentMatch.home_participant_id, hPoints, hWin, hDraw, hLoss, hScore, aScore);
+                await reverseStanding(currentMatch.away_participant_id, aPoints, aWin, aDraw, aLoss, aScore, hScore);
+            }
+
+            // Note: Reversing Knockout progressions (finding advanced match and un-assigning slot) is complex
+            // Usually, admins need to reset the future match slots manually if a knockout game is reset.
+        }
+
+        // 7. Delete Latest user_statistics_history and Reverse user_statistics points
+        const reverseStats = async (uId, isWin, isDraw, isLoss, gf, ga) => {
+            if (!uId) return;
+
+            let points = 0;
+            if (isWin) points = 6; else if (isDraw) points = 2; else if (isLoss) points = -4;
+
+            const w = isWin ? 1 : 0;
+            const l = isLoss ? 1 : 0;
+            const d = isDraw ? 1 : 0;
+            const gd = gf - ga;
+
+            // Delete the latest history record for this user
+            const [latestHistory] = await connection.query(
+                'SELECT id FROM user_statistics_history WHERE user_id = ? ORDER BY recorded_at DESC LIMIT 1',
+                [uId]
+            );
+            if (latestHistory.length > 0) {
+                await connection.query('DELETE FROM user_statistics_history WHERE id = ?', [latestHistory[0].id]);
+            }
+
+            // Update stats back
+            await connection.query(
+                `UPDATE user_statistics SET
+                     total_points = GREATEST(0, total_points - ?),
+                     total_matches = GREATEST(0, total_matches - 1),
+                     total_wins = GREATEST(0, total_wins - ?),
+                     total_losses = GREATEST(0, total_losses - ?),
+                     total_draws = GREATEST(0, total_draws - ?),
+                     goals_for = GREATEST(0, goals_for - ?),
+                     goals_against = GREATEST(0, goals_against - ?),
+                     goal_difference = GREATEST(0, goal_difference - ?),
+                     win_rate = CASE WHEN (total_matches - 1) > 0 THEN GREATEST(0, (total_wins - ?) / (total_matches - 1) * 100) ELSE 0 END
+                  WHERE user_id = ?`,
+                [points, w, l, d, gf, ga, gd, w, uId]
+            );
+        };
+
+        if (homePart?.user_id) await reverseStats(homePart.user_id, !!hWin, !!hDraw, !!hLoss, hScore, aScore);
+        if (awayPart?.user_id) await reverseStats(awayPart.user_id, !!aWin, !!aDraw, !!aLoss, aScore, hScore);
+
+        await connection.commit();
+        await logActivity(req.user.id, 'Reset Match', `User resetted match ${id}`, id, 'match');
+
+        res.json({ success: true, message: 'Pertandingan berhasil di-reset' });
+    } catch (error) {
+        await connection.rollback();
+        console.error('Reset match error:', error);
+        res.status(500).json({ success: false, message: 'Gagal mereset pertandingan' });
+    } finally {
+        connection.release();
+    }
+});
+
 // Match Chat Endpoints
 router.get('/:id/chat', optionalAuth, async (req, res) => {
     try {

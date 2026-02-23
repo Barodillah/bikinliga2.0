@@ -1,7 +1,10 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md', variant = 'dark' }) {
+    const [mounted, setMounted] = useState(false)
+
     const sizes = {
         sm: 'max-w-md',
         md: 'max-w-lg',
@@ -27,6 +30,12 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', v
 
     const theme = variants[variant] || variants.dark
 
+    // Handle mounting for portal
+    useEffect(() => {
+        setMounted(true)
+        return () => setMounted(false)
+    }, [])
+
     // Close on escape key
     useEffect(() => {
         const handleEscape = (e) => {
@@ -44,36 +53,38 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', v
         }
     }, [isOpen, onClose])
 
-    if (!isOpen) return null
+    if (!isOpen || !mounted) return null
 
-    return (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
+    return createPortal(
+        <div className="fixed inset-0 z-[100] w-screen h-screen flex items-center justify-center p-4">
             {/* Backdrop */}
             <div
-                className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
                 onClick={onClose}
+                aria-hidden="true"
             />
 
             {/* Modal */}
-            <div className={`flex items-center justify-center p-4 ${size === 'fullScreen' ? 'fixed inset-0 p-0' : 'min-h-full'}`}>
-                <div className={`relative ${sizes[size]} w-full rounded-2xl shadow-2xl transform transition-all flex flex-col ${theme.panel}`}>
-                    {/* Header */}
-                    <div className={`flex items-center justify-between p-6 border-b shrink-0 ${theme.header}`}>
-                        <h3 className={`text-xl font-display font-bold ${theme.title}`}>{title}</h3>
+            <div className={`relative z-10 w-full ${sizes[size]} rounded-2xl shadow-2xl transform transition-all flex flex-col ${theme.panel} ${size === 'fullScreen' ? 'h-full' : 'max-h-[90vh]'}`}>
+                {/* Header */}
+                <div className={`flex items-center justify-between p-6 border-b shrink-0 ${theme.header}`}>
+                    <h3 className={`text-xl font-display font-bold ${theme.title}`}>{title}</h3>
+                    {onClose && (
                         <button
                             onClick={onClose}
                             className={`p-2 rounded-lg transition ${theme.close}`}
                         >
                             <X className="w-5 h-5" />
                         </button>
-                    </div>
+                    )}
+                </div>
 
-                    {/* Content */}
-                    <div className={`p-6 flex-1 overflow-y-auto ${size === 'fullScreen' ? 'flex flex-col' : ''}`}>
-                        {children}
-                    </div>
+                {/* Content */}
+                <div className={`p-6 overflow-y-auto ${size === 'fullScreen' ? 'flex-1' : ''}`}>
+                    {children}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     )
 }
