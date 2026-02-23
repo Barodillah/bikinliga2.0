@@ -738,11 +738,19 @@ router.patch('/:id', authenticateToken, async (req, res) => {
                             const d = isDraw ? 1 : 0;
                             const gd = gf - ga;
 
+                            // 0. Get current points before update for previous_points_daily
+                            const [currentStats] = await connection.query(
+                                'SELECT total_points FROM user_statistics WHERE user_id = ? FOR UPDATE',
+                                [userId]
+                            );
+                            const prevPoints = currentStats.length > 0 ? currentStats[0].total_points : 0;
+
                             // 1. Upsert User Statistics
                             await connection.query(
-                                `INSERT INTO user_statistics (user_id, total_points, total_matches, total_wins, total_losses, total_draws, goals_for, goals_against, goal_difference, win_rate)
-                             VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
+                                `INSERT INTO user_statistics (user_id, total_points, total_matches, total_wins, total_losses, total_draws, goals_for, goals_against, goal_difference, win_rate, previous_points_daily)
+                             VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
                              ON DUPLICATE KEY UPDATE
+                                previous_points_daily = ?,
                                 total_points = total_points + ?,
                                 total_wins = total_wins + ?,
                                 total_losses = total_losses + ?,
@@ -753,24 +761,43 @@ router.patch('/:id', authenticateToken, async (req, res) => {
                                 goal_difference = goal_difference + ?,
                                 win_rate = (total_wins / total_matches) * 100`,
                                 [
-                                    userId, points, w, l, d, gf, ga, gd, (w * 100), // Insert
-                                    points, w, l, d, gf, ga, gd // Update
+                                    userId, points, w, l, d, gf, ga, gd, (w * 100), prevPoints, // Insert
+                                    prevPoints, points, w, l, d, gf, ga, gd // Update
                                 ]
                             );
 
                             // 2. Insert User Statistics History (Realtime)
                             // Fetch updated stats to record snapshot
                             const [updatedStats] = await connection.query(
-                                'SELECT total_points, win_rate FROM user_statistics WHERE user_id = ?',
+                                'SELECT total_points, win_rate, goal_difference, goals_for FROM user_statistics WHERE user_id = ?',
                                 [userId]
                             );
 
                             if (updatedStats.length > 0) {
                                 const current = updatedStats[0];
+
+                                // Calculate approximate current rank
+                                const [rankResult] = await connection.query(
+                                    `SELECT COUNT(*) + 1 as current_rank
+                                     FROM user_statistics
+                                     WHERE total_points > ? 
+                                     OR (total_points = ? AND win_rate > ?)
+                                     OR (total_points = ? AND win_rate = ? AND goal_difference > ?)
+                                     OR (total_points = ? AND win_rate = ? AND goal_difference = ? AND goals_for > ?)`,
+                                    [
+                                        current.total_points,
+                                        current.total_points, current.win_rate,
+                                        current.total_points, current.win_rate, current.goal_difference,
+                                        current.total_points, current.win_rate, current.goal_difference, current.goals_for
+                                    ]
+                                );
+
+                                const rank = rankResult.length > 0 ? rankResult[0].current_rank : 0;
+
                                 await connection.query(
-                                    `INSERT INTO user_statistics_history (user_id, points, win_rate, recorded_at)
-                                 VALUES (?, ?, ?, NOW())`,
-                                    [userId, current.total_points, current.win_rate]
+                                    `INSERT INTO user_statistics_history (user_id, points, rank_position, win_rate, recorded_at)
+                                 VALUES (?, ?, ?, ?, NOW())`,
+                                    [userId, current.total_points, rank, current.win_rate]
                                 );
                             }
                         };

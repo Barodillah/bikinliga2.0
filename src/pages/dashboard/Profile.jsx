@@ -228,7 +228,10 @@ export default function Profile() {
                     icon={Star}
                     color="text-yellow-400"
                     bg="bg-yellow-400/10"
-                    trend="+12 this week"
+                    trend={(() => {
+                        const diff = (user.stats?.total_points || 0) - (user.stats?.previous_points_daily || 0);
+                        return diff > 0 ? `+${diff} Hari Ini` : diff < 0 ? `${diff} Hari Ini` : `0 Hari Ini`;
+                    })()}
                 />
                 {(user.preferences?.showWinRate !== false) && (
                     <StatCard

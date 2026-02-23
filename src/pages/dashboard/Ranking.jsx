@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Trophy, Medal, Star, TrendingUp, Shield, Gamepad2, Swords, Loader2, Info } from 'lucide-react'
+import { Trophy, Medal, Star, TrendingUp, Shield, Gamepad2, Swords, Loader2, Info, ArrowUp, ArrowDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import AdSlot from '../../components/ui/AdSlot'
 import Modal from '../../components/ui/Modal'
@@ -31,7 +31,8 @@ export default function Ranking() {
                         avatar: item.avatar_url || `https://ui-avatars.com/api/?name=${item.name || item.username}&background=random`,
                         role: '-',
                         tier: (item.tier_name || 'free').toLowerCase().replace(' ', '_'),
-                        recentMatches: [] // Not fetched in list
+                        recentMatches: [], // Not fetched in list
+                        rankChange: item.rankChange || 0
                     })))
                         .filter(item => item.totalTournaments > 0)
                 }
@@ -173,8 +174,13 @@ export default function Ranking() {
                                         alt={topThree[1].name}
                                         className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full border-2 md:border-4 border-gray-400 shadow-lg shadow-gray-400/20"
                                     />
-                                    <div className="absolute -bottom-1 md:-bottom-2 left-1/2 -translate-x-1/2 px-1.5 md:px-3 py-0.5 md:py-1 bg-gray-800 rounded-full text-[10px] md:text-xs font-bold border border-gray-600">
+                                    <div className="absolute -bottom-1 md:-bottom-2 left-1/2 -translate-x-1/2 px-1.5 md:px-3 py-0.5 md:py-1 bg-gray-800 rounded-full text-[10px] md:text-xs font-bold border border-gray-600 flex items-center gap-0.5">
                                         #2
+                                        {topThree[1].rankChange < 0 ? (
+                                            <ArrowDown className="w-2.5 h-2.5 md:w-3 md:h-3 text-red-500" />
+                                        ) : topThree[1].rankChange > 0 ? (
+                                            <ArrowUp className="w-2.5 h-2.5 md:w-3 md:h-3 text-green-500" />
+                                        ) : null}
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-center gap-1 mb-0.5 md:mb-1">
@@ -213,8 +219,13 @@ export default function Ranking() {
                                         alt={topThree[0].name}
                                         className="w-14 h-14 sm:w-18 sm:h-18 md:w-24 md:h-24 rounded-full border-2 md:border-4 border-yellow-400 shadow-lg shadow-yellow-400/20"
                                     />
-                                    <div className="absolute -bottom-1.5 md:-bottom-3 left-1/2 -translate-x-1/2 px-2 md:px-4 py-0.5 md:py-1.5 bg-yellow-600 rounded-full text-[10px] md:text-sm font-bold border border-yellow-400 text-white shadow-lg">
+                                    <div className="absolute -bottom-1.5 md:-bottom-3 left-1/2 -translate-x-1/2 px-2 md:px-4 py-0.5 md:py-1.5 bg-yellow-600 rounded-full text-[10px] md:text-sm font-bold border border-yellow-400 text-white shadow-lg flex items-center gap-1">
                                         #1
+                                        {topThree[0].rankChange < 0 ? (
+                                            <ArrowDown className="w-3 h-3 md:w-4 md:h-4 text-red-300" strokeWidth={3} />
+                                        ) : topThree[0].rankChange > 0 ? (
+                                            <ArrowUp className="w-3 h-3 md:w-4 md:h-4 text-green-300" strokeWidth={3} />
+                                        ) : null}
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-center gap-1 mb-0.5 md:mb-1">
@@ -251,8 +262,13 @@ export default function Ranking() {
                                         alt={topThree[2].name}
                                         className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full border-2 md:border-4 border-orange-400 shadow-lg shadow-orange-400/20"
                                     />
-                                    <div className="absolute -bottom-1 md:-bottom-2 left-1/2 -translate-x-1/2 px-1.5 md:px-3 py-0.5 md:py-1 bg-gray-800 rounded-full text-[10px] md:text-xs font-bold border border-gray-600">
+                                    <div className="absolute -bottom-1 md:-bottom-2 left-1/2 -translate-x-1/2 px-1.5 md:px-3 py-0.5 md:py-1 bg-gray-800 rounded-full text-[10px] md:text-xs font-bold border border-gray-600 flex items-center gap-0.5">
                                         #3
+                                        {topThree[2].rankChange < 0 ? (
+                                            <ArrowDown className="w-2.5 h-2.5 md:w-3 md:h-3 text-red-500" />
+                                        ) : topThree[2].rankChange > 0 ? (
+                                            <ArrowUp className="w-2.5 h-2.5 md:w-3 md:h-3 text-green-500" />
+                                        ) : null}
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-center gap-1 mb-0.5 md:mb-1">
@@ -325,7 +341,16 @@ export default function Ranking() {
                                     className="hover:bg-white/5 transition cursor-pointer"
                                     onClick={() => handleProfileClick(player.username)}
                                 >
-                                    <td className="p-4 text-gray-400 font-medium">#{index + 4}</td>
+                                    <td className="p-4 text-gray-400 font-medium whitespace-nowrap">
+                                        <div className="flex items-center gap-1">
+                                            #{index + 4}
+                                            {player.rankChange < 0 ? (
+                                                <ArrowDown className="w-3 h-3 text-red-500" />
+                                            ) : player.rankChange > 0 ? (
+                                                <ArrowUp className="w-3 h-3 text-green-500" />
+                                            ) : null}
+                                        </div>
+                                    </td>
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
                                             <img
@@ -374,8 +399,13 @@ export default function Ranking() {
                     >
                         <div className="flex items-center gap-3">
                             {/* Rank Badge */}
-                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white/5 flex flex-col items-center justify-center">
                                 <span className="text-sm font-bold text-gray-400">#{index + 4}</span>
+                                {player.rankChange < 0 ? (
+                                    <ArrowDown className="w-2.5 h-2.5 text-red-500 -mt-1" />
+                                ) : player.rankChange > 0 ? (
+                                    <ArrowUp className="w-2.5 h-2.5 text-green-500 -mt-1" />
+                                ) : null}
                             </div>
 
                             {/* Avatar */}
@@ -507,32 +537,29 @@ export default function Ranking() {
                                 Recent Performance
                             </h5>
                             <div className="flex gap-2">
-                                {/* Ensure always 5 bars, padding with null if fewer matches */}
-                                {Array.from({ length: 5 }).map((_, i) => {
-                                    // Reverse index to show latest on right? Or left?
-                                    // Usually "Recent" means left-to-right or right-to-left.
-                                    // Arrays are usually [latest, older] or [older, latest].
-                                    // DB query was ORDER BY updated_at DESC (latest first).
-                                    // So index 0 is latest.
-                                    // If we want Left=Oldest, Right=Newest, we need to reverse.
-                                    // Let's assume Left=Newest for now based on standard "Recent" lists, or stick to DB order.
-                                    // However, typical form guide is Left=Most Recent.
+                                {/* Ensure always 5 bars, newest on the left (index 0) */}
+                                {(() => {
+                                    const matches = selectedPlayer.recentMatches || [];
+                                    const padded = [...matches];
 
-                                    const result = (selectedPlayer.recentMatches || [])[i];
+                                    // Pad with null so there are always 5 shapes
+                                    while (padded.length < 5) padded.push(null);
 
-                                    let colorClass = 'bg-white/5'; // Empty/Default
-                                    if (result === 'Win') colorClass = 'bg-green-500';
-                                    else if (result === 'Draw') colorClass = 'bg-yellow-500';
-                                    else if (result === 'Lose') colorClass = 'bg-red-500';
+                                    return padded.map((result, i) => {
+                                        let colorClass = 'bg-white/5'; // Empty/Default
+                                        if (result === 'Win') colorClass = 'bg-green-500';
+                                        else if (result === 'Draw') colorClass = 'bg-yellow-500';
+                                        else if (result === 'Lose') colorClass = 'bg-red-500';
 
-                                    return (
-                                        <div
-                                            key={i}
-                                            className={`flex-1 h-2 rounded-full ${colorClass}`}
-                                            title={result || 'No Data'}
-                                        />
-                                    );
-                                })}
+                                        return (
+                                            <div
+                                                key={i}
+                                                className={`flex-1 h-2 rounded-full ${colorClass}`}
+                                                title={result || 'No Data'}
+                                            />
+                                        );
+                                    });
+                                })()}
                             </div>
                             <div className="flex justify-between text-xs text-gray-400">
                                 <span>All Time Stats</span>

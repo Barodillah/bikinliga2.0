@@ -30,7 +30,21 @@ router.get('/', async (req, res) => {
                     WHERE cm.user_id = u.id AND cm.status = 'active'
                     ORDER BY cm.joined_at DESC 
                     LIMIT 1
-                ) as community_name
+                ) as community_name,
+                (
+                    SELECT h.rank_position
+                    FROM user_statistics_history h
+                    WHERE h.user_id = u.id AND h.rank_position IS NOT NULL
+                    ORDER BY h.recorded_at DESC
+                    LIMIT 1 OFFSET 0
+                ) as hist_rank_new,
+                (
+                    SELECT h.rank_position
+                    FROM user_statistics_history h
+                    WHERE h.user_id = u.id AND h.rank_position IS NOT NULL
+                    ORDER BY h.recorded_at DESC
+                    LIMIT 1 OFFSET 1
+                ) as hist_rank_old
              FROM user_statistics us
              JOIN users u ON us.user_id = u.id
              ORDER BY us.total_points DESC, us.win_rate DESC, us.goal_difference DESC, us.goals_for DESC
@@ -40,10 +54,22 @@ router.get('/', async (req, res) => {
         // Add rank number and gap logic
         const data = rows.map((row, index) => {
             const gap = row.total_points - (row.previous_points_daily || 0);
+
+            // Calculate rank change based on the last 2 history records
+            let rankChange = 0; // 0 = no change
+            if (row.hist_rank_old && row.hist_rank_new) {
+                // If old rank was 5 and new rank is 2 -> change is +3
+                rankChange = row.hist_rank_old - row.hist_rank_new;
+            } else if (row.hist_rank_new && !row.hist_rank_old && index + 1 !== row.hist_rank_new) {
+                // Fallback if only 1 history data exists, compare with live index
+                rankChange = row.hist_rank_new - (index + 1);
+            }
+
             return {
                 ...row,
                 rank: index + 1,
-                gap: gap
+                gap: gap,
+                rankChange: rankChange
             };
         });
 
@@ -86,7 +112,7 @@ router.get('/user/:username', async (req, res) => {
              JOIN participants p2 ON m.away_participant_id = p2.id
              WHERE (p1.user_id = ? OR p2.user_id = ?)
              AND m.status = 'completed'
-             ORDER BY m.created_at DESC
+             ORDER BY m.updated_at DESC
              LIMIT 5`,
             [userId, userId]
         );
