@@ -561,6 +561,29 @@ router.get('/transactions/spend', async (req, res) => {
     }
 });
 
+// GET /admin/transactions/claim - All claim reward transactions with user info
+router.get('/transactions/claim', async (req, res) => {
+    try {
+        const sql = `
+            SELECT 
+                t.id, t.amount, t.category, t.description, t.status, t.created_at,
+                t.type as type_reward,
+                u.name as user_name, u.email as user_email, u.avatar_url as user_avatar
+            FROM transactions t
+            JOIN wallets w ON t.wallet_id = w.id
+            JOIN users u ON w.user_id = u.id
+            WHERE t.type = 'reward' OR t.type = 'claim'
+            ORDER BY t.created_at DESC
+            LIMIT 200
+        `;
+        const claims = await query(sql);
+        res.json({ success: true, data: claims });
+    } catch (error) {
+        console.error('Claim transactions error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch claim transactions' });
+    }
+});
+
 // GET /admin/transactions/doku-status/:invoiceNumber - Check DOKU order status
 router.get('/transactions/doku-status/:invoiceNumber', async (req, res) => {
     try {

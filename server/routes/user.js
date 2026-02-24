@@ -729,10 +729,10 @@ router.post('/subscription/upgrade', authMiddleware, async (req, res) => {
         let requiredCoins = 0;
         let planName = '';
         if (plan_id === 2) {
-            requiredCoins = 1960;
+            requiredCoins = 315;
             planName = 'Captain';
         } else if (plan_id === 3) {
-            requiredCoins = 5960;
+            requiredCoins = 1260;
             planName = 'Pro League';
         } else {
             return res.status(400).json({ success: false, message: 'Plan ID tidak valid' });

@@ -7,7 +7,7 @@ const plans = [
     {
         name: 'Komunitas Kecil',
         price: 'Rp 0',
-        period: '/bulan',
+        period: '/selamanya',
         features: ['1 Turnamen Aktif', 'Maks. 8 Peserta', 'Klasemen Dasar', 'Iklan Tampil'],
         cta: 'Daftar Gratis',
         highlight: false,
@@ -16,7 +16,7 @@ const plans = [
     {
         name: 'Rental / Warkop',
         price: 'Rp 49rb',
-        period: '/bulan',
+        period: '/6 Bulan',
         features: ['Unlimited Turnamen', 'Maks. 32 Peserta/Liga', 'Export Klasemen ke Image', 'Halaman Publik Custom', 'Tanpa Iklan'],
         cta: 'Langganan Sekarang',
         highlight: true,
@@ -25,7 +25,7 @@ const plans = [
     {
         name: 'Event Organizer',
         price: 'Rp 199rb',
-        period: '/event',
+        period: '/6 Bulan',
         features: ['Bracket Hingga 128 Peserta', 'Sistem Registrasi Online', 'Ticket Management', 'API Access'],
         cta: 'Hubungi Sales',
         highlight: false,
@@ -55,8 +55,8 @@ export default function Pricing() {
                                 key={plan.name}
                                 ref={revealRef}
                                 className={`reveal p-8 rounded-2xl ${plan.highlight
-                                        ? 'bg-[#1a1a1a] border-2 border-neonPink relative transform md:-translate-y-4 shadow-[0_0_30px_rgba(254,0,201,0.15)]'
-                                        : 'glass-panel'
+                                    ? 'bg-[#1a1a1a] border-2 border-neonPink relative transform md:-translate-y-4 shadow-[0_0_30px_rgba(254,0,201,0.15)]'
+                                    : 'glass-panel'
                                     }`}
                                 style={{ transitionDelay: `${index * 100}ms` }}
                             >
@@ -85,8 +85,8 @@ export default function Pricing() {
                                 <Link
                                     to="/dashboard"
                                     className={`block w-full py-3 rounded-lg text-center font-bold transition ${plan.highlight
-                                            ? 'bg-neonPink text-white hover:bg-pink-600 shadow-lg shadow-pink-500/30'
-                                            : 'border border-white/20 hover:bg-white/10'
+                                        ? 'bg-neonPink text-white hover:bg-pink-600 shadow-lg shadow-pink-500/30'
+                                        : 'border border-white/20 hover:bg-white/10'
                                         }`}
                                 >
                                     {plan.cta}

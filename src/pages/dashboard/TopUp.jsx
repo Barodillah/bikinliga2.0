@@ -33,8 +33,8 @@ const SUBSCRIPTION_PLANS = [
         id: 'captain',
         name: 'Captain',
         db_id: 2,
-        price: '1.960 Coins',
-        coins: 1960,
+        price: '315 Coins',
+        coins: 315,
         period: '/ 6 Bulan',
         features: [
             'Max 5 Tournaments',
@@ -49,8 +49,8 @@ const SUBSCRIPTION_PLANS = [
         id: 'pro_league',
         name: 'Pro League',
         db_id: 3,
-        price: '5.960 Coins',
-        coins: 5960,
+        price: '1.260 Coins',
+        coins: 1260,
         period: '/ 6 Bulan',
         features: [
             'Unlimited Tournaments',

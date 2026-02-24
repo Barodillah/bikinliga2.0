@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowUpRight, ArrowDownLeft, Wallet, Search, Filter, Download, Users, Activity, Banknote, Loader2 } from 'lucide-react'
+import { ArrowUpRight, ArrowDownLeft, Wallet, Search, Filter, Download, Users, Activity, Banknote, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '../../utils/api'
 
 export default function AdminTransaction() {
     const [activeTab, setActiveTab] = useState('topup')
     const [topupData, setTopupData] = useState([])
     const [spendData, setSpendData] = useState([])
+    const [claimData, setClaimData] = useState([])
     const [statsData, setStatsData] = useState(null)
     const [dokuStatuses, setDokuStatuses] = useState({}) // keyed by reference_id
     const [loading, setLoading] = useState(true)
     const [dokuLoading, setDokuLoading] = useState({}) // keyed by reference_id
+
+    const [topupPage, setTopupPage] = useState(1)
+    const [spendPage, setSpendPage] = useState(1)
+    const [claimPage, setClaimPage] = useState(1)
+    const ITEMS_PER_PAGE = 10
 
     useEffect(() => {
         fetchData()
@@ -18,10 +24,11 @@ export default function AdminTransaction() {
     const fetchData = async () => {
         try {
             setLoading(true)
-            const [statsRes, topupRes, spendRes] = await Promise.all([
+            const [statsRes, topupRes, spendRes, claimRes] = await Promise.all([
                 api.get('/api/admin/transactions/stats'),
                 api.get('/api/admin/transactions/topup'),
-                api.get('/api/admin/transactions/spend')
+                api.get('/api/admin/transactions/spend'),
+                api.get('/api/admin/transactions/claim')
             ])
 
             if (statsRes.success) setStatsData(statsRes.data)
@@ -31,6 +38,7 @@ export default function AdminTransaction() {
                 fetchDokuStatuses(topupRes.data)
             }
             if (spendRes.success) setSpendData(spendRes.data)
+            if (claimRes.success) setClaimData(claimRes.data)
         } catch (error) {
             console.error('Error fetching transaction data:', error)
         } finally {
@@ -144,6 +152,70 @@ export default function AdminTransaction() {
         return sum
     }, 0)
 
+    // Pagination Calculation
+    const getPaginatedData = (data, page) => {
+        const startIndex = (page - 1) * ITEMS_PER_PAGE
+        const endIndex = startIndex + ITEMS_PER_PAGE
+        return data.slice(startIndex, endIndex)
+    }
+
+    const currentTopupData = getPaginatedData(topupData, topupPage)
+    const currentSpendData = getPaginatedData(spendData, spendPage)
+    const currentClaimData = getPaginatedData(claimData, claimPage)
+
+    const PaginationContext = ({ data, currentPage, setPage }) => {
+        const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE)
+        if (totalPages <= 1) return null
+
+        return (
+            <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+                <div className="flex flex-1 justify-between sm:hidden">
+                    <button
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                    >
+                        Previous
+                    </button>
+                    <button
+                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                    >
+                        Next
+                    </button>
+                </div>
+                <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                    <div>
+                        <p className="text-sm text-gray-700">
+                            Showing <span className="font-medium">{((currentPage - 1) * ITEMS_PER_PAGE) + 1}</span> to <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, data.length)}</span> of <span className="font-medium">{data.length}</span> results
+                        </p>
+                    </div>
+                    <div>
+                        <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                            <button
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                            >
+                                <span className="sr-only">Previous</span>
+                                <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                            </button>
+                            <button
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                            >
+                                <span className="sr-only">Next</span>
+                                <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     const stats = [
         { title: 'Total Revenue', value: `Rp ${totalRevenue.toLocaleString('id-ID')}`, change: 'From Top Up', icon: Banknote, color: 'text-green-600', bg: 'bg-green-100' },
         { title: 'Total Top Up Transaksi', value: statsData?.total_topup_count?.toLocaleString('id-ID') || '0', change: 'All Time', icon: Activity, color: 'text-blue-600', bg: 'bg-blue-100' },
@@ -199,6 +271,13 @@ export default function AdminTransaction() {
                 >
                     Coin Usage
                 </button>
+                <button
+                    onClick={() => setActiveTab('claim')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'claim' ? 'bg-gray-100 text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    Claim Reward
+                </button>
             </div>
 
             {/* Top Up History Card */}
@@ -228,14 +307,14 @@ export default function AdminTransaction() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {topupData.length === 0 ? (
+                            {currentTopupData.length === 0 ? (
                                 <tr>
                                     <td colSpan={8} className="px-6 py-8 text-center text-sm text-gray-400">
                                         Belum ada transaksi top up.
                                     </td>
                                 </tr>
                             ) : (
-                                topupData.map((item) => {
+                                currentTopupData.map((item) => {
                                     const realStatus = item.reference_id ? getDokuStatus(item.reference_id, item.status) : item.status
                                     const method = item.reference_id ? getDokuMethod(item.reference_id) : null
                                     const nominal = item.reference_id ? getDokuNominal(item.reference_id) : null
@@ -284,6 +363,7 @@ export default function AdminTransaction() {
                         </tbody>
                     </table>
                 </div>
+                <PaginationContext data={topupData} currentPage={topupPage} setPage={setTopupPage} />
             </div>
 
             {/* Coin Usage History Card */}
@@ -312,14 +392,14 @@ export default function AdminTransaction() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {spendData.length === 0 ? (
+                            {currentSpendData.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-400">
                                         Belum ada penggunaan coin.
                                     </td>
                                 </tr>
                             ) : (
-                                spendData.map((item) => (
+                                currentSpendData.map((item) => (
                                     <tr key={item.id} className="hover:bg-gray-50 transition">
                                         <td className="px-6 py-4 text-sm font-medium text-gray-900 font-mono">{item.id}</td>
                                         <td className="px-6 py-4 text-sm text-gray-600 font-medium">{item.user_name}</td>
@@ -340,6 +420,65 @@ export default function AdminTransaction() {
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            {/* Claim Reward History Card */}
+            <div className={`bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden ${activeTab === 'claim' ? 'block' : 'hidden'}`}>
+                <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
+                            <Activity className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="font-bold text-gray-900">Claim Reward History</h2>
+                            <p className="text-xs text-gray-500">Rewards claimed by users</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-medium">
+                            <tr>
+                                <th className="px-6 py-3">Claim ID</th>
+                                <th className="px-6 py-3">User</th>
+                                <th className="px-6 py-3">Type Reward</th>
+                                <th className="px-6 py-3">Description</th>
+                                <th className="px-6 py-3">Date</th>
+                                <th className="px-6 py-3">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                            {currentClaimData.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-400">
+                                        Belum ada data claim reward.
+                                    </td>
+                                </tr>
+                            ) : (
+                                currentClaimData.map((item) => (
+                                    <tr key={item.id} className="hover:bg-gray-50 transition">
+                                        <td className="px-6 py-4 text-sm font-medium text-gray-900 font-mono">{item.id}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-600 font-medium">{item.user_name}</td>
+                                        <td className="px-6 py-4 text-sm font-medium text-purple-600">
+                                            <span className="bg-purple-50 px-2 py-1 rounded-md">{item.type_reward || item.reward_type}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 italic max-w-[200px] truncate" title={item.description}>
+                                            {item.description || '-'}
+                                        </td>
+                                        <td className="px-6 py-4 text-xs text-gray-400">{formatDate(item.created_at)}</td>
+                                        <td className="px-6 py-4 text-sm font-bold text-green-600">
+                                            <div className="flex items-center gap-1">
+                                                +<img src="/coin.png" alt="Coin" className="w-4 h-4" />
+                                                {item.amount}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+                <PaginationContext data={claimData} currentPage={claimPage} setPage={setClaimPage} />
             </div>
         </div >
     )
