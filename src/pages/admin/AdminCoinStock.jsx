@@ -60,6 +60,8 @@ function VolumeChart({ data, width = '100%', height = 80 }) {
 
 // Price chart area
 function PriceChart({ data }) {
+    const [hoveredPoint, setHoveredPoint] = useState(null)
+
     if (!data || data.length === 0) {
         return <div className="h-[200px] flex items-center justify-center text-gray-400 text-sm">Belum ada data history harga</div>
     }
@@ -71,72 +73,141 @@ function PriceChart({ data }) {
     const w = 600
     const h = 200
 
-    const points = prices.map((p, i) => {
-        const x = (i / (prices.length - 1)) * w
-        const y = h - ((p - min) / range) * (h - 20) - 10
-        return `${x},${y}`
-    }).join(' ')
+    const pointsData = data.map((d, i) => {
+        const x = (i / (data.length - 1)) * w
+        const y = h - ((d.price - min) / range) * (h - 20) - 10
+        return { x, y, data: d }
+    })
 
+    const points = pointsData.map(p => `${p.x},${p.y}`).join(' ')
     const areaPoints = `0,${h} ${points} ${w},${h}`
 
     const lineColor = prices[prices.length - 1] >= prices[0] ? '#10b981' : '#ef4444'
     const gradientId = 'priceGradient'
 
+    const handleMouseMove = (e) => {
+        const svgRect = e.currentTarget.getBoundingClientRect()
+        // Calculate X coordinate relative to the SVG's viewBox width (0 to 600)
+        const xCursor = ((e.clientX - svgRect.left) / svgRect.width) * w
+        // Find closest point based on X axis
+        const closest = pointsData.reduce((prev, curr) => {
+            return Math.abs(curr.x - xCursor) < Math.abs(prev.x - xCursor) ? curr : prev
+        })
+        setHoveredPoint(closest)
+    }
+
+    const handleMouseLeave = () => {
+        setHoveredPoint(null)
+    }
+
     return (
-        <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 200 }}>
-            <defs>
-                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={lineColor} stopOpacity="0.15" />
-                    <stop offset="100%" stopColor={lineColor} stopOpacity="0" />
-                </linearGradient>
-            </defs>
-            {/* Grid lines */}
-            {[0, 1, 2, 3, 4].map(i => (
-                <line
-                    key={i}
-                    x1="0" y1={i * (h / 4)}
-                    x2={w} y2={i * (h / 4)}
-                    stroke="#e5e7eb"
-                    strokeWidth="1"
-                    strokeDasharray="4 4"
+        <div className="relative w-full" style={{ height: 200 }}>
+            <svg
+                viewBox={`0 0 ${w} ${h}`}
+                className="w-full h-full cursor-crosshair"
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+                onTouchMove={(e) => {
+                    const touch = e.touches[0]
+                    const svgRect = e.currentTarget.getBoundingClientRect()
+                    const xCursor = ((touch.clientX - svgRect.left) / svgRect.width) * w
+                    const closest = pointsData.reduce((prev, curr) => Math.abs(curr.x - xCursor) < Math.abs(prev.x - xCursor) ? curr : prev)
+                    setHoveredPoint(closest)
+                }}
+                onTouchEnd={handleMouseLeave}
+            >
+                <defs>
+                    <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={lineColor} stopOpacity="0.15" />
+                        <stop offset="100%" stopColor={lineColor} stopOpacity="0" />
+                    </linearGradient>
+                </defs>
+                {/* Grid lines */}
+                {[0, 1, 2, 3, 4].map(i => (
+                    <line
+                        key={i}
+                        x1="0" y1={i * (h / 4)}
+                        x2={w} y2={i * (h / 4)}
+                        stroke="#e5e7eb"
+                        strokeWidth="1"
+                        strokeDasharray="4 4"
+                    />
+                ))}
+                {/* Area fill */}
+                <polygon
+                    fill={`url(#${gradientId})`}
+                    points={areaPoints}
                 />
-            ))}
-            {/* Area fill */}
-            <polygon
-                fill={`url(#${gradientId})`}
-                points={areaPoints}
-            />
-            {/* Line */}
-            <polyline
-                fill="none"
-                stroke={lineColor}
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                points={points}
-            />
-            {/* Current price dot */}
-            {data.length > 1 && (() => {
-                const lastX = w
-                const lastY = h - ((prices[prices.length - 1] - min) / range) * (h - 20) - 10
-                return (
-                    <>
-                        <circle cx={lastX} cy={lastY} r="5" fill={lineColor} />
-                        <circle cx={lastX} cy={lastY} r="8" fill={lineColor} opacity="0.2">
-                            <animate attributeName="r" values="8;14;8" dur="2s" repeatCount="indefinite" />
-                            <animate attributeName="opacity" values="0.2;0;0.2" dur="2s" repeatCount="indefinite" />
-                        </circle>
-                    </>
-                )
-            })()}
-            {/* Labels */}
-            <text x="4" y="14" className="text-[10px]" fill="#9ca3af">
-                Rp {max.toLocaleString('id-ID')}
-            </text>
-            <text x="4" y={h - 4} className="text-[10px]" fill="#9ca3af">
-                Rp {min.toLocaleString('id-ID')}
-            </text>
-        </svg>
+                {/* Line */}
+                <polyline
+                    fill="none"
+                    stroke={lineColor}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    points={points}
+                />
+
+                {/* Hover Indicator Vertical Line */}
+                {hoveredPoint && (
+                    <line
+                        x1={hoveredPoint.x} y1="0"
+                        x2={hoveredPoint.x} y2={h}
+                        stroke="#9ca3af"
+                        strokeWidth="1"
+                        strokeDasharray="4 4"
+                    />
+                )}
+
+                {/* Hover Dot */}
+                {hoveredPoint && (
+                    <circle cx={hoveredPoint.x} cy={hoveredPoint.y} r="5" fill="#fff" stroke={lineColor} strokeWidth="2" />
+                )}
+
+                {/* Current price pulse dot (hide if hovering to avoid overlap) */}
+                {data.length > 1 && !hoveredPoint && (() => {
+                    const lastX = w
+                    const lastY = h - ((prices[prices.length - 1] - min) / range) * (h - 20) - 10
+                    return (
+                        <>
+                            <circle cx={lastX} cy={lastY} r="5" fill={lineColor} />
+                            <circle cx={lastX} cy={lastY} r="8" fill={lineColor} opacity="0.2">
+                                <animate attributeName="r" values="8;14;8" dur="2s" repeatCount="indefinite" />
+                                <animate attributeName="opacity" values="0.2;0;0.2" dur="2s" repeatCount="indefinite" />
+                            </circle>
+                        </>
+                    )
+                })()}
+
+                {/* Labels */}
+                <text x="4" y="14" className="text-[10px]" fill="#9ca3af">
+                    Rp {max.toLocaleString('id-ID')}
+                </text>
+                <text x="4" y={h - 4} className="text-[10px]" fill="#9ca3af">
+                    Rp {min.toLocaleString('id-ID')}
+                </text>
+            </svg>
+
+            {/* Floating HTML Tooltip */}
+            {hoveredPoint && (
+                <div
+                    className="absolute z-10 bg-gray-900 border border-gray-700 text-white shadow-xl rounded-lg p-3 pointer-events-none transform -translate-x-1/2 -translate-y-full flex flex-col items-center gap-1 transition-all duration-75"
+                    style={{
+                        left: `${(hoveredPoint.x / w) * 100}%`,
+                        top: `calc(${(hoveredPoint.y / h) * 100}% - 12px)`
+                    }}
+                >
+                    <span className="text-xs font-medium text-gray-300">
+                        {new Date(hoveredPoint.data.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                    <span className="text-base font-bold">
+                        Rp {hoveredPoint.data.price.toLocaleString('id-ID')}
+                    </span>
+                    {/* Small arrow pointing down */}
+                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-8 border-l-transparent border-r-transparent border-t-gray-900"></div>
+                </div>
+            )}
+        </div>
     )
 }
 
@@ -220,18 +291,20 @@ export default function AdminCoinStock() {
     // Calculations for cards
     const { currentPrice, yesterdayPrice, weekAgoPrice, monthAgoPrice, supply, activeTournaments } = stats
 
-    const calcChange = (current, previous) => current - previous
-    const calcChangePercent = (current, previous) => previous > 0 ? ((current - previous) / previous * 100).toFixed(2) : '0.00'
+    // Find the last price that was DIFFERENT from current price to show true movement
+    const lastDifferentPrice = [...historyData].reverse().find(d => d.price !== currentPrice)?.price || currentPrice
 
-    const priceChange = calcChange(currentPrice, yesterdayPrice)
-    const priceChangePercent = calcChangePercent(currentPrice, yesterdayPrice)
+    const calcChange = (current, previous) => current - previous
+
+    const priceChange = calcChange(currentPrice, lastDifferentPrice)
     const isUp = priceChange >= 0
 
-    const weekChange = calcChange(currentPrice, weekAgoPrice)
-    const weekChangePercent = calcChangePercent(currentPrice, weekAgoPrice)
+    // For 7d and 30d, also compare against the historical data point if different, or fallback to the stats values
+    const weekAgoData = historyData.length > 7 ? historyData[historyData.length - 8].price : weekAgoPrice
+    const weekChange = calcChange(currentPrice, weekAgoData)
 
-    const monthChange = calcChange(currentPrice, monthAgoPrice)
-    const monthChangePercent = calcChangePercent(currentPrice, monthAgoPrice)
+    const monthAgoData = historyData.length > 30 ? historyData[historyData.length - 31].price : monthAgoPrice
+    const monthChange = calcChange(currentPrice, monthAgoData)
 
     const highPrice = historyData.length > 0 ? Math.max(...historyData.map(d => d.price)) : currentPrice
     const lowPrice = historyData.length > 0 ? Math.min(...historyData.map(d => d.price)) : currentPrice
@@ -241,8 +314,8 @@ export default function AdminCoinStock() {
         {
             title: 'Harga Saat Ini',
             value: `Rp ${currentPrice.toLocaleString('id-ID')}`,
-            change: `${isUp ? '+' : ''}${priceChangePercent}%`,
-            sub: 'vs kemarin',
+            change: `${isUp ? '+' : ''}${priceChange}`,
+            sub: 'vs harga sebelumnya',
             icon: Coins,
             color: 'text-emerald-600',
             bg: 'bg-emerald-50',
@@ -251,7 +324,7 @@ export default function AdminCoinStock() {
         {
             title: 'Perubahan 7 Hari',
             value: `${weekChange >= 0 ? '+' : ''}Rp ${Math.abs(weekChange).toLocaleString('id-ID')}`,
-            change: `${weekChange >= 0 ? '+' : ''}${weekChangePercent}%`,
+            change: `${weekChange >= 0 ? '+' : ''}${weekChange}`,
             sub: 'minggu ini',
             icon: weekChange >= 0 ? TrendingUp : TrendingDown,
             color: weekChange >= 0 ? 'text-blue-600' : 'text-red-600',
@@ -261,7 +334,7 @@ export default function AdminCoinStock() {
         {
             title: 'Perubahan 30 Hari',
             value: `${monthChange >= 0 ? '+' : ''}Rp ${Math.abs(monthChange).toLocaleString('id-ID')}`,
-            change: `${monthChange >= 0 ? '+' : ''}${monthChangePercent}%`,
+            change: `${monthChange >= 0 ? '+' : ''}${monthChange}`,
             sub: 'bulan ini',
             icon: BarChart3,
             color: monthChange >= 0 ? 'text-purple-600' : 'text-red-600',
@@ -379,7 +452,7 @@ export default function AdminCoinStock() {
                                 </span>
                                 <span className={`flex items-center gap-0.5 text-sm font-semibold ${isUp ? 'text-emerald-600' : 'text-red-500'}`}>
                                     {isUp ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                                    {isUp ? '+' : ''}{priceChangePercent}%
+                                    {isUp ? '+' : ''}{priceChange}
                                 </span>
                             </div>
                             <p className="text-xs text-gray-400 mt-1">per 1 Coin (Based on {supply.toLocaleString('id-ID')} supply & {activeTournaments} active comps)</p>

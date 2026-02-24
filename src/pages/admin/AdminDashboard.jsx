@@ -1,28 +1,28 @@
 import React, { useState, useEffect } from 'react'
-import { Users, AlertCircle, TrendingUp, Activity, Trophy, Swords, CreditCard, UserPlus } from 'lucide-react'
+import { Users, AlertCircle, TrendingUp, Activity, Trophy, Swords, CreditCard, UserPlus, Banknote } from 'lucide-react'
 import { api } from '../../utils/api'
 
 export default function AdminDashboard() {
     const [statsData, setStatsData] = useState(null)
     const [recentActivity, setRecentActivity] = useState([])
     const [loading, setLoading] = useState(true)
+    const [dokuRevenue, setDokuRevenue] = useState(0)
+    const [dokuLoading, setDokuLoading] = useState(true)
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [statsRes, historyRes] = await Promise.all([
+                const [statsRes, historyRes, topupRes] = await Promise.all([
                     api.get('/api/admin/dashboard-stats'),
-                    api.get('/api/admin/history')
+                    api.get('/api/admin/history'),
+                    api.get('/api/admin/transactions/topup')
                 ])
 
                 if (statsRes.success) {
                     setStatsData(statsRes.data)
                 } else if (statsRes.data && statsRes.data.success) {
-                    // Handle case where api.get returns full response or just data
-                    // reliable api.js returns res.json() so it should be the body
                     setStatsData(statsRes.data.data)
                 } else {
-                    // Fallback if structure is different
                     setStatsData(statsRes.data || statsRes)
                 }
 
@@ -33,10 +33,77 @@ export default function AdminDashboard() {
                 } else {
                     setRecentActivity(historyRes.data || historyRes)
                 }
+
+                if (topupRes.success || (topupRes.data && topupRes.data.success)) {
+                    const topupData = topupRes.success ? topupRes.data : topupRes.data.data
+                    await calculateDokuRevenue(topupData)
+                } else {
+                    setDokuLoading(false)
+                }
             } catch (error) {
                 console.error('Error fetching dashboard data:', error)
+                setDokuLoading(false)
             } finally {
                 setLoading(false)
+            }
+        }
+
+        const calculateDokuRevenue = async (transactions) => {
+            try {
+                const withRef = transactions.filter(t => t.reference_id)
+                if (withRef.length === 0) {
+                    setDokuLoading(false)
+                    return
+                }
+
+                const results = {}
+                const chunks = []
+                for (let i = 0; i < withRef.length; i += 10) {
+                    chunks.push(withRef.slice(i, i + 10))
+                }
+
+                for (const chunk of chunks) {
+                    const promises = chunk.map(async (t) => {
+                        try {
+                            const res = await api.get(`/api/admin/transactions/doku-status/${t.reference_id}`)
+                            if (res.success && res.data) {
+                                results[t.reference_id] = res.data
+                            }
+                        } catch (err) {
+                            console.error(`Failed to fetch DOKU status for ${t.reference_id}:`, err)
+                        }
+                    })
+                    await Promise.all(promises)
+                }
+
+                // Calculate total revenue from successful top ups
+                const totalRev = transactions.reduce((sum, item) => {
+                    let realStatus = item.status
+                    let nominal = null
+
+                    if (item.reference_id && results[item.reference_id]) {
+                        const doku = results[item.reference_id]
+                        const dokuTxStatus = doku?.transaction?.status
+                        if (dokuTxStatus) {
+                            realStatus = dokuTxStatus.toLowerCase()
+                        }
+                        const amount = doku?.order?.amount
+                        if (amount) {
+                            nominal = parseInt(amount)
+                        }
+                    }
+
+                    if ((realStatus || '').toLowerCase() === 'success') {
+                        return sum + (nominal ? nominal : 0)
+                    }
+                    return sum
+                }, 0)
+
+                setDokuRevenue(totalRev)
+            } catch (error) {
+                console.error('Error calculating DOKU revenue:', error)
+            } finally {
+                setDokuLoading(false)
             }
         }
 
@@ -45,9 +112,9 @@ export default function AdminDashboard() {
 
     const stats = [
         {
-            title: 'Total Users',
+            title: 'Active Users',
             value: statsData?.total_users || '0',
-            change: 'Active',
+            change: 'Recently Joined',
             icon: Users,
             color: 'text-blue-600',
             bg: 'bg-blue-100'
@@ -62,11 +129,11 @@ export default function AdminDashboard() {
         },
         {
             title: 'Total Revenue',
-            value: `IDR ${(statsData?.total_revenue || 0).toLocaleString()}`,
-            change: 'Lifetime',
-            icon: TrendingUp,
-            color: 'text-emerald-600',
-            bg: 'bg-emerald-100'
+            value: dokuLoading ? 'Loading...' : `Rp ${dokuRevenue.toLocaleString('id-ID')}`,
+            change: 'From Top Up',
+            icon: Banknote,
+            color: 'text-green-600',
+            bg: 'bg-green-100'
         },
         {
             title: 'System Health',
@@ -165,7 +232,7 @@ export default function AdminDashboard() {
                         <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-600">Server Load (Memory)</span>
                             <span className={`text-sm font-medium ${(statsData?.server_load || 0) > 90 ? 'text-red-600' :
-                                    (statsData?.server_load || 0) > 70 ? 'text-yellow-600' : 'text-green-600'
+                                (statsData?.server_load || 0) > 70 ? 'text-yellow-600' : 'text-green-600'
                                 }`}>
                                 {statsData?.server_load ? `${statsData.server_load}%` : 'Calculating...'}
                             </span>
@@ -173,7 +240,7 @@ export default function AdminDashboard() {
                         <div className="w-full bg-gray-100 rounded-full h-2">
                             <div
                                 className={`h-2 rounded-full transition-all duration-500 ${(statsData?.server_load || 0) > 90 ? 'bg-red-500' :
-                                        (statsData?.server_load || 0) > 70 ? 'bg-yellow-500' : 'bg-green-500'
+                                    (statsData?.server_load || 0) > 70 ? 'bg-yellow-500' : 'bg-green-500'
                                     }`}
                                 style={{ width: `${statsData?.server_load || 0}%` }}
                             ></div>

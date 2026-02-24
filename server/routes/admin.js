@@ -16,12 +16,12 @@ router.get('/dashboard-stats', async (req, res) => {
     try {
         const statsQuery = `
             SELECT 
-                (SELECT COUNT(*) FROM users) as total_users,
+                (SELECT COUNT(*) FROM users WHERE username IS NOT NULL AND username != '') as total_users,
                 (SELECT COUNT(*) FROM complaints WHERE status IN ('open', 'in_progress')) as active_complaints,
                 (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'topup' AND status = 'success') as total_revenue,
                 (SELECT COUNT(*) FROM tournaments) as total_tournaments,
                 (SELECT COUNT(*) FROM matches) as total_matches,
-                (SELECT COUNT(*) FROM user_subscriptions WHERE status = 'active') as active_subscriptions,
+                (SELECT COUNT(*) FROM user_subscriptions us JOIN subscription_plans sp ON us.plan_id = sp.id WHERE us.status = 'active' AND sp.name != 'free') as active_subscriptions,
                 (SELECT COUNT(*) FROM users WHERE DATE(created_at) = CURDATE()) as new_users_today
         `;
 

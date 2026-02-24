@@ -688,17 +688,17 @@ export default function CommunityDetail() {
                             Tentang Komunitas
                         </h2>
                         <div className="space-y-4 text-sm text-gray-400">
-                            <div className="flex justify-between">
-                                <span>Dibuat</span>
-                                <span className="text-white">12 Jan 2023</span>
+                            <div className="flex flex-col gap-1 border-b border-white/5 pb-3">
+                                <span className="text-xs text-gray-500">Dibuat Pada</span>
+                                <span className="text-white font-medium">
+                                    {community.created_at ? new Date(community.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
+                                </span>
                             </div>
-                            <div className="flex justify-between">
-                                <span>Kategori</span>
-                                <span className="text-white">MOBA / Esports</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Lokasi</span>
-                                <span className="text-white">Indonesia</span>
+                            <div className="flex flex-col gap-1">
+                                <span className="text-xs text-gray-500">Deskripsi</span>
+                                <span className="text-white">
+                                    {community.description || 'Belum ada deskripsi'}
+                                </span>
                             </div>
                         </div>
                     </div>

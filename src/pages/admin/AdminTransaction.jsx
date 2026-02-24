@@ -134,10 +134,14 @@ export default function AdminTransaction() {
         return 'bg-gray-100 text-gray-700'
     }
 
-    // Calculate total revenue from DOKU nominal IDR
-    const totalRevenue = Object.values(dokuStatuses).reduce((sum, doku) => {
-        const amount = doku?.order?.amount
-        return sum + (amount ? parseInt(amount) : 0)
+    // Calculate total revenue from successful top ups
+    const totalRevenue = topupData.reduce((sum, item) => {
+        const realStatus = item.reference_id ? getDokuStatus(item.reference_id, item.status) : item.status
+        if ((realStatus || '').toLowerCase() === 'success') {
+            const nominal = item.reference_id ? getDokuNominal(item.reference_id) : null
+            return sum + (nominal ? parseInt(nominal) : 0)
+        }
+        return sum
     }, 0)
 
     const stats = [
