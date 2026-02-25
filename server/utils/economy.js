@@ -58,7 +58,7 @@ export async function getCurrentMarketMetrics() {
 
         // Get C: Count of open/active tournaments
         // Assuming 'open' and 'active' are the statuses that consume server resources
-        const [tournamentsResult] = await query("SELECT COUNT(*) as count FROM tournaments WHERE status IN ('open', 'active')");
+        const [tournamentsResult] = await query("SELECT COUNT(*) as count FROM tournaments WHERE status IN ('open', 'active', 'completed')");
         const activeTournaments = Number(tournamentsResult?.count || 0);
 
         return { supply, activeTournaments };

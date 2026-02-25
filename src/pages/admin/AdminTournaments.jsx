@@ -180,9 +180,14 @@ export default function AdminTournaments() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${getStatusBadgeColor(tournament.status)}`}>
-                                                {tournament.status}
-                                            </span>
+                                            <div className="flex flex-col gap-1">
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border w-fit ${getStatusBadgeColor(tournament.status)}`}>
+                                                    {tournament.status}
+                                                </span>
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border w-fit ${tournament.visibility === 'public' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>
+                                                    {tournament.visibility || 'public'}
+                                                </span>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="space-y-1">
@@ -204,6 +209,25 @@ export default function AdminTournaments() {
                                                     year: 'numeric'
                                                 })}
                                             </div>
+                                            {(tournament.match_count || 0) > 0 && (() => {
+                                                const total = tournament.match_count || 0
+                                                const completed = tournament.completed_match_count || 0
+                                                const pct = Math.round((completed / total) * 100)
+                                                return (
+                                                    <div className="mt-1.5">
+                                                        <div className="flex items-center justify-between text-[10px] text-gray-500 mb-0.5">
+                                                            <span>{completed}/{total}</span>
+                                                            <span className="font-semibold">{pct}%</span>
+                                                        </div>
+                                                        <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-blue-500' : 'bg-neonGreen'}`}
+                                                                style={{ width: `${pct}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })()}
                                         </td>
                                         <td className="px-6 py-4 text-right relative">
                                             <button

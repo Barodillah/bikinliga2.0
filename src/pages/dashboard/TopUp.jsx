@@ -12,11 +12,7 @@ import { useToast } from '../../contexts/ToastContext'
 import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
 import { useLocation } from 'react-router-dom'
 
-const TOPUP_PACKAGES = [
-    { coins: 100, price: 'Rp 15.000', bonus: 0, popular: false },
-    { coins: 500, price: 'Rp 65.000', bonus: 50, popular: true },
-    { coins: 1000, price: 'Rp 120.000', bonus: 150, popular: false },
-]
+// Packages moved to component state for dynamic pricing
 
 const MOCK_TRANSACTIONS = [
     { id: 'TRX-882910', type: 'topup', category: 'Deposit', amount: 500, date: '18 Jan 2024, 14:30', status: 'success', desc: 'Top Up via GoPay', method: 'GoPay' },
@@ -27,7 +23,7 @@ const MOCK_TRANSACTIONS = [
     { id: 'TRX-551023', type: 'topup', category: 'Deposit', amount: 1000, date: '10 Jan 2024, 10:00', status: 'failed', desc: 'Top Up via Transfer', method: 'Bank Transfer' },
 ]
 
-const COIN_RATE = 150 // 1 Coin = Rp 150
+// COIN_RATE moved to component state
 const SUBSCRIPTION_PLANS = [
     {
         id: 'captain',
@@ -68,10 +64,39 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 export default function TopUp() {
     const { subscriptionTier, isFree, isPremium } = useAds()
     const { wallet, subscription, refreshWallet, user, refreshUser } = useAuth()
+    const [coinRate, setCoinRate] = useState(150) // Default 150 until fetched
+    const [prevCoinRate, setPrevCoinRate] = useState(150) // For calculating +/- change
     const [amountCoins, setAmountCoins] = useState('')
     const [amountIdr, setAmountIdr] = useState('')
     const [error, setError] = useState('')
     const location = useLocation()
+
+    const TOPUP_PACKAGES = [
+        { coins: 100, price: `Rp ${(100 * coinRate).toLocaleString('id-ID')}`, bonus: 0, popular: false },
+        { coins: 500, price: `Rp ${(500 * coinRate).toLocaleString('id-ID')}`, bonus: 50, popular: true },
+        { coins: 1000, price: `Rp ${(1000 * coinRate).toLocaleString('id-ID')}`, bonus: 150, popular: false },
+    ]
+
+    useEffect(() => {
+        const fetchCoinPrice = async () => {
+            try {
+                const res = await fetch(`${API_URL}/user/coin-price`);
+                const data = await res.json();
+                if (data.success && data.price) {
+                    setCoinRate(data.price);
+                    if (data.prevPrice) setPrevCoinRate(data.prevPrice);
+                }
+            } catch (e) {
+                console.error('Failed to fetch coin price:', e);
+            }
+        };
+        fetchCoinPrice();
+    }, []);
+
+    // Formatting for price difference
+    const priceDiff = coinRate - prevCoinRate;
+    const isPriceUp = priceDiff >= 0;
+    const diffText = priceDiff === 0 ? 'Harga Tetap' : `${isPriceUp ? '+' : ''}Rp Math.abs(priceDiff).toLocaleString('id-ID')}`;
 
     // State for interactive features
     const [transactions, setTransactions] = useState([])
@@ -427,7 +452,7 @@ export default function TopUp() {
         const val = e.target.value
         setAmountCoins(val)
         if (val) {
-            const idr = val * COIN_RATE
+            const idr = val * coinRate
             setAmountIdr(idr)
             validateAmount(idr)
         } else {
@@ -440,7 +465,7 @@ export default function TopUp() {
         const val = e.target.value
         setAmountIdr(val)
         if (val) {
-            const coins = Math.floor(val / COIN_RATE)
+            const coins = Math.floor(val / coinRate)
             setAmountCoins(coins)
             validateAmount(val)
         } else {
@@ -949,7 +974,17 @@ export default function TopUp() {
                                 </Button>
 
                                 <div className="text-center">
-                                    <p className="text-[10px] text-gray-500">Min. Top Up Rp 10.000 (Rate: 1 Coin = Rp {COIN_RATE})</p>
+                                    <div className="inline-flex flex-col items-center gap-1.5 p-3 rounded-xl bg-gray-900/50 border border-gray-800/50">
+                                        <span className="text-xs text-gray-400">Minimal Top Up: Rp 10.000</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-semibold text-white">Rate: 1 Coin = Rp {coinRate.toLocaleString('id-ID')}</span>
+                                            {priceDiff !== 0 && (
+                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-0.5 ${isPriceUp ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                    {isPriceUp ? '▲' : '▼'} {Math.abs(priceDiff)}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </form>
                         </div>

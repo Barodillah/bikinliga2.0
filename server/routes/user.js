@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { query, getConnection } from '../config/db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { createCheckoutSession, verifyNotificationSignature, checkOrderStatus } from '../utils/doku.js';
+import { getAndRecordCurrentPrice } from '../utils/economy.js';
 
 const router = express.Router();
 
@@ -40,6 +41,24 @@ router.get('/check-username', async (req, res) => {
             success: false,
             message: 'Terjadi kesalahan'
         });
+    }
+});
+
+// GET /api/user/coin-price - Get current dynamic coin price
+router.get('/coin-price', async (req, res) => {
+    try {
+        const { price } = await getAndRecordCurrentPrice();
+
+        const history = await query(
+            `SELECT price FROM coin_price_history WHERE price != ? ORDER BY recorded_at DESC LIMIT 1`,
+            [price]
+        );
+        const prevPrice = history && history.length > 0 ? history[0].price : price;
+
+        res.json({ success: true, price, prevPrice });
+    } catch (error) {
+        console.error('Get coin price error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch coin price' });
     }
 });
 

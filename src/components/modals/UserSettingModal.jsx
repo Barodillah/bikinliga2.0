@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Modal from '../ui/Modal'
 import { Save, Wallet, UserCog, Award } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
 
 export default function UserSettingModal({ isOpen, onClose, user, onUpdate, onAdjustWallet }) {
     const [formData, setFormData] = useState({
@@ -13,6 +14,7 @@ export default function UserSettingModal({ isOpen, onClose, user, onUpdate, onAd
     })
     const [loading, setLoading] = useState(false)
     const [activeTab, setActiveTab] = useState('profile') // profile, wallet
+    const { user: currentUser } = useAuth()
 
     useEffect(() => {
         if (user) {
@@ -79,18 +81,20 @@ export default function UserSettingModal({ isOpen, onClose, user, onUpdate, onAd
 
             {activeTab === 'profile' ? (
                 <form onSubmit={handleUpdateProfile} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">User Role</label>
-                        <select
-                            value={formData.role}
-                            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neonGreen/20 focus:border-neonGreen"
-                        >
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
-                            <option value="superadmin">Superadmin</option>
-                        </select>
-                    </div>
+                    {currentUser?.role === 'superadmin' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">User Role</label>
+                            <select
+                                value={formData.role}
+                                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neonGreen/20 focus:border-neonGreen"
+                            >
+                                <option value="user">User</option>
+                                <option value="admin">Admin</option>
+                                <option value="superadmin">Superadmin</option>
+                            </select>
+                        </div>
+                    )}
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Subscription Plan</label>
@@ -148,12 +152,31 @@ export default function UserSettingModal({ isOpen, onClose, user, onUpdate, onAd
                         <label className="block text-sm font-medium text-gray-700 mb-1">Adjustment Amount</label>
                         <div className="relative">
                             <input
-                                type="number"
-                                value={walletAdjustment.amount}
-                                onChange={(e) => setWalletAdjustment({ ...walletAdjustment, amount: parseInt(e.target.value) || 0 })}
-                                className={`w-full pl-4 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 transition ${walletAdjustment.amount >= 0
-                                    ? 'border-gray-300 focus:border-neonGreen focus:ring-neonGreen/20'
-                                    : 'border-red-300 focus:border-red-500 focus:ring-red-500/20 text-red-600'
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9\-]*"
+                                value={walletAdjustment.amount === 0 && walletAdjustment.amount !== '-' ? '' : walletAdjustment.amount}
+                                onChange={(e) => {
+                                    // Hanya izinkan angka dan tanda minus di awal
+                                    let val = e.target.value.replace(/[^0-9-]/g, '');
+
+                                    // Pastikan minus hanya ada di awal
+                                    if (val.indexOf('-') > 0) {
+                                        val = val.replace(/-/g, '');
+                                    }
+
+                                    // Jika value cuma '-', simpan sebagai string sementara
+                                    if (val === '-') {
+                                        setWalletAdjustment({ ...walletAdjustment, amount: '-' });
+                                        return;
+                                    }
+
+                                    // Kalau kosong, jadi 0
+                                    setWalletAdjustment({ ...walletAdjustment, amount: val === '' ? 0 : parseInt(val) || 0 });
+                                }}
+                                className={`w-full pl-4 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 transition ${(typeof walletAdjustment.amount === 'number' && walletAdjustment.amount >= 0) || walletAdjustment.amount === ''
+                                        ? 'border-gray-300 focus:border-neonGreen focus:ring-neonGreen/20 text-black'
+                                        : 'border-red-300 focus:border-red-500 focus:ring-red-500/20 text-red-600'
                                     }`}
                                 placeholder="Enter amount (negative to subtract)"
                             />

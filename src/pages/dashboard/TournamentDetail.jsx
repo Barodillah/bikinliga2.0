@@ -833,7 +833,7 @@ export default function TournamentDetail() {
     const [error, setError] = useState(null)
 
 
-    const isOrganizer = user && tournamentData && user.id === tournamentData.organizer_id
+    const isOrganizer = user && tournamentData && (user.id === tournamentData.organizer_id || user.role === 'admin' || user.role === 'superadmin')
     const isDraft = tournamentData?.status === 'draft'
     const { success: showSuccess, error: showError, warning: showWarning } = useToast()
 
@@ -1485,7 +1485,8 @@ export default function TournamentDetail() {
                     // Loose equality check to handle string/number differences
                     // or ensure both are strings/numbers
                     // NEW: Redirect Logic for Public Users (Non-Organizer)
-                    if (user && String(data.data.organizer_id) !== String(user.id)) {
+                    const isAdminUser = user.role === 'admin' || user.role === 'superadmin'
+                    if (user && String(data.data.organizer_id) !== String(user.id) && !isAdminUser) {
                         // If public, redirect to user view/join pages
                         if (data.data.visibility === 'public') {
                             if (data.data.status === 'draft') {

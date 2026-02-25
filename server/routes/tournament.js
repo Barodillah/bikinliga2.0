@@ -9,6 +9,9 @@ import { createNotification, createBulkNotifications } from '../utils/notificati
 
 const router = express.Router();
 
+// Helper: Check if user is admin or superadmin
+const isAdmin = (user) => user && (user.role === 'admin' || user.role === 'superadmin');
+
 // Get user's tournaments
 router.get('/', authenticateToken, async (req, res) => {
     try {
@@ -234,7 +237,7 @@ router.get('/:idOrSlug', optionalAuth, async (req, res) => {
         }
 
         // Check visibility
-        if (tournament.visibility === 'private' && (!userId || (tournament.organizer_id !== userId && !isParticipant))) {
+        if (tournament.visibility === 'private' && (!userId || (tournament.organizer_id !== userId && !isParticipant && !isAdmin(req.user)))) {
             return res.status(403).json({
                 success: false,
                 message: 'Anda tidak memiliki izin untuk mengakses turnamen ini'
@@ -452,7 +455,7 @@ router.post('/:idOrSlug/participants', authenticateToken, async (req, res) => {
         const tournament = tournaments[0];
 
         // Verify permissions
-        const isOrganizer = tournament.organizer_id === req.user.id;
+        const isOrganizer = tournament.organizer_id === req.user.id || isAdmin(req.user);
 
         // If not organizer, ensure status is pending (public registration)
         if (!isOrganizer) {
@@ -581,7 +584,7 @@ router.post('/:idOrSlug/invite', authenticateToken, async (req, res) => {
         const tournament = tournaments[0];
 
         // Verify permissions (Organizer only)
-        if (tournament.organizer_id !== req.user.id) {
+        if (tournament.organizer_id !== req.user.id && !isAdmin(req.user)) {
             return res.status(403).json({ success: false, message: 'Hanya penyelenggara yang dapat mengundang peserta' });
         }
 
@@ -686,7 +689,7 @@ router.patch('/:idOrSlug/participants/:participantId', authenticateToken, async 
         }
 
         const participant = participants[0];
-        const isOrganizer = tournament.organizer_id === req.user.id;
+        const isOrganizer = tournament.organizer_id === req.user.id || isAdmin(req.user);
         const isParticipantOwner = participant.user_id === req.user.id;
 
         // Permission Check: Organizer OR (Owner AND (Pending OR Invited))
@@ -855,7 +858,7 @@ router.delete('/:idOrSlug/participants/:participantId', authenticateToken, async
         }
 
         const tournament = tournaments[0];
-        if (tournament.organizer_id !== req.user.id) {
+        if (tournament.organizer_id !== req.user.id && !isAdmin(req.user)) {
             return res.status(403).json({ success: false, message: 'Anda tidak memiliki izin' });
         }
 
@@ -1435,7 +1438,7 @@ router.post('/:idOrSlug/prizes', authenticateToken, async (req, res) => {
         }
 
         const tournament = tournaments[0];
-        if (tournament.organizer_id !== req.user.id) {
+        if (tournament.organizer_id !== req.user.id && !isAdmin(req.user)) {
             return res.status(403).json({ success: false, message: 'Anda tidak memiliki izin' });
         }
 
@@ -1559,7 +1562,7 @@ router.post('/:idOrSlug/matches/generate', authenticateToken, async (req, res) =
         }
 
         const tournament = tournaments[0];
-        if (tournament.organizer_id !== req.user.id) {
+        if (tournament.organizer_id !== req.user.id && !isAdmin(req.user)) {
             return res.status(403).json({ success: false, message: 'Anda tidak memiliki izin' });
         }
 
@@ -2401,7 +2404,7 @@ router.post('/:idOrSlug/news', authenticateToken, async (req, res) => {
         }
         const tournament = tournaments[0];
 
-        if (tournament.organizer_id !== req.user.id) {
+        if (tournament.organizer_id !== req.user.id && !isAdmin(req.user)) {
             return res.status(403).json({ success: false, message: 'Hanya penyelenggara yang dapat memposting berita' });
         }
 
@@ -2448,7 +2451,7 @@ router.delete('/:idOrSlug/news/:newsId', authenticateToken, async (req, res) => 
         }
         const tournament = tournaments[0];
 
-        if (tournament.organizer_id !== req.user.id) {
+        if (tournament.organizer_id !== req.user.id && !isAdmin(req.user)) {
             return res.status(403).json({ success: false, message: 'Hanya penyelenggara yang dapat menghapus berita' });
         }
 
@@ -2482,7 +2485,7 @@ router.post('/:idOrSlug/news', authenticateToken, async (req, res) => {
         }
 
         const tournament = tournaments[0];
-        if (tournament.organizer_id !== req.user.id) {
+        if (tournament.organizer_id !== req.user.id && !isAdmin(req.user)) {
             connection.release();
             return res.status(403).json({ success: false, message: 'Hanya organizer yang dapat memposting berita' });
         }
@@ -2585,8 +2588,8 @@ router.post('/:idOrSlug/news/:newsId/comments', authenticateToken, async (req, r
 
         if (participants.length > 0) {
             participantId = participants[0].id;
-        } else if (tournament.organizer_id !== userId) {
-            // If not participant AND not organizer, deny
+        } else if (tournament.organizer_id !== userId && !isAdmin(req.user)) {
+            // If not participant AND not organizer AND not admin, deny
             return res.status(403).json({ success: false, message: 'Hanya peserta yang dapat berkomentar' });
         }
 
@@ -2629,7 +2632,7 @@ router.post('/:idOrSlug/finish', authenticateToken, async (req, res) => {
 
         const tournament = tournaments[0];
 
-        if (tournament.organizer_id !== req.user.id) {
+        if (tournament.organizer_id !== req.user.id && !isAdmin(req.user)) {
             await connection.rollback();
             return res.status(403).json({ success: false, message: 'Hanya penyelenggara yang dapat menyelesaikan turnamen' });
         }

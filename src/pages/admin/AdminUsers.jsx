@@ -156,9 +156,6 @@ export default function AdminUsers() {
                         <Download className="w-4 h-4" />
                         Export
                     </button>
-                    <button className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition">
-                        Add New User
-                    </button>
                 </div>
             </div>
 
@@ -204,7 +201,7 @@ export default function AdminUsers() {
                         <input
                             type="text"
                             placeholder="Search by name, email, or username..."
-                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-neonGreen/20 focus:border-neonGreen transition"
+                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-neonGreen/20 focus:border-neonGreen transition text-black"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />

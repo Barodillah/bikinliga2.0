@@ -108,6 +108,7 @@ router.get('/tournaments', async (req, res) => {
                 u.username as creator_username,
                 u.avatar_url as creator_avatar,
                 (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id) as match_count,
+                (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id AND m.status = 'completed') as completed_match_count,
                 (SELECT COUNT(*) FROM participants p WHERE p.tournament_id = t.id) as participant_count
             FROM tournaments t
             LEFT JOIN users u ON t.organizer_id = u.id
@@ -224,22 +225,22 @@ router.post('/users/:id/wallet', async (req, res) => {
         );
 
 
-        res.json({ success: true, message: 'Wallet adjusted successfully' });
-
         // Trigger Achievement: Economy
         if (amount > 0) {
             // Check First Blood (First Topup)
-            const [txCount] = await query('SELECT COUNT(*) as count FROM transactions WHERE wallet_id = ? AND type = "topup"', [wallet.id]);
-            if (txCount[0].count === 1) { // 1 because we just inserted it
+            const txCount = await query('SELECT COUNT(*) as count FROM transactions WHERE wallet_id = ? AND type = "topup"', [wallet.id]);
+            if (txCount && txCount.length > 0 && txCount[0].count === 1) { // 1 because we just inserted it
                 await unlockAchievement(userId, 'eco_first_topup');
             }
 
             // Check High Roller (Balance >= 1000)
-            const [updatedWallet] = await query('SELECT balance FROM wallets WHERE id = ?', [wallet.id]);
-            if (updatedWallet[0].balance >= 1000) {
+            const updatedWallet = await query('SELECT balance FROM wallets WHERE id = ?', [wallet.id]);
+            if (updatedWallet && updatedWallet.length > 0 && updatedWallet[0].balance >= 1000) {
                 await unlockAchievement(userId, 'eco_wealthy');
             }
         }
+
+        res.json({ success: true, message: 'Wallet adjusted successfully' });
     } catch (error) {
         console.error('Wallet Adjustment Error:', error);
         res.status(500).json({ success: false, message: 'Failed to adjust wallet' });
@@ -503,10 +504,10 @@ router.get('/transactions/stats', async (req, res) => {
     try {
         const statsQuery = `
             SELECT
-                COALESCE(SUM(CASE WHEN type = 'topup' AND status = 'success' THEN amount ELSE 0 END), 0) as total_topup_coins,
-                COUNT(CASE WHEN type = 'topup' THEN 1 END) as total_topup_count,
+                COALESCE(SUM(CASE WHEN type = 'topup' AND status = 'success' AND category != 'Admin Bonus' THEN amount ELSE 0 END), 0) as total_topup_coins,
+                COUNT(CASE WHEN type = 'topup' AND category != 'Admin Bonus' THEN 1 END) as total_topup_count,
                 COUNT(CASE WHEN type = 'spend' THEN 1 END) as total_spend_count,
-                COUNT(DISTINCT CASE WHEN type = 'topup' AND status = 'success' THEN wallet_id END) as active_payers
+                COUNT(DISTINCT CASE WHEN type = 'topup' AND status = 'success' AND category != 'Admin Bonus' THEN wallet_id END) as active_payers
             FROM transactions
         `;
         const [stats] = await query(statsQuery);
