@@ -48,6 +48,7 @@ export default function TournamentSettings() {
         description: '',
         visibility: 'public',
         paymentMode: 'manual',
+        registrationCoin: '',
         lastRegistrationDate: '',
         status: 'draft'
     })
@@ -60,6 +61,7 @@ export default function TournamentSettings() {
     const fileInputRef = useRef(null)
     const errorShownRef = useRef(false)
     const [isUploading, setIsUploading] = useState(false)
+    const [hasWalletTransactions, setHasWalletTransactions] = useState(false)
 
     useEffect(() => {
         const fetchTournament = async () => {
@@ -119,12 +121,14 @@ export default function TournamentSettings() {
                         homeAway: t.homeAway,
                         description: t.description || '',
                         visibility: t.visibility,
-                        paymentMode: 'manual',
+                        paymentMode: t.payment != null ? 'system' : 'manual',
+                        registrationCoin: t.payment != null ? String(t.payment) : '',
                         lastRegistrationDate: validDate,
                         status: t.status
                     })
                     setLogoUrl(t.logo || '')
                     setSelectedLeague(initialLeague)
+                    setHasWalletTransactions(t.wallet_transactions && t.wallet_transactions.length > 0)
 
                 } else {
                     error(data.message || 'Gagal memuat data turnamen')
@@ -252,7 +256,9 @@ export default function TournamentSettings() {
                 visibility: formData.visibility,
                 last_registration_date: formData.lastRegistrationDate,
                 logo_url: formData.logo,
-                // paymentMode not yet in backend
+                payment: formData.paymentMode === 'system' && formData.registrationCoin
+                    ? parseInt(formData.registrationCoin)
+                    : null,
             }
 
             const response = await authFetch(`/api/tournaments/${id}`, {
@@ -267,7 +273,7 @@ export default function TournamentSettings() {
 
             if (data.success) {
                 success('Data turnamen berhasil disimpan')
-                navigate(`/dashboard/tournaments/${id}`)
+                navigate(`/dashboard/tournaments/${data.slug || id}`)
             } else {
                 error(data.message || 'Gagal menyimpan perubahan')
             }
@@ -542,14 +548,50 @@ export default function TournamentSettings() {
                             </button>
                         </div>
 
-                        <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                            <div>
-                                <div className="font-medium">Payment System</div>
-                                <div className="text-sm text-gray-500">{formData.paymentMode === 'system' ? 'Paid on System' : 'Manual'}</div>
+                        <div className="p-4 bg-white/5 rounded-lg space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-medium flex items-center gap-2">
+                                        Payment System
+                                        {hasWalletTransactions && (
+                                            <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                                Terkunci (Ada Transaksi)
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-sm text-gray-500">{formData.paymentMode === 'system' ? 'Paid on System (Coins BikinLiga)' : 'Manual (Transfer Admin)'}</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    disabled={hasWalletTransactions}
+                                    onClick={() => handleChange('paymentMode', formData.paymentMode === 'system' ? 'manual' : 'system')}
+                                    className={`w-12 h-6 rounded-full transition ${formData.paymentMode === 'system' ? 'bg-neonGreen' : 'bg-white/20'} ${hasWalletTransactions ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                    <div className={`w-5 h-5 rounded-full bg-white shadow transition transform ${formData.paymentMode === 'system' ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                                </button>
                             </div>
-                            <button type="button" onClick={() => handleChange('paymentMode', formData.paymentMode === 'system' ? 'manual' : 'system')} className={`w-12 h-6 rounded-full transition ${formData.paymentMode === 'system' ? 'bg-neonGreen' : 'bg-white/20'}`}>
-                                <div className={`w-5 h-5 rounded-full bg-white shadow transition transform ${formData.paymentMode === 'system' ? 'translate-x-6' : 'translate-x-0.5'}`} />
-                            </button>
+
+                            {/* Registration Coin Fee - shown when system payment */}
+                            {formData.paymentMode === 'system' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">Jumlah Coin untuk Daftar</label>
+                                    <div className="relative">
+                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
+                                            <img src="/coin.png" alt="Coin" className="w-5 h-5" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={formData.registrationCoin}
+                                            onChange={(e) => {
+                                                const val = e.target.value.replace(/[^0-9]/g, '');
+                                                handleChange('registrationCoin', val);
+                                            }}
+                                            placeholder="contoh: 100"
+                                            className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neonGreen/50 focus:ring-1 focus:ring-neonGreen/30 transition"
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                     {/* Delete Section */}

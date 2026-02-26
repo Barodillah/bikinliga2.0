@@ -76,6 +76,7 @@ Data utama turnamen.
 - `logo_url` (VARCHAR): Logo turnamen.
 - `type` (ENUM: 'league', 'knockout', 'group_knockout'): Format kompetisi.
 - `visibility` (ENUM: 'public', 'private'): Visibilitas.
+- `payment` (INT, Nullable): Biaya pendaftaran.
 - `status` (ENUM: 'draft', 'open', 'active', 'completed', 'archived'): Status turnamen.
 - `max_participants` (INT): Kapasitas maksimal.
 - `current_participants` (INT): Jumlah peserta saat ini.
@@ -387,6 +388,32 @@ Request top up manual dengan bukti transfer.
 - `notes` (TEXT, Nullable).
 - `created_at` (TIMESTAMP).
 
+## 15. Tournament Economy (Escrow System)
+
+### `tournament_wallets`
+Escrow wallet per turnamen berbayar. Menyimpan coin yang ditahan dari peserta hingga turnamen selesai.
+- `id` (UUID, PK): ID Wallet Tournament.
+- `tournament_id` (UUID, FK → tournaments.id, Unique): Turnamen terkait.
+- `balance` (DECIMAL): Saldo coin yang tersimpan saat ini. Default: 0.
+- `organizer_fee_pct` (DECIMAL): Persentase fee untuk organizer (default: 10). Bisa disetting per turnamen.
+- `updated_at` (TIMESTAMP).
+
+### `tournament_transactions`
+Audit trail semua mutasi coin di tournament wallet (immutable).
+- `id` (UUID, PK): ID Transaksi.
+- `tournament_wallet_id` (UUID, FK → tournament_wallets.id): Wallet tournament terkait.
+- `user_id` (UUID, FK → users.id, Nullable): User yang terkait (pembayar/penerima).
+- `participant_id` (UUID, FK → participants.id, Nullable): Peserta terkait.
+- `type` (ENUM: 'registration_hold', 'registration_refund', 'prize_payout', 'organizer_withdrawal'): Jenis transaksi.
+  - `registration_hold`: Coin ditahan saat peserta di-approve.
+  - `registration_refund`: Coin dikembalikan saat di-reject/cancel.
+  - `prize_payout`: Hadiah dibayarkan ke pemenang (via `prize_recipients`).
+  - `organizer_withdrawal`: Organizer menarik fee-nya.
+- `amount` (DECIMAL): Jumlah coin (positif = masuk ke wallet tournament, negatif = keluar).
+- `description` (TEXT): Detail transaksi.
+- `status` (ENUM: 'pending', 'completed', 'failed', 'cancelled'): Status transaksi.
+- `created_at` (TIMESTAMP).
+
 ---
 
 ## Penjelasan Relasi Penting
@@ -400,6 +427,15 @@ Request top up manual dengan bukti transfer.
 7.  **Matches -> Match Events**: One-to-Many. Setiap pertandingan punya banyak kejadian (gol, kartu).
 8.  **Tournaments -> Tournament Prizes**: One-to-One. Setiap turnamen punya 1 konfigurasi hadiah.
 9.  **AI Chat Sessions -> Messages**: One-to-Many. Setiap sesi punya banyak pesan.
+10. **Tournament -> Tournament Wallet**: One-to-One. Setiap turnamen berbayar punya 1 escrow wallet.
+11. **Tournament Wallet -> Tournament Transactions**: One-to-Many. Setiap wallet punya banyak mutasi (audit trail).
+12. **Tournament Transactions -> Users**: Many-to-One. Setiap transaksi terkait 1 user (pembayar/penerima).
 
-coba di vercel
-coba pindah akun
+### Flow Escrow Turnamen Berbayar
+
+1. **Pendaftaran**: User mendaftar → status `pending`, coin belum ditahan.
+2. **Approval**: Organizer approve → coin ditahan (user wallet -N, tournament wallet +N).
+3. **Rejection**: Organizer reject → coin di-refund jika sudah di-hold.
+4. **Tournament Active**: Refund tidak lagi tersedia.
+5. **Completed**: Distribusi → Organizer Fee (configurable %) + Prize Pool (sisa) ke pemenang via `prize_recipients`.
+6. **Cancelled**: Semua coin di-refund ke peserta.

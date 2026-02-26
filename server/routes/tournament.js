@@ -69,7 +69,7 @@ router.get('/public', optionalAuth, async (req, res) => {
         const userId = req.user?.id || null;
         const simpleQuery = `
             SELECT 
-                t.id, t.name, t.slug, t.type, t.status, t.max_participants, t.current_participants, t.start_date, t.end_date, t.logo_url, t.description, t.last_registration_date,
+                t.id, t.name, t.slug, t.type, t.status, t.max_participants, t.current_participants, t.start_date, t.end_date, t.logo_url, t.description, t.last_registration_date, t.payment,
                 (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id) as total_matches,
                 (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id AND m.status = 'completed') as completed_matches,
                 u.name as creator_name,
@@ -158,7 +158,8 @@ router.get('/public', optionalAuth, async (req, res) => {
                     tierName: t.tier_name || 'Free',
                     tierPrice: t.tier_price || 0
                 },
-                logo: t.logo_url
+                logo: t.logo_url,
+                payment: t.payment ?? null
             };
         });
 
@@ -260,6 +261,7 @@ router.get('/:idOrSlug', optionalAuth, async (req, res) => {
             homeAway: tournament.match_format === 'home_away',
             match_format: tournament.match_format,
             visibility: tournament.visibility,
+            payment: tournament.payment ?? null,
             logo: tournament.logo_url,
             maxParticipants: tournament.max_participants,
             lastRegistrationDate: tournament.last_registration_date,
@@ -329,6 +331,23 @@ router.get('/:idOrSlug', optionalAuth, async (req, res) => {
             tier: (p.tier_name || 'free').toLowerCase().replace(/\s+/g, '_')
         }));
 
+        // Fetch tournament wallet history if paid and user is organizer or admin
+        if (tournament.payment != null && userId && (tournament.organizer_id === userId || isAdmin(req.user))) {
+            const [wallets] = await db.query('SELECT id, balance, organizer_fee_pct FROM tournament_wallets WHERE tournament_id = ?', [tournament.id]);
+            if (wallets.length > 0) {
+                data.wallet_balance = wallets[0].balance;
+                data.wallet_organizer_fee_pct = wallets[0].organizer_fee_pct;
+                const [transactions] = await db.query(
+                    'SELECT * FROM tournament_transactions WHERE tournament_wallet_id = ? ORDER BY created_at DESC',
+                    [wallets[0].id]
+                );
+                data.wallet_transactions = transactions;
+            } else {
+                data.wallet_balance = 0;
+                data.wallet_transactions = [];
+            }
+        }
+
         res.json({
             success: true,
             data
@@ -356,7 +375,8 @@ router.post('/', authenticateToken, async (req, res) => {
             homeAway, // boolean
             description,
             visibility,
-            logo // this is the logo_url
+            logo, // this is the logo_url
+            payment // null for manual, coin amount for system
         } = req.body;
 
         // Validation
@@ -389,11 +409,11 @@ router.post('/', authenticateToken, async (req, res) => {
         const [result] = await connection.query(
             `INSERT INTO tournaments (
                 id, organizer_id, name, slug, description, logo_url, 
-                type, visibility, status, max_participants, point_system, match_format
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)`,
+                type, visibility, status, max_participants, point_system, match_format, payment
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?)`,
             [
                 tournamentId, organizer_id, name, slug, description || null, logo || null,
-                type, visibility, max_participants, pointSystem, matchFormat
+                type, visibility, max_participants, pointSystem, matchFormat, payment ?? null
             ]
         );
 
@@ -432,8 +452,6 @@ router.post('/:idOrSlug/participants', authenticateToken, async (req, res) => {
     const { idOrSlug } = req.params;
     const { name, team, logo_url, stats, status: providedStatus } = req.body;
 
-    // Use provided status or default to 'pending'
-    const status = providedStatus || 'pending';
 
     const connection = await db.getConnection();
     try {
@@ -454,19 +472,15 @@ router.post('/:idOrSlug/participants', authenticateToken, async (req, res) => {
 
         const tournament = tournaments[0];
 
-        // Verify permissions
+        // Verify if the registering user is the organizer or admin
         const isOrganizer = tournament.organizer_id === req.user.id || isAdmin(req.user);
 
-        // If not organizer, ensure status is pending (public registration)
-        if (!isOrganizer) {
-            if (status === 'Verified' || status === 'verified') {
-                return res.status(403).json({
-                    success: false,
-                    message: 'Hanya penyelenggara yang dapat menambahkan peserta terverifikasi'
-                });
-            }
-            // Implicitly allow 'pending' registration for public users
-        }
+        // Server-side status determination:
+        // - Self-registration (including organizer) → always 'pending'
+        // - Organizer adding OTHER users manually → use provided status
+        const isSelfRegistration = req.body.user_id === req.user.id;
+        const status = (isOrganizer && !isSelfRegistration && providedStatus) ? providedStatus : 'pending';
+
 
         // 2. Insert Participant
         const participantId = uuidv4();
@@ -668,7 +682,7 @@ router.patch('/:idOrSlug/participants/:participantId', authenticateToken, async 
 
         // 1. Get Tournament & Verify Ownership
         const [tournaments] = await connection.query(
-            `SELECT id, organizer_id, name FROM tournaments WHERE id = ? OR slug = ?`,
+            `SELECT id, organizer_id, name, payment FROM tournaments WHERE id = ? OR slug = ?`,
             [idOrSlug, idOrSlug]
         );
 
@@ -744,6 +758,95 @@ router.patch('/:idOrSlug/participants/:participantId', authenticateToken, async 
             updateValues
         );
 
+        // ==========================================
+        // ESCROW LOGIC: Hold Coin on Approval
+        // ==========================================
+        if (status === 'approved' && participant.status !== 'approved' && tournament.payment != null && tournament.payment > 0) {
+            if (!participant.user_id) {
+                await connection.rollback();
+                return res.status(400).json({ success: false, message: 'Peserta guest tidak bisa didaftarkan ke turnamen berbayar' });
+            }
+
+            const [wallets] = await connection.query('SELECT id, balance FROM wallets WHERE user_id = ? FOR UPDATE', [participant.user_id]);
+            if (wallets.length === 0 || wallets[0].balance < tournament.payment) {
+                await connection.rollback();
+                return res.status(400).json({ success: false, message: 'Saldo coin peserta tidak mencukupi untuk biaya pendaftaran' });
+            }
+            const userWallet = wallets[0];
+
+            // Deduct user wallet
+            await connection.query('UPDATE wallets SET balance = balance - ?, updated_at = NOW() WHERE id = ?', [tournament.payment, userWallet.id]);
+
+            // Add to or create tournament wallet
+            const [tw] = await connection.query('SELECT id FROM tournament_wallets WHERE tournament_id = ? FOR UPDATE', [tournament.id]);
+            let tournamentWalletId;
+            if (tw.length === 0) {
+                tournamentWalletId = uuidv4();
+                await connection.query(
+                    'INSERT INTO tournament_wallets (id, tournament_id, balance, organizer_fee_pct, updated_at) VALUES (?, ?, ?, 10, NOW())',
+                    [tournamentWalletId, tournament.id, tournament.payment]
+                );
+            } else {
+                tournamentWalletId = tw[0].id;
+                await connection.query(
+                    'UPDATE tournament_wallets SET balance = balance + ?, updated_at = NOW() WHERE id = ?',
+                    [tournament.payment, tournamentWalletId]
+                );
+            }
+
+            // Record transaction for user
+            const txId = uuidv4();
+            await connection.query(
+                `INSERT INTO transactions (id, wallet_id, type, amount, category, description, status) 
+                 VALUES (?, ?, 'spend', ?, 'Tournament Registration', ?, 'success')`,
+                [txId, userWallet.id, -tournament.payment, `Registrasi turnamen: ${tournament.name}`]
+            );
+
+            // Record tournament_transaction
+            const ttxId = uuidv4();
+            await connection.query(
+                `INSERT INTO tournament_transactions (id, tournament_wallet_id, user_id, participant_id, type, amount, description, status)
+                 VALUES (?, ?, ?, ?, 'registration_hold', ?, ?, 'completed')`,
+                [ttxId, tournamentWalletId, participant.user_id, participant.id, tournament.payment, `Hold coin registrasi tim/peserta ${participant.name || 'Anonymous'}`]
+            );
+        }
+
+        // ==========================================
+        // ESCROW LOGIC: Refund Coin on Rejection/Cancel
+        // ==========================================
+        if ((status === 'rejected' || status === 'declined') && participant.status === 'approved' && tournament.payment != null && tournament.payment > 0) {
+            if (participant.user_id) {
+                const [wallets] = await connection.query('SELECT id FROM wallets WHERE user_id = ? FOR UPDATE', [participant.user_id]);
+                const [tw] = await connection.query('SELECT id, balance FROM tournament_wallets WHERE tournament_id = ? FOR UPDATE', [tournament.id]);
+
+                if (wallets.length > 0 && tw.length > 0 && tw[0].balance >= tournament.payment) {
+                    const userWallet = wallets[0];
+                    const tournamentWalletId = tw[0].id;
+
+                    // Refund to user wallet
+                    await connection.query('UPDATE wallets SET balance = balance + ?, updated_at = NOW() WHERE id = ?', [tournament.payment, userWallet.id]);
+
+                    // Deduct from tournament wallet
+                    await connection.query('UPDATE tournament_wallets SET balance = balance - ?, updated_at = NOW() WHERE id = ?', [tournament.payment, tournamentWalletId]);
+
+                    // Record transaction for user
+                    const txId = uuidv4();
+                    await connection.query(
+                        `INSERT INTO transactions (id, wallet_id, type, amount, category, description, status) 
+                         VALUES (?, ?, 'refund', ?, 'Tournament Refund', ?, 'success')`,
+                        [txId, userWallet.id, tournament.payment, `Refund pendaftaran turnamen: ${tournament.name}`]
+                    );
+
+                    // Record tournament_transaction
+                    const ttxId = uuidv4();
+                    await connection.query(
+                        `INSERT INTO tournament_transactions (id, tournament_wallet_id, user_id, participant_id, type, amount, description, status)
+                         VALUES (?, ?, ?, ?, 'registration_refund', ?, ?, 'completed')`,
+                        [ttxId, tournamentWalletId, participant.user_id, participant.id, -tournament.payment, `Refund coin pendaftaran tim/peserta ${participant.name || 'Anonymous'}`]
+                    );
+                }
+            }
+        }
         // If rejected/declined, we might want to soft delete or just keep as rejected status.
         // Keeping as 'rejected' or 'declined' allows history. 
         // But we should decrement participant count if we incremented it on invite?
@@ -907,7 +1010,7 @@ router.patch('/:idOrSlug', authenticateToken, async (req, res) => {
     const { idOrSlug } = req.params;
     const {
         name, description, type, max_participants, point_system,
-        match_format, visibility, status, last_registration_date, logo_url
+        match_format, visibility, status, last_registration_date, logo_url, payment
     } = req.body;
 
     const connection = await db.getConnection();
@@ -933,7 +1036,28 @@ router.patch('/:idOrSlug', authenticateToken, async (req, res) => {
         let updateFields = [];
         let updateValues = [];
 
-        if (name) { updateFields.push('name = ?'); updateValues.push(name); }
+        if (name) {
+            updateFields.push('name = ?'); updateValues.push(name);
+
+            // Regenerate slug if name changed
+            if (name !== tournament.name) {
+                const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+                let slug = baseSlug;
+                let counter = 1;
+
+                while (true) {
+                    const [existing] = await connection.query(
+                        'SELECT id FROM tournaments WHERE slug = ? AND id != ?',
+                        [slug, tournament.id]
+                    );
+                    if (existing.length === 0) break;
+                    slug = `${baseSlug}-${counter}`;
+                    counter++;
+                }
+
+                updateFields.push('slug = ?'); updateValues.push(slug);
+            }
+        }
         if (description !== undefined) { updateFields.push('description = ?'); updateValues.push(description); }
         if (type) { updateFields.push('type = ?'); updateValues.push(type); }
         if (max_participants) { updateFields.push('max_participants = ?'); updateValues.push(max_participants); }
@@ -949,6 +1073,7 @@ router.patch('/:idOrSlug', authenticateToken, async (req, res) => {
         }
 
         if (logo_url !== undefined) { updateFields.push('logo_url = ?'); updateValues.push(logo_url); }
+        if (payment !== undefined) { updateFields.push('payment = ?'); updateValues.push(payment); }
 
         if (updateFields.length === 0) {
             return res.status(400).json({ success: false, message: 'Tidak ada data yang diubah' });
@@ -986,7 +1111,11 @@ router.patch('/:idOrSlug', authenticateToken, async (req, res) => {
             }
         }
 
-        res.json({ success: true, message: 'Turnamen berhasil diperbarui' });
+        // Fetch updated slug
+        const [updated] = await connection.query('SELECT slug FROM tournaments WHERE id = ?', [tournament.id]);
+        const newSlug = updated[0]?.slug || idOrSlug;
+
+        res.json({ success: true, message: 'Turnamen berhasil diperbarui', slug: newSlug });
 
     } catch (error) {
         await connection.rollback();
@@ -1429,7 +1558,7 @@ router.post('/:idOrSlug/prizes', authenticateToken, async (req, res) => {
 
         // 1. Get Tournament & Verify Ownership
         const [tournaments] = await connection.query(
-            `SELECT id, organizer_id FROM tournaments WHERE id = ? OR slug = ?`,
+            `SELECT id, organizer_id, payment FROM tournaments WHERE id = ? OR slug = ?`,
             [idOrSlug, idOrSlug]
         );
 
@@ -1443,6 +1572,14 @@ router.post('/:idOrSlug/prizes', authenticateToken, async (req, res) => {
         }
 
         const tournamentId = tournament.id;
+
+        // If the tournament is paid, update the organizer_fee_pct (which is now treated as a fixed coin fee)
+        if (tournament.payment != null && sources && sources.adminFee !== undefined) {
+            await connection.query(
+                'UPDATE tournament_wallets SET organizer_fee_pct = ?, updated_at = NOW() WHERE tournament_id = ?',
+                [Number(sources.adminFee) || 0, tournamentId]
+            );
+        }
 
         // 2. Check if prize settings already exist
         const [existingPrizes] = await connection.query(

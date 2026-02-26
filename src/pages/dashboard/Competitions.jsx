@@ -334,6 +334,12 @@ export default function Competitions() {
                                     <Trophy className="w-4 h-4 text-purple-400" />
                                     <span className="uppercase">{featuredCompetition.type.replace('_', ' ')}</span>
                                 </div>
+                                {featuredCompetition.payment != null && (
+                                    <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 px-3 py-2 rounded-lg">
+                                        <img src="/coin.png" alt="Coin" className="w-4 h-4" />
+                                        <span className="text-yellow-400 font-medium">{featuredCompetition.payment} Coin</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

@@ -2,7 +2,7 @@
 import { authFetch } from '../../utils/api'
 import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
-import { ArrowLeft, Loader2, User, Phone, Shield, Trophy, Users, Calendar, Sparkles, ShieldCheck, Newspaper, ClipboardList, MessageSquare, MessageCircle, ChevronDown, Send, CheckCircle, XCircle, Clock, Trash2, Edit, Share2, Mail, ImagePlus } from 'lucide-react'
+import { ArrowLeft, Loader2, User, Phone, Shield, Trophy, Users, Calendar, Sparkles, ShieldCheck, Newspaper, ClipboardList, MessageSquare, MessageCircle, ChevronDown, Send, CheckCircle, XCircle, Clock, Trash2, Edit, Share2, Mail, ImagePlus, Gift, DollarSign, Medal, Activity } from 'lucide-react'
 import Card, { CardHeader, CardContent, CardTitle, CardDescription } from '../../components/ui/Card'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
@@ -85,6 +85,10 @@ export default function JoinCompetition() {
 
     const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
+    const [isPaymentConfirmOpen, setIsPaymentConfirmOpen] = useState(false)
+    const [isSponsorModalOpen, setIsSponsorModalOpen] = useState(false)
+    const [sponsorAmount, setSponsorAmount] = useState('')
+    const [isSponsorSubmitting, setIsSponsorSubmitting] = useState(false)
 
     // Tour State
     const [runTour, setRunTour] = useState(false);
@@ -461,9 +465,25 @@ export default function JoinCompetition() {
 
 
 
-    const handleSubmit = async (e) => {
+    const handleSubmitWithPaymentCheck = (e) => {
         e.preventDefault()
 
+        if (!formData.team) {
+            setError('Harap pilih tim.')
+            return
+        }
+
+        // If payment system, show confirmation modal first
+        if (competitionData?.payment != null) {
+            setIsPaymentConfirmOpen(true)
+            return
+        }
+
+        // Otherwise submit directly
+        executeSubmit()
+    }
+
+    const executeSubmit = async () => {
         if (!formData.team) {
             setError('Harap pilih tim.')
             return
@@ -475,14 +495,12 @@ export default function JoinCompetition() {
         try {
             console.log('Registering for competition:', { competitionId: id, ...formData })
 
-            const isOrganizer = competitionData && String(competitionData.organizer_id) === String(user.id);
-
             const payload = {
                 user_id: user.id,
                 name: user.name,
                 team: formData.team,
                 logo_url: formData.teamLogo,
-                status: isOrganizer ? 'approved' : 'pending',
+                status: 'pending',
                 stats: { contact: user.phone || user.whatsapp || '-' } // Fallback if phone is not in user object
             }
 
@@ -615,6 +633,19 @@ export default function JoinCompetition() {
                 isLoading={loading}
             />
             {isPublic && <Navbar />}
+            <ConfirmationModal
+                isOpen={isPaymentConfirmOpen}
+                onClose={() => setIsPaymentConfirmOpen(false)}
+                onConfirm={() => {
+                    setIsPaymentConfirmOpen(false)
+                    executeSubmit()
+                }}
+                title="Pendaftaran Berbayar"
+                message={`Kompetisi ini memerlukan biaya pendaftaran sebesar ${competitionData?.payment || 0} Coin. Jika organizer/admin menyetujui pendaftaran Anda, coin Anda akan berkurang secara otomatis. Lanjutkan?`}
+                confirmText="Ya, Daftar"
+                variant="warning"
+                isLoading={isSubmitting}
+            />
             <ReactJoyride
                 steps={tourSteps}
                 run={runTour}
@@ -774,12 +805,30 @@ export default function JoinCompetition() {
                                     <Newspaper className="w-4 h-4" />
                                     League News
                                 </button>
+                                {competitionData.prizeSettings?.enabled && (
+                                    <button
+                                        onClick={() => setActiveTab('prize')}
+                                        className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === 'prize' ? 'border-neonPink text-neonPink' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
+                                    >
+                                        <Gift className="w-4 h-4" />
+                                        Hadiah
+                                    </button>
+                                )}
                             </div>
 
                             {/* Tab Content */}
                             <div className="min-h-[400px] mt-6">
                                 {activeTab === 'register' && (
                                     <Card hover={false} className={isInvited ? "border-orange-500/50 bg-orange-500/5" : ""} id="tour-join-form">
+                                        {competitionData.payment != null && (
+                                            <div className="flex items-center gap-3 mx-6 mt-6 px-4 py-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                                                <img src="/coin.png" alt="Coin" className="w-5 h-5" />
+                                                <div>
+                                                    <p className="text-sm font-medium text-yellow-400">Kompetisi Berbayar</p>
+                                                    <p className="text-xs text-gray-400">Biaya pendaftaran: <span className="text-yellow-400 font-bold">{competitionData.payment} Coin</span></p>
+                                                </div>
+                                            </div>
+                                        )}
                                         <CardHeader>
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-10 h-10 rounded-lg ${isInvited ? 'bg-orange-500/20 text-orange-500' : 'bg-white/5 text-neonGreen'} flex items-center justify-center`}>
@@ -943,7 +992,7 @@ export default function JoinCompetition() {
                                                     </div>
                                                 </form>
                                             ) : (
-                                                <form onSubmit={handleSubmit} className="space-y-5">
+                                                <form onSubmit={handleSubmitWithPaymentCheck} className="space-y-5">
                                                     {/* User Info Header */}
                                                     <div className="bg-white/5 border border-white/10 rounded-lg p-4 mb-4">
                                                         <div className="flex items-center gap-3 mb-3 pb-3 border-b border-white/5">
@@ -1264,6 +1313,199 @@ export default function JoinCompetition() {
                                         )}
                                     </div>
                                 )}
+
+                                {/* Prize Tab */}
+                                {activeTab === 'prize' && competitionData.prizeSettings?.enabled && (
+                                    <div className="space-y-6 animate-fadeIn pb-20">
+                                        {/* Header Section */}
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/5 p-6 rounded-2xl border border-white/10">
+                                            <div>
+                                                <h3 className="text-2xl font-display font-bold text-white flex items-center gap-2">
+                                                    <Gift className="w-6 h-6 text-neonPink" />
+                                                    Hadiah Turnamen
+                                                </h3>
+                                                <p className="text-gray-400 text-sm mt-1">Informasi distribusi hadiah turnamen dan para pemenang.</p>
+                                            </div>
+                                            {competitionData.payment != null && user && (
+                                                <Button
+                                                    onClick={() => setIsSponsorModalOpen(true)}
+                                                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold border-0 shadow-lg shadow-purple-500/20"
+                                                >
+                                                    <Sparkles className="w-4 h-4 mr-2" />
+                                                    Sponsorship
+                                                </Button>
+                                            )}
+                                        </div>
+
+                                        {/* Source & Total Prize Pool */}
+                                        <Card hover={false} className="overflow-hidden border-white/5 bg-black/40 backdrop-blur-sm">
+                                            <CardContent className="p-0">
+                                                {/* Source Items Grid */}
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-white/5">
+                                                    {/* Registration */}
+                                                    <div className="p-5 md:p-6 group/item hover:bg-white/[0.02] transition-colors">
+                                                        <div className="flex items-center gap-2 mb-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                                                <Users className="w-4 h-4 text-blue-400" />
+                                                            </div>
+                                                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Pendaftaran</span>
+                                                        </div>
+                                                        <div className="flex items-baseline gap-1.5">
+                                                            {competitionData.payment != null ? (
+                                                                <img src="/coin.png" alt="coin" className="w-4 h-4 object-contain self-center" />
+                                                            ) : (
+                                                                <span className="text-sm text-gray-500">Rp</span>
+                                                            )}
+                                                            <span className="text-xl font-display font-black text-white">
+                                                                {Number(competitionData.prizeSettings.sources?.registrationFee || 0).toLocaleString('id-ID')}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-[11px] text-gray-500 mt-1.5 flex items-center gap-1">
+                                                            × <span className="text-white font-bold">{competitionData.status === 'draft' ? (competitionData.maxParticipants || 0) : (competitionData.prizeSettings.sources?.playerCount || 0)}</span> peserta
+                                                            {competitionData.status === 'draft' && <span className="text-gray-600">(maks)</span>}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Sponsor */}
+                                                    <div className="p-5 md:p-6 group/item hover:bg-white/[0.02] transition-colors">
+                                                        <div className="flex items-center gap-2 mb-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                                                                <Sparkles className="w-4 h-4 text-purple-400" />
+                                                            </div>
+                                                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Sponsor</span>
+                                                        </div>
+                                                        <div className="flex items-baseline gap-1.5">
+                                                            {competitionData.payment != null ? (
+                                                                <img src="/coin.png" alt="coin" className="w-4 h-4 object-contain self-center" />
+                                                            ) : (
+                                                                <span className="text-sm text-gray-500">Rp</span>
+                                                            )}
+                                                            <span className="text-xl font-display font-black text-white">
+                                                                {Number(competitionData.prizeSettings.sources?.sponsor || 0).toLocaleString('id-ID')}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-[11px] text-gray-500 mt-1.5">Tambahan dari sponsor</div>
+                                                    </div>
+
+                                                    {/* Admin Fee */}
+                                                    <div className="p-5 md:p-6 group/item hover:bg-white/[0.02] transition-colors">
+                                                        <div className="flex items-center gap-2 mb-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+                                                                <DollarSign className="w-4 h-4 text-red-400" />
+                                                            </div>
+                                                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Biaya Admin</span>
+                                                        </div>
+                                                        <div className="flex items-baseline gap-1.5">
+                                                            {competitionData.payment != null ? (
+                                                                <img src="/coin.png" alt="coin" className="w-4 h-4 object-contain self-center" />
+                                                            ) : (
+                                                                <span className="text-sm text-gray-500">Rp</span>
+                                                            )}
+                                                            <span className="text-xl font-display font-black text-red-400">
+                                                                -{Number(competitionData.prizeSettings.sources?.adminFee || 0).toLocaleString('id-ID')}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-[11px] text-gray-500 mt-1.5">Pengurangan biaya operasional</div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Total Prize Pool - Hero */}
+                                                <div className="p-6 md:p-8 bg-gradient-to-r from-neonGreen/5 via-neonGreen/10 to-neonGreen/5 border-t border-neonGreen/20 relative overflow-hidden">
+                                                    <div className="absolute -right-4 -top-4 opacity-5 pointer-events-none">
+                                                        <Trophy className="w-32 h-32 text-neonGreen" />
+                                                    </div>
+                                                    <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4">
+                                                        <div>
+                                                            <div className="text-xs font-bold text-neonGreen uppercase tracking-widest mb-1">Total Prize Pool</div>
+                                                            <div className="text-sm text-gray-400">Total hadiah yang diperebutkan</div>
+                                                        </div>
+                                                        <div className="text-4xl md:text-5xl font-display font-black text-white flex items-center gap-3">
+                                                            {competitionData.payment != null && <img src="/coin.png" alt="coin" className="w-10 h-10 object-contain" />}
+                                                            {competitionData.payment == null && <span className="text-2xl text-gray-400 font-bold">Rp</span>}
+                                                            {parseInt(competitionData.prizeSettings.totalPrizePool || 0).toLocaleString('id-ID')}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+
+                                        {/* Recipients Table */}
+                                        <Card hover={false} className="border-white/5 bg-black/40 backdrop-blur-sm overflow-hidden">
+                                            <CardHeader className="border-b border-white/5 flex flex-row items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="p-1.5 bg-neonPink/10 rounded-lg">
+                                                        <Medal className="w-4 h-4 text-neonPink" />
+                                                    </div>
+                                                    <h4 className="font-bold">Daftar Pemenang & Distribusi</h4>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent className="p-0">
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-left border-collapse">
+                                                        <thead>
+                                                            <tr className="bg-white/5 border-b border-white/5">
+                                                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Kategori / Gelar</th>
+                                                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Nominal Hadiah</th>
+                                                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Pemenang</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-white/5">
+                                                            {competitionData.prizeSettings.recipients.map((recipient) => (
+                                                                <tr key={recipient.id} className="group hover:bg-white/[0.02] transition-colors">
+                                                                    <td className="px-6 py-4">
+                                                                        <div className="font-bold text-white">{recipient.label}</div>
+                                                                    </td>
+                                                                    <td className="px-6 py-4 font-mono">
+                                                                        <div className="flex items-center gap-2">
+                                                                            {competitionData.payment != null ? (
+                                                                                <img src="/coin.png" alt="coin" className="w-4 h-4 object-contain" />
+                                                                            ) : (
+                                                                                <span className="text-gray-500 text-xs">Rp</span>
+                                                                            )}
+                                                                            <span className="font-bold text-white text-lg">
+                                                                                {Number(recipient.amount).toLocaleString('id-ID')}
+                                                                            </span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-6 py-4">
+                                                                        <div className="flex items-center gap-2 opacity-50">
+                                                                            <div className="w-8 h-8 rounded-full bg-white/5 border border-dashed border-white/10 flex items-center justify-center">
+                                                                                <Users className="w-4 h-4 text-gray-600" />
+                                                                            </div>
+                                                                            <span className="text-xs text-gray-500 italic">Belum ditentukan</span>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+
+                                        {/* Terms & Conditions */}
+                                        <Card className="h-full">
+                                            <CardHeader>
+                                                <h3 className="font-display font-bold flex items-center gap-2">
+                                                    <Activity className="w-5 h-5 text-blue-400" />
+                                                    Syarat & Ketentuan
+                                                </h3>
+                                            </CardHeader>
+                                            <CardContent className="space-y-4">
+                                                <ul className="list-disc list-inside space-y-2 text-sm text-gray-400">
+                                                    <li>Hadiah akan didistribusikan selambat-lambatnya 3 hari setelah turnamen selesai.</li>
+                                                    <li>Pajak hadiah ditanggung oleh pemenang (jika ada).</li>
+                                                    <li>Keputusan panitia bersifat mutlak dan tidak dapat diganggu gugat.</li>
+                                                    <li>Pemenang wajib memiliki rekening bank yang aktif untuk proses transfer.</li>
+                                                </ul>
+                                                <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300 mt-4">
+                                                    <span className="font-bold block mb-1">Informasi Penting:</span>
+                                                    Pastikan data profil Anda sudah lengkap untuk memudahkan proses klaim hadiah.
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+                                )}
                             </div>
 
                         </>
@@ -1280,6 +1522,75 @@ export default function JoinCompetition() {
                     <AdSlot variant="banner" adId="join-comp-form" />
                 </div>
             </div >
+            {/* Sponsorship Modal */}
+            <Modal
+                isOpen={isSponsorModalOpen}
+                onClose={() => { setIsSponsorModalOpen(false); setSponsorAmount(''); }}
+                title="Sponsorship Turnamen"
+            >
+                <div className="space-y-6">
+                    <div className="flex items-center gap-4 p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+                        <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                            <Sparkles className="w-6 h-6 text-purple-400" />
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-white text-sm">Dukung Turnamen Ini</h4>
+                            <p className="text-xs text-gray-400 mt-0.5">Coin sponsor Anda akan ditambahkan ke prize pool turnamen.</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Jumlah Coin</label>
+                        <div className="relative">
+                            <img src="/coin.png" alt="coin" className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 object-contain" />
+                            <Input
+                                type="text"
+                                inputMode="numeric"
+                                value={sponsorAmount}
+                                onChange={(e) => setSponsorAmount(e.target.value.replace(/\D/g, ''))}
+                                placeholder="Masukkan jumlah coin..."
+                                className="pl-11 bg-white/5 border-white/10 text-lg font-bold"
+                            />
+                        </div>
+                        {sponsorAmount && (
+                            <div className="mt-2 text-xs text-gray-400 flex items-center gap-1">
+                                Anda akan mensponsori <img src="/coin.png" alt="" className="w-3 h-3 inline" /> <span className="text-white font-bold">{Number(sponsorAmount).toLocaleString('id-ID')}</span> coin
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex gap-3">
+                        <Button
+                            variant="secondary"
+                            onClick={() => { setIsSponsorModalOpen(false); setSponsorAmount(''); }}
+                            className="flex-1 bg-white/5 hover:bg-white/10 text-white border-white/10"
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                if (!sponsorAmount || Number(sponsorAmount) <= 0) {
+                                    showError('Masukkan jumlah coin yang valid')
+                                    return
+                                }
+                                setIsSponsorSubmitting(true)
+                                setTimeout(() => {
+                                    showSuccess(`Sponsorship ${Number(sponsorAmount).toLocaleString('id-ID')} coin berhasil dikirim!`)
+                                    setIsSponsorModalOpen(false)
+                                    setSponsorAmount('')
+                                    setIsSponsorSubmitting(false)
+                                }, 1000)
+                            }}
+                            disabled={isSponsorSubmitting || !sponsorAmount}
+                            className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold border-0"
+                        >
+                            {isSponsorSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                            {isSponsorSubmitting ? 'Mengirim...' : 'Kirim Sponsorship'}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+
             <EditParticipantModal
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}

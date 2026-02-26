@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Trophy, Users, Calendar, BarChart2, Settings, Share2, Download, ArrowLeft, ArrowUp, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2, Gift, DollarSign, Percent, Save, Loader2, User, Phone, Shield, Sparkles, Medal, Crown, Target, ListFilter, MessageSquare, MessageCircle, Send, ChevronDown, UserCheck, ShieldCheck, Mail } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Trophy, Users, Calendar, BarChart2, Settings, Share2, Download, ArrowLeft, ArrowRight, ArrowUp, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2, Gift, DollarSign, Percent, Save, Loader2, User, Phone, Shield, Sparkles, Medal, Crown, Target, ListFilter, MessageSquare, MessageCircle, Send, ChevronDown, UserCheck, ShieldCheck, Mail } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -17,6 +17,7 @@ import TournamentStatistics from '../../components/tournament/TournamentStatisti
 import MatchCard from '../../components/tournament/MatchCard'
 import Bracket from '../../components/tournament/Bracket'
 import AdSlot from '../../components/ui/AdSlot'
+import PrizeTab from '../../components/tournament/PrizeTab'
 import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../../contexts/AuthContext'
 import SearchableSelect from '../../components/ui/SearchableSelect'
@@ -96,7 +97,7 @@ const leagueOptions = [
 
 // Sample draft players data
 // Draft Players List Component
-function DraftPlayerList({ players, tournamentId, navigate, onStatusUpdate, onEdit, onInvite, isPrivate }) {
+function DraftPlayerList({ players, tournamentId, navigate, onStatusUpdate, onEdit, onInvite, isPrivate, isSystemPayment }) {
     const [filter, setFilter] = useState('all')
     const [loadingStatus, setLoadingStatus] = useState({ playerId: null, action: null })
     const [reinviteModal, setReinviteModal] = useState({ isOpen: false, player: null })
@@ -160,12 +161,20 @@ function DraftPlayerList({ players, tournamentId, navigate, onStatusUpdate, onEd
                             Daftar Pendaftar
                         </h3>
                         <p className="text-sm text-gray-400 mt-1">Kelola pemain yang mendaftar di turnamen ini</p>
+                        {isSystemPayment && (
+                            <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                                <img src="/coin.png" alt="Coin" className="w-4 h-4" />
+                                <p className="text-xs text-yellow-400">Turnamen berbayar — hanya user terdaftar yang dapat mengikuti kompetisi ini.</p>
+                            </div>
+                        )}
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                        <Button size="sm" onClick={() => navigate(`/dashboard/tournaments/${tournamentId}/players/add`)} className="w-full sm:w-auto justify-center" id="tour-add-player-btn">
-                            <UserPlus className="w-4 h-4 mr-2" />
-                            Tambah Pemain
-                        </Button>
+                        {!isSystemPayment && (
+                            <Button size="sm" onClick={() => navigate(`/dashboard/tournaments/${tournamentId}/players/add`)} className="w-full sm:w-auto justify-center" id="tour-add-player-btn">
+                                <UserPlus className="w-4 h-4 mr-2" />
+                                Tambah Pemain
+                            </Button>
+                        )}
                         {isPrivate && (
                             <Button size="sm" variant="outline" onClick={onInvite} className="w-full sm:w-auto justify-center">
                                 <Mail className="w-4 h-4 mr-2" />
@@ -1134,8 +1143,20 @@ export default function TournamentDetail() {
 
     // LOGIC HANDLERS & HELPERS
     const calculatePrizePool = () => {
-        const { registrationFee, playerCount, sponsor, adminFee } = prizeSettings.sources
-        const total = (registrationFee * playerCount) + Number(sponsor) - Number(adminFee)
+        let { registrationFee, playerCount, sponsor, adminFee } = prizeSettings.sources
+        const isPaid = tournamentData?.payment != null
+        const isDraft = tournamentData?.status === 'draft'
+
+        let effectivePlayerCount = playerCount
+        if (isDraft) {
+            effectivePlayerCount = tournamentData?.maxParticipants || 0
+        }
+
+        if (isPaid) {
+            registrationFee = Number(tournamentData.payment);
+        }
+
+        const total = (registrationFee * effectivePlayerCount) + Number(sponsor) - Number(adminFee)
         return Math.max(0, total)
     }
 
@@ -1377,13 +1398,37 @@ export default function TournamentDetail() {
     // Update prize settings when tournament data loads
     React.useEffect(() => {
         if (tournamentData) {
-            setPrizeSettings(prev => ({
-                ...prev,
-                sources: {
-                    ...prev.sources,
-                    playerCount: tournamentData.players || 0
+            setPrizeSettings(prev => {
+                const isPaid = tournamentData.payment != null;
+
+                // Priority for playerCount: Inputted state -> max_participants if draft -> actual players if not draft
+                const isDraft = tournamentData.status === 'draft';
+                const calculatedPlayerCount = isDraft ? (tournamentData.maxParticipants || 0) : (tournamentData.players || 0);
+
+                const playerCount = prev.sources.playerCount !== 0 && !isDraft && prev.sources.playerCount !== calculatedPlayerCount ? prev.sources.playerCount : calculatedPlayerCount;
+                let regFee = prev.sources.registrationFee;
+                let admFee = prev.sources.adminFee;
+
+                if (isPaid) {
+                    regFee = Number(tournamentData.payment);
+                    // Only initialize adminFee from DB if we haven't set it yet, or if it's 0 to populate it initially.
+                    // The user can edit it later, so we shouldn't constantly overwrite it with the DB value unless it's initial load.
+                    if (admFee === 0 && tournamentData.wallet_organizer_fee_pct !== undefined) {
+                        admFee = Number(tournamentData.wallet_organizer_fee_pct || 0);
+                    }
                 }
-            }))
+
+                return {
+                    ...prev,
+                    enabled: isPaid ? true : prev.enabled,
+                    sources: {
+                        ...prev.sources,
+                        playerCount: playerCount,
+                        registrationFee: regFee,
+                        adminFee: admFee
+                    }
+                }
+            })
         }
     }, [tournamentData])
 
@@ -1879,6 +1924,12 @@ export default function TournamentDetail() {
             }
 
             tabs.push({ id: 'news', label: 'League News', icon: Newspaper })
+            tabs.push({ id: 'prize', label: 'Hadiah', icon: Gift })
+
+            // Wallet tab for Paid Tournaments (Organizer only)
+            if (tournamentData.payment != null && (isOrganizer || isAdmin)) {
+                tabs.push({ id: 'wallet', label: 'Wallet', icon: DollarSign })
+            }
 
             return tabs
         }
@@ -1907,6 +1958,11 @@ export default function TournamentDetail() {
         baseTabs.push({ id: 'news', label: 'League News', icon: Newspaper })
         baseTabs.push({ id: 'prize', label: 'Hadiah', icon: Gift })
         baseTabs.push({ id: 'players', label: 'Pemain', icon: Users })
+
+        // Wallet tab for Paid Tournaments (Organizer only)
+        if (tournamentData.payment != null && (isOrganizer || isAdmin)) {
+            baseTabs.push({ id: 'wallet', label: 'Wallet', icon: DollarSign })
+        }
 
         return baseTabs
     }
@@ -3942,347 +3998,22 @@ export default function TournamentDetail() {
             {/* Prize Tab */}
             {
                 activeTab === 'prize' && (
-                    <div className="space-y-6 animate-fadeIn pb-20">
-                        {/* Header Section */}
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/5 p-6 rounded-2xl border border-white/10">
-                            <div>
-                                <h3 className="text-2xl font-display font-bold text-white flex items-center gap-2">
-                                    <Gift className="w-6 h-6 text-neonPink" />
-                                    Hadiah Turnamen
-                                </h3>
-                                <p className="text-gray-400 text-sm mt-1">Kelola sumber dana dan distribusi hadiah peserta</p>
-                            </div>
-                            {isOrganizer && (
-                                <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-3 px-4 py-2 bg-black/40 border border-white/10 rounded-xl">
-                                        <span className="text-sm font-medium text-gray-400 whitespace-nowrap">Status Fitur:</span>
-                                        <button
-                                            onClick={() => setPrizeSettings(prev => ({ ...prev, enabled: !prev.enabled }))}
-                                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-300 focus:outline-none ${prizeSettings.enabled ? 'bg-neonGreen shadow-[0_0_10px_rgba(57,255,20,0.3)]' : 'bg-gray-600'}`}
-                                        >
-                                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-300 ease-in-out ${prizeSettings.enabled ? 'translate-x-5' : 'translate-x-0'}`} />
-                                        </button>
-                                        <span className={`text-xs font-black tracking-widest whitespace-nowrap w-[60px] ${prizeSettings.enabled ? 'text-neonGreen' : 'text-gray-500'}`}>
-                                            {prizeSettings.enabled ? 'AKTIF' : 'NONAKTIF'}
-                                        </span>
-                                    </div>
-
-                                    {prizeSettings.enabled && !isEditingPrizes && (
-                                        <Button
-                                            onClick={() => setIsEditingPrizes(true)}
-                                            variant="secondary"
-                                            className="bg-white/10 hover:bg-white/20 text-white border-white/10"
-                                        >
-                                            <Edit className="w-4 h-4 mr-2" />
-                                            Ubah Pengaturan
-                                        </Button>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        {prizeSettings.enabled ? (
-                            isPrizeLoading ? (
-                                <div className="flex items-center justify-center py-20">
-                                    <Loader2 className="w-8 h-8 text-neonGreen animate-spin" />
-                                </div>
-                            ) : (
-                                <>
-                                    {/* Calculation Section */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                        {/* Sources Card */}
-                                        <Card hover={false} className="lg:col-span-2 overflow-hidden border-white/5 bg-black/40 backdrop-blur-sm">
-                                            <CardHeader className="border-b border-white/5 bg-white/5">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="p-1.5 bg-blue-500/10 rounded-lg">
-                                                            <DollarSign className="w-4 h-4 text-blue-400" />
-                                                        </div>
-                                                        <h4 className="font-bold">Sumber Dana</h4>
-                                                    </div>
-                                                </div>
-                                            </CardHeader>
-                                            <CardContent className="p-6">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                    <div className="space-y-6">
-                                                        <div>
-                                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Pendaftaran / Peserta</label>
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="relative flex-1">
-                                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">Rp</span>
-                                                                    {isEditingPrizes ? (
-                                                                        <Input
-                                                                            type="text"
-                                                                            inputMode="numeric"
-                                                                            value={prizeSettings.sources.registrationFee}
-                                                                            onChange={(e) => handleSourceChange('registrationFee', e.target.value.replace(/\D/g, ''))}
-                                                                            className="pl-10 bg-white/5 border-white/10"
-                                                                        />
-                                                                    ) : (
-                                                                        <div className="pl-10 py-2 border border-transparent font-bold">
-                                                                            {Number(prizeSettings.sources.registrationFee).toLocaleString('id-ID')}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                                <div className="text-gray-500">×</div>
-                                                                <div className="w-20 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-center font-bold">
-                                                                    {prizeSettings.sources.playerCount}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Sponsor / Tambahan</label>
-                                                            <div className="relative">
-                                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">Rp</span>
-                                                                {isEditingPrizes ? (
-                                                                    <Input
-                                                                        type="text"
-                                                                        inputMode="numeric"
-                                                                        value={prizeSettings.sources.sponsor}
-                                                                        onChange={(e) => handleSourceChange('sponsor', e.target.value.replace(/\D/g, ''))}
-                                                                        className="pl-10 bg-white/5 border-white/10"
-                                                                    />
-                                                                ) : (
-                                                                    <div className="pl-10 py-2 border border-transparent font-bold">
-                                                                        {Number(prizeSettings.sources.sponsor).toLocaleString('id-ID')}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-6">
-                                                        <div>
-                                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Biaya Admin (Pengurangan)</label>
-                                                            <div className="relative">
-                                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">Rp</span>
-                                                                {isEditingPrizes ? (
-                                                                    <Input
-                                                                        type="text"
-                                                                        inputMode="numeric"
-                                                                        value={prizeSettings.sources.adminFee}
-                                                                        onChange={(e) => handleSourceChange('adminFee', e.target.value.replace(/\D/g, ''))}
-                                                                        className="pl-10 bg-white/5 border-red-500/30 text-red-500 font-bold"
-                                                                    />
-                                                                ) : (
-                                                                    <div className="pl-10 py-2 border border-transparent font-bold text-red-500">
-                                                                        {Number(prizeSettings.sources.adminFee).toLocaleString('id-ID')}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="p-4 bg-neonGreen/5 border border-neonGreen/20 rounded-xl shadow-lg shadow-neonGreen/5">
-                                                            <div className="text-xs font-bold text-neonGreen uppercase tracking-wider mb-1">Total Prize Pool</div>
-                                                            <div className="text-3xl font-display font-black text-white">
-                                                                Rp {prizeSettings.totalPrizePool.toLocaleString('id-ID')}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-
-                                        {/* Summary Card */}
-                                        <Card hover={false} className="border-white/5 bg-gradient-to-br from-gray-900 to-black relative overflow-hidden group">
-                                            <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-500">
-                                                <Trophy className="w-32 h-32 text-neonGreen" />
-                                            </div>
-                                            <CardHeader>
-                                                <h4 className="font-bold">Ringkasan Distribusi</h4>
-                                            </CardHeader>
-                                            <CardContent className="space-y-4">
-                                                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-                                                    <span className="text-sm text-gray-400">Total Kategori</span>
-                                                    <span className="font-bold text-white">{prizeSettings.recipients.length}</span>
-                                                </div>
-                                                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-                                                    <span className="text-sm text-gray-400">Persentase Terpakai</span>
-                                                    <span className={`font-bold ${prizeSettings.recipients.reduce((sum, r) => sum + (Number(r.percentage) || 0), 0) === 100 ? 'text-neonGreen' : 'text-red-400'}`}>
-                                                        {prizeSettings.recipients.reduce((sum, r) => sum + (Number(r.percentage) || 0), 0)}%
-                                                    </span>
-                                                </div>
-                                                <div className="mt-6">
-                                                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Preview Hadiah</div>
-                                                    <div className="space-y-3">
-                                                        {prizeSettings.recipients.slice(0, 4).map((r, i) => (
-                                                            <div key={i} className="flex items-center gap-3">
-                                                                <div className={`w-1 h-6 rounded-full ${i === 0 ? 'bg-yellow-500' : i === 1 ? 'bg-gray-400' : 'bg-orange-500'}`} />
-                                                                <div className="flex-1">
-                                                                    <div className="text-xs font-bold truncate">{r.label}</div>
-                                                                    <div className="text-[10px] text-gray-400">Rp {Number(r.amount).toLocaleString('id-ID')}</div>
-                                                                </div>
-                                                                <div className="text-xs font-mono font-bold text-gray-500">{r.percentage}%</div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    </div>
-
-                                    {/* Recipients Management */}
-                                    <Card hover={false} className="border-white/5 bg-black/40 backdrop-blur-sm overflow-hidden">
-                                        <CardHeader className="border-b border-white/5 flex flex-row items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className="p-1.5 bg-neonPink/10 rounded-lg">
-                                                    <Medal className="w-4 h-4 text-neonPink" />
-                                                </div>
-                                                <h4 className="font-bold">Penerima Hadiah</h4>
-                                            </div>
-                                            {isOrganizer && isEditingPrizes && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={addRecipient}
-                                                    className="text-neonPink hover:bg-neonPink/10"
-                                                >
-                                                    <Plus className="w-4 h-4 mr-1" /> Tambah Kategori
-                                                </Button>
-                                            )}
-                                        </CardHeader>
-                                        <CardContent className="p-0">
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-left border-collapse">
-                                                    <thead>
-                                                        <tr className="bg-white/5 border-b border-white/5">
-                                                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Kategori / Gelar</th>
-                                                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Persentase</th>
-                                                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Nominal Hadiah</th>
-                                                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Pemenang</th>
-                                                            {isOrganizer && isEditingPrizes && <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-right">Aksi</th>}
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-white/5">
-                                                        {prizeSettings.recipients.map((recipient) => (
-                                                            <tr key={recipient.id} className="group hover:bg-white/[0.02] transition-colors">
-                                                                <td className="px-6 py-4">
-                                                                    {isEditingPrizes ? (
-                                                                        <Input
-                                                                            value={recipient.label}
-                                                                            onChange={(e) => handleRecipientChange(recipient.id, 'label', e.target.value)}
-                                                                            className="h-9 bg-white/5 border-white/10 font-bold text-sm"
-                                                                            placeholder="Contoh: Juara 1"
-                                                                        />
-                                                                    ) : (
-                                                                        <div className="font-bold text-white">{recipient.label}</div>
-                                                                    )}
-                                                                </td>
-                                                                <td className="px-6 py-4">
-                                                                    <div className="flex items-center gap-2 w-24">
-                                                                        {isEditingPrizes ? (
-                                                                            <>
-                                                                                <Input
-                                                                                    type="text"
-                                                                                    inputMode="numeric"
-                                                                                    value={recipient.percentage}
-                                                                                    onChange={(e) => handleRecipientChange(recipient.id, 'percentage', e.target.value.replace(/\D/g, ''))}
-                                                                                    className="h-9 bg-white/5 border-white/10 text-center font-mono"
-                                                                                />
-                                                                                <span className="text-gray-500">%</span>
-                                                                            </>
-                                                                        ) : (
-                                                                            <span className="font-mono text-gray-300">{recipient.percentage}%</span>
-                                                                        )}
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-6 py-4 font-mono">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="text-gray-500 text-xs">Rp</span>
-                                                                        <span className="font-bold text-white">
-                                                                            {Number(recipient.amount).toLocaleString('id-ID')}
-                                                                        </span>
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-6 py-4">
-                                                                    {(() => {
-                                                                        const autoWinner = tournamentData.status === 'completed' ? getAutomaticWinner(recipient) : null;
-                                                                        if (autoWinner) {
-                                                                            return (
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
-                                                                                        {autoWinner.logo ? (
-                                                                                            <img src={autoWinner.logo} alt="" className="w-full h-full object-cover" />
-                                                                                        ) : (
-                                                                                            <User className="w-4 h-4 text-neonPink" />
-                                                                                        )}
-                                                                                    </div>
-                                                                                    <div className="flex flex-col">
-                                                                                        <span className="text-sm font-bold text-white">{autoWinner.name}</span>
-                                                                                        {autoWinner.sub && <span className="text-[10px] text-gray-500">{autoWinner.sub}</span>}
-                                                                                    </div>
-                                                                                </div>
-                                                                            );
-                                                                        }
-                                                                        return (
-                                                                            <div className="flex items-center gap-2">
-                                                                                <div className="w-8 h-8 rounded-lg bg-white/5 border border-dashed border-white/10 flex items-center justify-center">
-                                                                                    <User className="w-4 h-4 text-gray-600" />
-                                                                                </div>
-                                                                                <span className="text-xs text-gray-500 italic">Belum ditentukan</span>
-                                                                            </div>
-                                                                        );
-                                                                    })()}
-                                                                </td>
-                                                                {isOrganizer && isEditingPrizes && (
-                                                                    <td className="px-6 py-4 text-right">
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="sm"
-                                                                            onClick={() => removeRecipient(recipient.id)}
-                                                                            className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                        >
-                                                                            <Trash2 className="w-4 h-4" />
-                                                                        </Button>
-                                                                    </td>
-                                                                )}
-                                                            </tr>
-                                                        ))}
-                                                        {prizeSettings.recipients.length === 0 && (
-                                                            <tr>
-                                                                <td colSpan={isOrganizer && isEditingPrizes ? 5 : 4} className="px-6 py-12 text-center text-gray-600 italic">
-                                                                    Belum ada kategori hadiah. {isEditingPrizes ? 'Klik "Tambah Kategori" untuk memulai.' : ''}
-                                                                </td>
-                                                            </tr>
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-
-                                    {/* Save Button for Edit Mode */}
-                                    {isOrganizer && isEditingPrizes && (
-                                        <div className="flex justify-end gap-3 mt-8">
-                                            <Button
-                                                variant="secondary"
-                                                onClick={() => setIsEditingPrizes(false)}
-                                                className="bg-white/5 hover:bg-white/10 text-white border-white/10"
-                                            >
-                                                Batal
-                                            </Button>
-                                            <Button
-                                                onClick={handleSavePrizes}
-                                                disabled={isSaving}
-                                                className="bg-neonGreen hover:bg-neonGreen/80 text-black font-black px-8"
-                                            >
-                                                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                                                Simpan Perubahan
-                                            </Button>
-                                        </div>
-                                    )}
-                                </>
-                            )
-                        ) : (
-                            /* Disabled State Placeholder */
-                            <div className="flex flex-col items-center justify-center py-20 bg-white/5 rounded-2xl border border-dashed border-white/10">
-                                <Gift className="w-16 h-16 text-gray-700 mb-4 opacity-20" />
-                                <h4 className="text-gray-500 font-bold">Fitur Hadiah Dinonaktifkan</h4>
-                                <p className="text-gray-600 text-sm mt-1">Aktifkan status di atas untuk mulai mengatur hadiah turnamen</p>
-                            </div>
-                        )}
-                    </div>
+                    <PrizeTab
+                        prizeSettings={prizeSettings}
+                        setPrizeSettings={setPrizeSettings}
+                        isOrganizer={isOrganizer}
+                        isEditingPrizes={isEditingPrizes}
+                        setIsEditingPrizes={setIsEditingPrizes}
+                        isPrizeLoading={isPrizeLoading}
+                        handleSourceChange={handleSourceChange}
+                        handleRecipientChange={handleRecipientChange}
+                        addRecipient={addRecipient}
+                        removeRecipient={removeRecipient}
+                        getAutomaticWinner={getAutomaticWinner}
+                        tournamentData={tournamentData}
+                        handleSavePrizes={handleSavePrizes}
+                        isSaving={isSaving}
+                    />
                 )
             }
 
@@ -4401,6 +4132,7 @@ export default function TournamentDetail() {
                                 onEdit={handleEditParticipant}
                                 isPrivate={tournamentData.visibility === 'private'}
                                 onInvite={() => setIsInviteModalOpen(true)}
+                                isSystemPayment={tournamentData.payment != null}
                             />
                         ) : (
                             <Card hover={false}>
@@ -4454,6 +4186,76 @@ export default function TournamentDetail() {
                                 </CardContent>
                             </Card>
                         )}
+                    </div>
+                )
+            }
+            {
+                activeTab === 'wallet' && tournamentData.payment != null && (isOrganizer || isAdmin) && (
+                    <div className="space-y-6">
+                        <Card className="bg-gradient-to-br from-yellow-500/20 to-orange-500/5 border-yellow-500/30">
+                            <CardContent className="p-8 text-center flex flex-col items-center justify-center">
+                                <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mb-4">
+                                    <DollarSign className="w-8 h-8 text-yellow-400" />
+                                </div>
+                                <h3 className="text-sm text-gray-400 mb-1">Total Saldo Tertahan (Escrow)</h3>
+                                <div className="text-4xl font-bold text-white flex items-center gap-2">
+                                    <img src="/coin.png" alt="Coin" className="w-8 h-8" />
+                                    {tournamentData.wallet_balance || 0}
+                                </div>
+                                <p className="text-xs text-yellow-500/80 mt-2">
+                                    Saldo ini berisi biaya pendaftaran yang ditahan sementara hingga turnamen selesai.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-white/5 border-white/10">
+                            <CardHeader>
+                                <h3 className="font-semibold text-lg flex items-center gap-2">
+                                    <Activity className="w-5 h-5 text-blue-400" />
+                                    Riwayat Transaksi Wallet
+                                </h3>
+                            </CardHeader>
+                            <CardContent>
+                                {!tournamentData.wallet_transactions || tournamentData.wallet_transactions.length === 0 ? (
+                                    <div className="text-center py-10 bg-black/20 rounded-lg border border-white/5">
+                                        <div className="mx-auto w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3">
+                                            <Activity className="w-6 h-6 text-gray-500" />
+                                        </div>
+                                        <p className="text-gray-400">Belum ada transaksi</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {tournamentData.wallet_transactions.map((tx) => (
+                                            <div key={tx.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-black/20 border border-white/5 rounded-lg gap-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`p-2 rounded-full ${parseFloat(tx.amount) > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                                        }`}>
+                                                        {parseFloat(tx.amount) > 0 ? <ArrowLeft className="w-4 h-4 rotate-45" /> : <ArrowRight className="w-4 h-4 -rotate-45" />}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-white">{tx.description}</p>
+                                                        <p className="text-xs text-gray-400 mt-1">
+                                                            {new Date(tx.created_at).toLocaleDateString('id-ID', {
+                                                                day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                                                            })}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col sm:items-end gap-1">
+                                                    <span className={`font-bold tabular-nums flex items-center gap-1 ${parseFloat(tx.amount) > 0 ? 'text-green-400' : 'text-red-400'
+                                                        }`}>
+                                                        {parseFloat(tx.amount) > 0 ? '+' : ''}{tx.amount} <img src="/coin.png" alt="coin" className="w-3 h-3 grayscale opacity-70" />
+                                                    </span>
+                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 capitalize">
+                                                        {tx.type.replace('_', ' ')}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
                     </div>
                 )
             }
@@ -4523,8 +4325,6 @@ export default function TournamentDetail() {
                 </div>
             </Modal>
 
-
-
             {/* Edit Participant Modal */}
             <EditParticipantModal
                 isOpen={isEditModalOpen}
@@ -4562,72 +4362,70 @@ export default function TournamentDetail() {
             />
 
             {/* HEBOH Loading Overlay */}
-            {
-                isGenerating && createPortal(
-                    <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[9999] flex flex-col items-center justify-center p-4">
-                        {/* Background Effects */}
-                        <div className="absolute inset-0 overflow-hidden">
-                            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-neonGreen/20 rounded-full blur-[100px] animate-pulse"></div>
-                            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-neonPink/20 rounded-full blur-[100px] animate-pulse delay-700"></div>
+            {isGenerating && createPortal(
+                <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[9999] flex flex-col items-center justify-center p-4">
+                    {/* Background Effects */}
+                    <div className="absolute inset-0 overflow-hidden">
+                        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-neonGreen/20 rounded-full blur-[100px] animate-pulse"></div>
+                        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-neonPink/20 rounded-full blur-[100px] animate-pulse delay-700"></div>
+                    </div>
+
+                    <div className="relative z-10 w-full max-w-2xl text-center">
+                        <div className="mb-12">
+                            <div className="text-neonGreen font-mono text-sm tracking-[0.3em] mb-2 animate-pulse">{generationStep}</div>
+                            <div className="h-1 w-64 mx-auto bg-gray-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-neonGreen animate-[shimmer_2s_infinite]"></div>
+                            </div>
                         </div>
 
-                        <div className="relative z-10 w-full max-w-2xl text-center">
-                            <div className="mb-12">
-                                <div className="text-neonGreen font-mono text-sm tracking-[0.3em] mb-2 animate-pulse">{generationStep}</div>
-                                <div className="h-1 w-64 mx-auto bg-gray-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-neonGreen animate-[shimmer_2s_infinite]"></div>
+                        {/* VS Container */}
+                        <div className="flex items-center justify-center gap-4 sm:gap-12 perspective-1000">
+                            {/* Home Team Card */}
+                            <div className="w-40 sm:w-64 aspect-video bg-black/50 border-2 border-neonGreen/50 rounded-xl flex items-center justify-center relative overflow-hidden group shadow-[0_0_30px_rgba(57,255,20,0.2)]">
+                                <div className="absolute inset-0 bg-neonGreen/10 animate-pulse"></div>
+                                <div className="relative z-10 p-4 flex flex-col items-center justify-center text-center">
+                                    {shufflingTeams.home.logo ? (
+                                        <img src={shufflingTeams.home.logo} alt="Home" className="w-12 h-12 sm:w-16 sm:h-16 object-contain mb-3" />
+                                    ) : (
+                                        <div className="text-4xl mb-2 opacity-50"><Shield /></div>
+                                    )}
+                                    <div className="font-display font-bold text-lg sm:text-2xl text-white truncate max-w-full px-2 animate-[bounce_0.5s_infinite]">{shufflingTeams.home.name}</div>
                                 </div>
                             </div>
 
-                            {/* VS Container */}
-                            <div className="flex items-center justify-center gap-4 sm:gap-12 perspective-1000">
-                                {/* Home Team Card */}
-                                <div className="w-40 sm:w-64 aspect-video bg-black/50 border-2 border-neonGreen/50 rounded-xl flex items-center justify-center relative overflow-hidden group shadow-[0_0_30px_rgba(57,255,20,0.2)]">
-                                    <div className="absolute inset-0 bg-neonGreen/10 animate-pulse"></div>
-                                    <div className="relative z-10 p-4 flex flex-col items-center justify-center text-center">
-                                        {shufflingTeams.home.logo ? (
-                                            <img src={shufflingTeams.home.logo} alt="Home" className="w-12 h-12 sm:w-16 sm:h-16 object-contain mb-3" />
-                                        ) : (
-                                            <div className="text-4xl mb-2 opacity-50"><Shield /></div>
-                                        )}
-                                        <div className="font-display font-bold text-lg sm:text-2xl text-white truncate max-w-full px-2 animate-[bounce_0.5s_infinite]">{shufflingTeams.home.name}</div>
-                                    </div>
-                                </div>
-
-                                {/* VS Badge */}
-                                <div className="relative">
-                                    <div className="absolute inset-0 bg-white blur-xl opacity-20 animate-pulse"></div>
-                                    <div className="text-4xl sm:text-6xl font-black font-display italic text-transparent bg-clip-text bg-gradient-to-br from-neonGreen to-neonPink transform -skew-x-12 scale-110">
-                                        VS
-                                    </div>
-                                </div>
-
-                                {/* Away Team Card */}
-                                <div className="w-40 sm:w-64 aspect-video bg-black/50 border-2 border-neonPink/50 rounded-xl flex items-center justify-center relative overflow-hidden group shadow-[0_0_30px_rgba(255,20,147,0.2)]">
-                                    <div className="absolute inset-0 bg-neonPink/10 animate-pulse"></div>
-                                    <div className="relative z-10 p-4 flex flex-col items-center justify-center text-center">
-                                        {shufflingTeams.away.logo ? (
-                                            <img src={shufflingTeams.away.logo} alt="Away" className="w-12 h-12 sm:w-16 sm:h-16 object-contain mb-3" />
-                                        ) : (
-                                            <div className="text-4xl mb-2 opacity-50"><Shield /></div>
-                                        )}
-                                        <div className="font-display font-bold text-lg sm:text-2xl text-white truncate max-w-full px-2 animate-[bounce_0.5s_infinite]">{shufflingTeams.away.name}</div>
-                                    </div>
+                            {/* VSBadge */}
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-white blur-xl opacity-20 animate-pulse"></div>
+                                <div className="text-4xl sm:text-6xl font-black font-display italic text-transparent bg-clip-text bg-gradient-to-br from-neonGreen to-neonPink transform -skew-x-12 scale-110">
+                                    VS
                                 </div>
                             </div>
 
-                            {/* Scrolling Log / Decoration */}
-                            <div className="mt-12 text-xs font-mono text-gray-500 opacity-50">
-                                {Array.from({ length: 3 }).map((_, i) => (
-                                    <div key={i} className="truncate max-w-md mx-auto py-1">
-                                        [SYSTEM] Processing algorithm node_{Math.random().toString(36).substr(2, 5)}... OK
-                                    </div>
-                                ))}
+                            {/* Away Team Card */}
+                            <div className="w-40 sm:w-64 aspect-video bg-black/50 border-2 border-neonPink/50 rounded-xl flex items-center justify-center relative overflow-hidden group shadow-[0_0_30px_rgba(255,20,147,0.2)]">
+                                <div className="absolute inset-0 bg-neonPink/10 animate-pulse"></div>
+                                <div className="relative z-10 p-4 flex flex-col items-center justify-center text-center">
+                                    {shufflingTeams.away.logo ? (
+                                        <img src={shufflingTeams.away.logo} alt="Away" className="w-12 h-12 sm:w-16 sm:h-16 object-contain mb-3" />
+                                    ) : (
+                                        <div className="text-4xl mb-2 opacity-50"><Shield /></div>
+                                    )}
+                                    <div className="font-display font-bold text-lg sm:text-2xl text-white truncate max-w-full px-2 animate-[bounce_0.5s_infinite]">{shufflingTeams.away.name}</div>
+                                </div>
                             </div>
+                        </div>
+
+                        {/* Scrolling Log */}
+                        <div className="mt-12 text-xs font-mono text-gray-500 opacity-50">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className="truncate max-w-md mx-auto py-1">
+                                    [SYSTEM] Processing algorithm node_{Math.random().toString(36).substr(2, 5)}... OK
+                                </div>
+                            ))}
                         </div>
                     </div>
-                    , document.body)
-            }
+                </div>
+                , document.body)}
 
             {/* Generate 3rd Place Confirmation Modal */}
             <Modal
