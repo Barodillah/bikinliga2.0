@@ -115,7 +115,7 @@ export default function AdminTournaments() {
                         <input
                             type="text"
                             placeholder="Search by tournament name or creator..."
-                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-neonGreen/20 focus:border-neonGreen transition"
+                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-neonGreen/20 focus:border-neonGreen transition text-black"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />

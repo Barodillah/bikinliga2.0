@@ -1,13 +1,14 @@
 ﻿import React, { useState, useEffect, useRef } from 'react'
 import Joyride, { STATUS } from 'react-joyride'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Timer, User, Goal, Flag, Play, Square, Save, Clock, Trophy, ChevronRight, CheckCircle, RotateCcw, Brain, Percent, History, BarChart2, Search, Loader2 } from 'lucide-react'
+import { ArrowLeft, Timer, User, Goal, Flag, Play, Square, Save, Clock, Trophy, ChevronRight, CheckCircle, RotateCcw, Brain, Percent, History, BarChart2, Search, Loader2, ShieldOff } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import AsyncPlayerSelect from '../../components/ui/AsyncPlayerSelect'
 import { authFetch } from '../../utils/api'
 import { useToast } from '../../contexts/ToastContext'
+import { useAuth } from '../../contexts/AuthContext'
 
 // Initial State (will be populated from API)
 const initialMatchData = {
@@ -27,11 +28,13 @@ export default function MatchManagement() {
     const { id, matchId } = useParams()
     const navigate = useNavigate()
     const toast = useToast()
+    const { user } = useAuth()
 
     // State
     // State
     const [match, setMatch] = useState(initialMatchData)
     const [loading, setLoading] = useState(true)
+    const [accessDenied, setAccessDenied] = useState(false)
     const [isActionLoading, setIsActionLoading] = useState(false) // New state for action loading
     const [isPlaying, setIsPlaying] = useState(false)
     const [matchTime, setMatchTime] = useState(0) // in seconds
@@ -145,6 +148,15 @@ export default function MatchManagement() {
             const response = await authFetch(`/api/matches/${matchId}`)
             const data = await response.json()
             if (data.success) {
+                // ACCESS CONTROL: Check if user is tournament owner or admin/superadmin
+                const isOwner = user && data.data.organizerId && user.id === data.data.organizerId
+                const isAdmin = user && (user.role === 'admin' || user.role === 'superadmin')
+                if (!isOwner && !isAdmin) {
+                    setAccessDenied(true)
+                    setLoading(false)
+                    return
+                }
+
                 let localStatus = data.data.status
 
                 // VALIDATION: Redirect if participants not ready (TBD)
@@ -732,6 +744,37 @@ export default function MatchManagement() {
     const getTeamPlayers = (teamSide) => {
         if (!teamSide) return []
         return teamSide === 'home' ? match.homeTeam.players : match.awayTeam.players
+    }
+
+    // Access Denied UI
+    if (accessDenied) {
+        return (
+            <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-8">
+                <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-8 max-w-md">
+                    <ShieldOff className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-white mb-2">Akses Ditolak</h2>
+                    <p className="text-gray-400 mb-6">
+                        Anda tidak memiliki izin untuk mengelola pertandingan ini. Hanya pemilik turnamen atau admin yang dapat mengakses halaman ini.
+                    </p>
+                    <div className="flex items-center justify-center gap-3">
+                        <Button
+                            onClick={() => navigate(-1)}
+                            className="bg-neonGreen text-black font-bold px-6 py-2 rounded-lg hover:bg-neonGreen/80 transition-colors flex items-center justify-center"
+                        >
+                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            Kembali
+                        </Button>
+                        <Button
+                            onClick={() => navigate(`/dashboard/tournaments/${id}/view/match/${matchId}`)}
+                            className="bg-white/10 text-white font-bold px-6 py-2 rounded-lg hover:bg-white/20 transition-colors flex items-center justify-center border border-white/20"
+                        >
+                            <Search className="w-4 h-4 mr-2" />
+                            Match Preview
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        )
     }
 
     return (

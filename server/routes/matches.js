@@ -94,7 +94,8 @@ router.get('/:id', optionalAuth, async (req, res) => {
             `SELECT m.*, 
                 p1.name as home_player_name, p1.team_name as home_team_name, p1.logo_url as home_team_logo, p1.id as home_team_id, p1.user_id as home_user_id,
                 p2.name as away_player_name, p2.team_name as away_team_name, p2.logo_url as away_team_logo, p2.id as away_team_id, p2.user_id as away_user_id,
-                t.type as tournament_type
+                t.type as tournament_type,
+                t.organizer_id as organizer_id
              FROM matches m
              LEFT JOIN participants p1 ON m.home_participant_id = p1.id
              LEFT JOIN participants p2 ON m.away_participant_id = p2.id
@@ -374,6 +375,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
         const responseData = {
             id: match.id,
             tournamentId: match.tournament_id,
+            organizerId: match.organizer_id,
             round: match.round, // Added for previous round validation
             homeTeam: {
                 id: match.home_team_id,
