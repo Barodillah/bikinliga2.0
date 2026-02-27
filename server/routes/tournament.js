@@ -350,19 +350,33 @@ router.get('/:idOrSlug', optionalAuth, async (req, res) => {
         }));
 
         // Fetch tournament wallet history if paid and user is organizer or admin
-        if (tournament.payment != null && userId && (tournament.organizer_id === userId || isAdmin(req.user))) {
+        if (tournament.payment != null) {
             const [wallets] = await db.query('SELECT id, balance, organizer_fee_pct FROM tournament_wallets WHERE tournament_id = ?', [tournament.id]);
             if (wallets.length > 0) {
-                data.wallet_balance = wallets[0].balance;
-                data.wallet_organizer_fee_pct = wallets[0].organizer_fee_pct;
-                const [transactions] = await db.query(
-                    'SELECT * FROM tournament_transactions WHERE tournament_wallet_id = ? ORDER BY created_at DESC',
-                    [wallets[0].id]
+                const walletId = wallets[0].id;
+                // Check for payout
+                const [payouts] = await db.query(
+                    'SELECT 1 FROM tournament_transactions WHERE tournament_wallet_id = ? AND type = "prize_payout" LIMIT 1',
+                    [walletId]
                 );
-                data.wallet_transactions = transactions;
+                data.has_payout = payouts.length > 0;
+
+                // Only organizers and admins get full wallet details
+                if (userId && (tournament.organizer_id === userId || isAdmin(req.user))) {
+                    data.wallet_balance = wallets[0].balance;
+                    data.wallet_organizer_fee_pct = wallets[0].organizer_fee_pct;
+                    const [transactions] = await db.query(
+                        'SELECT * FROM tournament_transactions WHERE tournament_wallet_id = ? ORDER BY created_at DESC',
+                        [walletId]
+                    );
+                    data.wallet_transactions = transactions;
+                }
             } else {
-                data.wallet_balance = 0;
-                data.wallet_transactions = [];
+                data.has_payout = false;
+                if (userId && (tournament.organizer_id === userId || isAdmin(req.user))) {
+                    data.wallet_balance = 0;
+                    data.wallet_transactions = [];
+                }
             }
         }
 
@@ -1140,6 +1154,25 @@ router.patch('/:idOrSlug', authenticateToken, async (req, res) => {
             }
         }
 
+        if (status === 'completed') {
+            // Fetch all approved participants linked to users
+            const [participants] = await connection.query(
+                `SELECT user_id FROM participants WHERE tournament_id = ? AND status = 'approved' AND user_id IS NOT NULL`,
+                [tournament.id]
+            );
+
+            const userIds = participants.map(p => p.user_id);
+            if (userIds.length > 0) {
+                await createBulkNotifications(
+                    userIds,
+                    'tournament_completed',
+                    'Turnamen Selesai! 🏆🎉',
+                    `Turnamen "${tournament.name}" telah resmi selesai. Cek hasil akhir dan klasemen sekarang!`,
+                    { tournament_id: tournament.id, slug: idOrSlug }
+                );
+            }
+        }
+
         // Fetch updated slug
         const [updated] = await connection.query('SELECT slug FROM tournaments WHERE id = ?', [tournament.id]);
         const newSlug = updated[0]?.slug || idOrSlug;
@@ -1231,7 +1264,9 @@ router.get('/:idOrSlug/top-scorers', optionalAuth, async (req, res) => {
         const [scorers] = await connection.query(
             `SELECT 
                 me.player_name as name,
-                p.name as team_name, 
+                me.participant_id,
+                p.name as team_name,
+                p.user_id,
                 COUNT(me.id) as goals,
                 COUNT(DISTINCT me.match_id) as matches
              FROM match_events me
@@ -1670,6 +1705,187 @@ router.post('/:idOrSlug/prizes', authenticateToken, async (req, res) => {
     }
 });
 
+// Distribute Tournament Prizes
+router.post('/:id/distribute-prizes', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { winners } = req.body; // Array of { recipient_id, user_id, amount }
+    const connection = await db.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        // 1. Verify tournament
+        const [tournaments] = await connection.query(
+            `SELECT * FROM tournaments WHERE id = ?`,
+            [id]
+        );
+
+        if (tournaments.length === 0) {
+            return res.status(404).json({ success: false, message: 'Turnamen tidak ditemukan' });
+        }
+
+        const tournament = tournaments[0];
+
+        if (tournament.organizer_id !== req.user.id && !isAdmin(req.user)) {
+            return res.status(403).json({ success: false, message: 'Akses ditolak' });
+        }
+
+        if (tournament.status !== 'completed' || tournament.payment == null) {
+            return res.status(400).json({ success: false, message: 'Turnamen belum selesai atau bukan turnamen berbayar' });
+        }
+
+        // 2. Get tournament wallet
+        const [wallets] = await connection.query(
+            `SELECT * FROM tournament_wallets WHERE tournament_id = ? FOR UPDATE`,
+            [tournament.id]
+        );
+
+        if (wallets.length === 0) {
+            return res.status(404).json({ success: false, message: 'Wallet turnamen tidak ditemukan' });
+        }
+
+        const tournamentWallet = wallets[0];
+
+        // 3. Prevent double payout
+        const [existingPayouts] = await connection.query(
+            `SELECT id FROM tournament_transactions WHERE tournament_wallet_id = ? AND type = 'prize_payout'`,
+            [tournamentWallet.id]
+        );
+
+        if (existingPayouts.length > 0) {
+            return res.status(400).json({ success: false, message: 'Hadiah sudah pernah didistribusikan' });
+        }
+
+        // 4. Distribute to winners
+        let totalDistributedVal = 0;
+        if (winners && winners.length > 0) {
+            for (const winner of winners) {
+                if (!winner.user_id || !winner.amount) continue;
+
+                const amount = parseFloat(winner.amount);
+                if (amount <= 0) continue;
+
+                // Ensure user has wallet
+                const [userWallets] = await connection.query(
+                    `SELECT id FROM wallets WHERE user_id = ?`,
+                    [winner.user_id]
+                );
+
+                let userWalletId;
+                if (userWallets.length === 0) {
+                    userWalletId = uuidv4();
+                    await connection.query(
+                        `INSERT INTO wallets (id, user_id, balance) VALUES (?, ?, ?)`,
+                        [userWalletId, winner.user_id, amount]
+                    );
+                } else {
+                    userWalletId = userWallets[0].id;
+                    await connection.query(
+                        `UPDATE wallets SET balance = balance + ?, updated_at = NOW() WHERE id = ?`,
+                        [amount, userWalletId]
+                    );
+                }
+
+                // Log user transaction
+                await connection.query(
+                    `INSERT INTO transactions (id, wallet_id, type, amount, category, description, status, reference_id) 
+                     VALUES (?, ?, 'reward', ?, 'Tournament Prize', ?, 'success', ?)`,
+                    [uuidv4(), userWalletId, amount, `Hadiah Turnamen: ${tournament.name}`, tournament.id]
+                );
+
+                // Log tournament transaction
+                await connection.query(
+                    `INSERT INTO tournament_transactions(id, tournament_wallet_id, user_id, type, amount, description, status) 
+                     VALUES(?, ?, ?, 'prize_payout', ?, ?, 'completed')`,
+                    [uuidv4(), tournamentWallet.id, winner.user_id, -amount, `Payout: Hadiah Turnamen`]
+                );
+
+                totalDistributedVal += amount;
+            }
+        }
+
+        // 5. Pay Organizer Fee
+        const organizerFee = parseFloat(tournamentWallet.organizer_fee_pct || 0);
+        if (organizerFee > 0) {
+            const [orgWallets] = await connection.query(
+                `SELECT id FROM wallets WHERE user_id = ? `,
+                [tournament.organizer_id]
+            );
+
+            let orgWalletId;
+            if (orgWallets.length === 0) {
+                orgWalletId = uuidv4();
+                await connection.query(
+                    `INSERT INTO wallets(id, user_id, balance) VALUES(?, ?, ?)`,
+                    [orgWalletId, tournament.organizer_id, organizerFee]
+                );
+            } else {
+                orgWalletId = orgWallets[0].id;
+                await connection.query(
+                    `UPDATE wallets SET balance = balance + ?, updated_at = NOW() WHERE id = ? `,
+                    [organizerFee, orgWalletId]
+                );
+            }
+
+            // Log user transaction for org
+            await connection.query(
+                `INSERT INTO transactions(id, wallet_id, type, amount, category, description, status, reference_id)
+                VALUES(?, ?, 'reward', ?, 'Organizer Fee', ?, 'success', ?)`,
+                [uuidv4(), orgWalletId, organizerFee, `Fee Organizer Turnamen: ${tournament.name}`, tournament.id]
+            );
+
+            // Log tournament transaction for org fee
+            await connection.query(
+                `INSERT INTO tournament_transactions(id, tournament_wallet_id, user_id, type, amount, description, status)
+                VALUES(?, ?, ?, 'organizer_withdrawal', ?, ?, 'completed')`,
+                [uuidv4(), tournamentWallet.id, tournament.organizer_id, -organizerFee, `Payout: Organizer Fee`]
+            );
+
+            totalDistributedVal += organizerFee;
+        }
+
+        // 6. Zero out or deduct from tournament wallet
+        // Prefer explicit zeroing out or deduction to match total distributed. Let's just deduct it.
+        await connection.query(
+            `UPDATE tournament_wallets SET balance = balance - ?, updated_at = NOW() WHERE id = ? `,
+            [totalDistributedVal, tournamentWallet.id]
+        );
+
+        await connection.commit();
+
+        // 7. Send notifications to winners
+        for (const winner of winners) {
+            await createNotification(
+                winner.user_id,
+                'prize',
+                '🎉 Hadiah Turnamen Diterima!',
+                `Selamat! Anda menerima hadiah sebesar ${Number(winner.amount).toLocaleString('id-ID')} Coin dari turnamen "${tournament.name}". Saldo telah masuk ke wallet Anda.`,
+                { tournament_id: tournament.id, amount: winner.amount }
+            );
+        }
+
+        // Notify organizer about fee
+        if (organizerFee > 0) {
+            await createNotification(
+                tournament.organizer_id,
+                'prize',
+                '💰 Fee Organizer Diterima',
+                `Fee organizer sebesar ${Number(organizerFee).toLocaleString('id-ID')} Coin dari turnamen "${tournament.name}" telah masuk ke wallet Anda.`,
+                { tournament_id: tournament.id, amount: organizerFee }
+            );
+        }
+
+        res.json({ success: true, message: 'Hadiah berhasil didistribusikan' });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error('Distribute prizes error:', error);
+        res.status(500).json({ success: false, message: 'Gagal mendistribusikan hadiah' });
+    } finally {
+        connection.release();
+    }
+});
+
 
 
 // Get Tournament Matches
@@ -1678,7 +1894,7 @@ router.get('/:idOrSlug/matches', optionalAuth, async (req, res) => {
 
     try {
         const [tournaments] = await db.query(
-            `SELECT id FROM tournaments WHERE id = ? OR slug = ?`,
+            `SELECT id FROM tournaments WHERE id = ? OR slug = ? `,
             [idOrSlug, idOrSlug]
         );
 
@@ -1689,14 +1905,14 @@ router.get('/:idOrSlug/matches', optionalAuth, async (req, res) => {
         const tournamentId = tournaments[0].id;
 
         const [matches] = await db.query(
-            `SELECT m.*, 
-                p1.name as home_player_name, p1.team_name as home_team_name, p1.logo_url as home_logo,
-                p2.name as away_player_name, p2.team_name as away_team_name, p2.logo_url as away_logo
+            `SELECT m.*,
+                    p1.name as home_player_name, p1.team_name as home_team_name, p1.logo_url as home_logo,
+                    p2.name as away_player_name, p2.team_name as away_team_name, p2.logo_url as away_logo
              FROM matches m
              LEFT JOIN participants p1 ON m.home_participant_id = p1.id
              LEFT JOIN participants p2 ON m.away_participant_id = p2.id
              WHERE m.tournament_id = ?
-             ORDER BY m.round ASC, m.created_at ASC`,
+                    ORDER BY m.round ASC, m.created_at ASC`,
             [tournamentId]
         );
 
@@ -1719,7 +1935,7 @@ router.post('/:idOrSlug/matches/generate', authenticateToken, async (req, res) =
         // 1. Get Tournament
         // Also fetch type and match_format to decide logic
         const [tournaments] = await connection.query(
-            `SELECT id, organizer_id, type, match_format, name FROM tournaments WHERE id = ? OR slug = ?`,
+            `SELECT id, organizer_id, type, match_format, name FROM tournaments WHERE id = ? OR slug = ? `,
             [idOrSlug, idOrSlug]
         );
 
@@ -1744,7 +1960,7 @@ router.post('/:idOrSlug/matches/generate', authenticateToken, async (req, res) =
 
         // 3. Check if matches already exist
         const [existingMatches] = await connection.query(
-            `SELECT COUNT(*) as count FROM matches WHERE tournament_id = ?`,
+            `SELECT COUNT(*) as count FROM matches WHERE tournament_id = ? `,
             [tournament.id]
         );
 
@@ -1830,7 +2046,7 @@ router.post('/:idOrSlug/matches/generate', authenticateToken, async (req, res) =
             // Distribute
             shuffled.forEach((pid, index) => {
                 const groupIndex = index % numGroups;
-                const groupName = `Group ${groupNames[groupIndex]}`;
+                const groupName = `Group ${groupNames[groupIndex]} `;
                 if (!groups[groupName]) groups[groupName] = [];
                 groups[groupName].push(pid);
             });
@@ -1960,8 +2176,8 @@ router.post('/:idOrSlug/matches/generate', authenticateToken, async (req, res) =
                             matchIndex: idx,
                             leg: 1,
                             groupId,
-                            resolve_home: { type: 'group_result', group: `Group ${p.h.g}`, pos: p.h.p },
-                            resolve_away: { type: 'group_result', group: `Group ${p.a.g}`, pos: p.a.p }
+                            resolve_home: { type: 'group_result', group: `Group ${p.h.g} `, pos: p.h.p },
+                            resolve_away: { type: 'group_result', group: `Group ${p.a.g} `, pos: p.a.p }
                         })
                     });
 
@@ -1979,8 +2195,8 @@ router.post('/:idOrSlug/matches/generate', authenticateToken, async (req, res) =
                             matchIndex: idx,
                             leg: 2,
                             groupId,
-                            resolve_home: { type: 'group_result', group: `Group ${p.a.g}`, pos: p.a.p },
-                            resolve_away: { type: 'group_result', group: `Group ${p.h.g}`, pos: p.h.p }
+                            resolve_home: { type: 'group_result', group: `Group ${p.a.g} `, pos: p.a.p },
+                            resolve_away: { type: 'group_result', group: `Group ${p.h.g} `, pos: p.h.p }
                         })
                     });
                 } else {
@@ -1997,8 +2213,8 @@ router.post('/:idOrSlug/matches/generate', authenticateToken, async (req, res) =
                             roundName,
                             matchIndex: idx,
                             groupId,
-                            resolve_home: { type: 'group_result', group: `Group ${p.h.g}`, pos: p.h.p },
-                            resolve_away: { type: 'group_result', group: `Group ${p.a.g}`, pos: p.a.p }
+                            resolve_home: { type: 'group_result', group: `Group ${p.h.g} `, pos: p.h.p },
+                            resolve_away: { type: 'group_result', group: `Group ${p.a.g} `, pos: p.a.p }
                         })
                     });
                 }
@@ -2012,7 +2228,7 @@ router.post('/:idOrSlug/matches/generate', authenticateToken, async (req, res) =
             while (remainingMatches > 1) {
                 const nextRoundMatchesCount = remainingMatches / 2;
                 const isFinalRound = nextRoundMatchesCount === 1;
-                const roundName = nextRoundMatchesCount === 2 ? 'Semi Final' : isFinalRound ? 'Final' : `Round ${roundNum}`;
+                const roundName = nextRoundMatchesCount === 2 ? 'Semi Final' : isFinalRound ? 'Final' : `Round ${roundNum} `;
 
                 for (let i = 0; i < nextRoundMatchesCount; i++) {
                     const matchId = uuidv4();
@@ -2200,13 +2416,13 @@ router.post('/:idOrSlug/matches/generate', authenticateToken, async (req, res) =
             // mysql2 supports this if we pass array of arrays
 
             await connection.query(
-                `INSERT INTO matches (id, tournament_id, home_participant_id, away_participant_id, round, status, details) VALUES ?`,
+                `INSERT INTO matches(id, tournament_id, home_participant_id, away_participant_id, round, status, details) VALUES ? `,
                 [values]
             );
 
             // 6. Update Tournament Status to 'active'
             await connection.query(
-                `UPDATE tournaments SET status = 'active' WHERE id = ?`,
+                `UPDATE tournaments SET status = 'active' WHERE id = ? `,
                 [tournament.id]
             );
 
@@ -2235,7 +2451,7 @@ router.post('/:idOrSlug/matches/generate', authenticateToken, async (req, res) =
                 ]);
 
                 await connection.query(
-                    `INSERT INTO standings (id, tournament_id, participant_id, group_name, points, played, won, drawn, lost, goals_for, goals_against, goal_difference) VALUES ?`,
+                    `INSERT INTO standings(id, tournament_id, participant_id, group_name, points, played, won, drawn, lost, goals_for, goals_against, goal_difference) VALUES ? `,
                     [standingsValues]
                 );
             }
@@ -2270,7 +2486,7 @@ router.post('/:idOrSlug/matches/generate-3rd-place', authenticateToken, async (r
 
         // 1. Get Tournament
         const [tournaments] = await connection.query(
-            `SELECT * FROM tournaments WHERE id = ? OR slug = ?`,
+            `SELECT * FROM tournaments WHERE id = ? OR slug = ? `,
             [idOrSlug, idOrSlug]
         );
 
@@ -2289,7 +2505,7 @@ router.post('/:idOrSlug/matches/generate-3rd-place', authenticateToken, async (r
 
         // 3. Get all matches
         const [allMatches] = await connection.query(
-            `SELECT * FROM matches WHERE tournament_id = ?`,
+            `SELECT * FROM matches WHERE tournament_id = ? `,
             [tournament.id]
         );
 
@@ -2436,7 +2652,7 @@ router.post('/:idOrSlug/matches/generate-3rd-place', authenticateToken, async (r
         };
 
         await connection.query(
-            `INSERT INTO matches (id, tournament_id, home_participant_id, away_participant_id, round, status, details) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO matches(id, tournament_id, home_participant_id, away_participant_id, round, status, details) VALUES(?, ?, ?, ?, ?, ?, ?)`,
             [matchId, tournament.id, losers[0], losers[1], maxRound, 'scheduled', JSON.stringify(details)]
         );
 
@@ -2458,7 +2674,7 @@ router.get('/:idOrSlug/standings', optionalAuth, async (req, res) => {
 
     try {
         const [tournaments] = await db.query(
-            `SELECT id FROM tournaments WHERE id = ? OR slug = ?`,
+            `SELECT id FROM tournaments WHERE id = ? OR slug = ? `,
             [idOrSlug, idOrSlug]
         );
 
@@ -2473,7 +2689,7 @@ router.get('/:idOrSlug/standings', optionalAuth, async (req, res) => {
              FROM standings s
              JOIN participants p ON s.participant_id = p.id
              WHERE s.tournament_id = ?
-             ORDER BY s.group_name ASC, s.points DESC, s.goal_difference DESC, s.goals_for DESC`,
+                    ORDER BY s.group_name ASC, s.points DESC, s.goal_difference DESC, s.goals_for DESC`,
             [tournamentId]
         );
 
@@ -2490,7 +2706,7 @@ router.get('/:idOrSlug/matches', optionalAuth, async (req, res) => {
 
     try {
         const [tournaments] = await db.query(
-            `SELECT id FROM tournaments WHERE id = ? OR slug = ?`,
+            `SELECT id FROM tournaments WHERE id = ? OR slug = ? `,
             [idOrSlug, idOrSlug]
         );
 
@@ -2501,14 +2717,14 @@ router.get('/:idOrSlug/matches', optionalAuth, async (req, res) => {
         const tournamentId = tournaments[0].id;
 
         const [matches] = await db.query(
-            `SELECT m.*, 
-                p1.name as home_player_name, p1.team_name as home_team_name, p1.logo_url as home_logo,
-                p2.name as away_player_name, p2.team_name as away_team_name, p2.logo_url as away_logo
+            `SELECT m.*,
+                    p1.name as home_player_name, p1.team_name as home_team_name, p1.logo_url as home_logo,
+                    p2.name as away_player_name, p2.team_name as away_team_name, p2.logo_url as away_logo
              FROM matches m
              LEFT JOIN participants p1 ON m.home_participant_id = p1.id
              LEFT JOIN participants p2 ON m.away_participant_id = p2.id
              WHERE m.tournament_id = ?
-             ORDER BY m.round ASC, m.created_at ASC`,
+                    ORDER BY m.round ASC, m.created_at ASC`,
             [tournamentId]
         );
 
@@ -2527,7 +2743,7 @@ router.get('/:idOrSlug/news', authenticateToken, async (req, res) => {
     const { idOrSlug } = req.params;
     try {
         const [tournaments] = await db.query(
-            `SELECT id FROM tournaments WHERE id = ? OR slug = ?`,
+            `SELECT id FROM tournaments WHERE id = ? OR slug = ? `,
             [idOrSlug, idOrSlug]
         );
 
@@ -2537,11 +2753,11 @@ router.get('/:idOrSlug/news', authenticateToken, async (req, res) => {
         const tournamentId = tournaments[0].id;
 
         const [news] = await db.query(
-            `SELECT n.*, 
-            (SELECT COUNT(*) FROM news_comments c WHERE c.news_id = n.id) as comment_count 
+            `SELECT n.*,
+                    (SELECT COUNT(*) FROM news_comments c WHERE c.news_id = n.id) as comment_count 
             FROM league_news n 
-            WHERE n.tournament_id = ? 
-            ORDER BY n.is_welcome DESC, n.created_at DESC`,
+            WHERE n.tournament_id = ?
+    ORDER BY n.is_welcome DESC, n.created_at DESC`,
             [tournamentId]
         );
 
@@ -2561,7 +2777,7 @@ router.post('/:idOrSlug/news', authenticateToken, async (req, res) => {
     try {
         // 1. Verify Tournament & Ownership
         const [tournaments] = await connection.query(
-            `SELECT id, organizer_id FROM tournaments WHERE id = ? OR slug = ?`,
+            `SELECT id, organizer_id FROM tournaments WHERE id = ? OR slug = ? `,
             [idOrSlug, idOrSlug]
         );
 
@@ -2586,8 +2802,8 @@ router.post('/:idOrSlug/news', authenticateToken, async (req, res) => {
         // 3. Insert News
         const newsId = uuidv4();
         await connection.query(
-            `INSERT INTO league_news (id, tournament_id, title, content, contact_info, group_link, is_welcome, open_thread)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO league_news(id, tournament_id, title, content, contact_info, group_link, is_welcome, open_thread)
+VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
             [newsId, tournament.id, title, content, contact_info || null, group_link || null, is_welcome ? 1 : 0, open_thread ? 1 : 0]
         );
 
@@ -2608,7 +2824,7 @@ router.delete('/:idOrSlug/news/:newsId', authenticateToken, async (req, res) => 
     const connection = await db.getConnection();
     try {
         const [tournaments] = await connection.query(
-            `SELECT id, organizer_id FROM tournaments WHERE id = ? OR slug = ?`,
+            `SELECT id, organizer_id FROM tournaments WHERE id = ? OR slug = ? `,
             [idOrSlug, idOrSlug]
         );
 
@@ -2641,7 +2857,7 @@ router.post('/:idOrSlug/news', authenticateToken, async (req, res) => {
 
         // 1. Get Tournament
         const [tournaments] = await connection.query(
-            `SELECT id, organizer_id, name FROM tournaments WHERE id = ? OR slug = ?`,
+            `SELECT id, organizer_id, name FROM tournaments WHERE id = ? OR slug = ? `,
             [idOrSlug, idOrSlug]
         );
 
@@ -2677,13 +2893,13 @@ router.post('/:idOrSlug/news', authenticateToken, async (req, res) => {
             await createBulkNotifications(
                 userIds,
                 'tournament_news',
-                `Berita Turnamen: ${title}`,
-                `${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
+                `Berita Turnamen: ${title} `,
+                `${content.substring(0, 100)}${content.length > 100 ? '...' : ''} `,
                 { tournament_id: tournament.id, slug: idOrSlug }
             );
         }
 
-        await logActivity(req.user.id, 'Post News', `Organizer posted news in ${tournament.name}`, tournament.id, 'tournament');
+        await logActivity(req.user.id, 'Post News', `Organizer posted news in ${tournament.name} `, tournament.id, 'tournament');
 
         connection.release();
         res.json({ success: true, message: 'Berita berhasil dikirim ke peserta' });
@@ -2699,14 +2915,14 @@ router.get('/:idOrSlug/news/:newsId/comments', authenticateToken, async (req, re
     const { newsId } = req.params;
     try {
         const [comments] = await db.query(
-            `SELECT c.*, 
-            u.name as user_name, u.avatar_url as user_avatar,
-            p.name as participant_name, p.team_name, p.logo_url as participant_logo 
+            `SELECT c.*,
+    u.name as user_name, u.avatar_url as user_avatar,
+    p.name as participant_name, p.team_name, p.logo_url as participant_logo 
             FROM news_comments c
             LEFT JOIN users u ON c.user_id = u.id
             LEFT JOIN participants p ON c.participant_id = p.id
-            WHERE c.news_id = ? 
-            ORDER BY c.created_at ASC`,
+            WHERE c.news_id = ?
+    ORDER BY c.created_at ASC`,
             [newsId]
         );
         res.json({ success: true, data: comments });
@@ -2728,7 +2944,7 @@ router.post('/:idOrSlug/news/:newsId/comments', authenticateToken, async (req, r
     try {
         // 1. Get Tournament
         const [tournaments] = await connection.query(
-            `SELECT id, organizer_id FROM tournaments WHERE id = ? OR slug = ?`,
+            `SELECT id, organizer_id FROM tournaments WHERE id = ? OR slug = ? `,
             [idOrSlug, idOrSlug]
         );
         if (!tournaments.length) return res.status(404).json({ success: false, message: 'Turnamen tidak ditemukan' });
@@ -2762,7 +2978,7 @@ router.post('/:idOrSlug/news/:newsId/comments', authenticateToken, async (req, r
         // 4. Insert Comment
         const commentId = uuidv4();
         await connection.query(
-            `INSERT INTO news_comments (id, news_id, user_id, participant_id, content) VALUES (?, ?, ?, ?, ?)`,
+            `INSERT INTO news_comments(id, news_id, user_id, participant_id, content) VALUES(?, ?, ?, ?, ?)`,
             [commentId, newsId, userId, participantId, content]
         );
 
@@ -2787,7 +3003,7 @@ router.post('/:idOrSlug/finish', authenticateToken, async (req, res) => {
 
         // 1. Get Tournament
         const [tournaments] = await connection.query(
-            `SELECT id, organizer_id, status FROM tournaments WHERE id = ? OR slug = ?`,
+            `SELECT id, organizer_id, status FROM tournaments WHERE id = ? OR slug = ? `,
             [idOrSlug, idOrSlug]
         );
 
@@ -2826,7 +3042,7 @@ router.post('/:idOrSlug/finish', authenticateToken, async (req, res) => {
              FROM standings s
              JOIN participants p ON s.participant_id = p.id
              WHERE s.tournament_id = ?
-             ORDER BY s.points DESC, s.goal_difference DESC, s.goals_for DESC
+    ORDER BY s.points DESC, s.goal_difference DESC, s.goals_for DESC
              LIMIT 3`,
             [tournament.id]
         );
@@ -2848,7 +3064,7 @@ router.post('/:idOrSlug/finish', authenticateToken, async (req, res) => {
         // But user explicitly asked for "juara 1,2,3 top score".
         // I will add the logic but wrap in try-catch or check existence in my mind.
         // Logic:
-        // const [topScorers] = await connection.query(`SELECT player_id, COUNT(*) as goals FROM match_events WHERE type='goal' AND tournament_id=? GROUP BY player_id ORDER BY goals DESC LIMIT 1`, [tournament.id]);
+        // const [topScorers] = await connection.query(`SELECT player_id, COUNT(*) as goals FROM match_events WHERE type = 'goal' AND tournament_id =? GROUP BY player_id ORDER BY goals DESC LIMIT 1`, [tournament.id]);
 
         // Since I can't be 100% sure of the table `match_events` structure from here without checking `009`, 
         // I will skip automatic top scorer for this iteration to avoid breaking the endpoint, 
@@ -2885,7 +3101,7 @@ router.post('/:idOrSlug/sponsor', authenticateToken, async (req, res) => {
 
         // 1. Get Tournament
         const [tournaments] = await connection.query(
-            `SELECT id, name FROM tournaments WHERE id = ? OR slug = ?`,
+            `SELECT id, name FROM tournaments WHERE id = ? OR slug = ? `,
             [idOrSlug, idOrSlug]
         );
 
@@ -2909,16 +3125,16 @@ router.post('/:idOrSlug/sponsor', authenticateToken, async (req, res) => {
 
         // 3. Deduct from User Wallet
         await connection.query(
-            `UPDATE wallets SET balance = balance - ?, updated_at = NOW() WHERE id = ?`,
+            `UPDATE wallets SET balance = balance - ?, updated_at = NOW() WHERE id = ? `,
             [sponsorAmount, userWallet.id]
         );
 
         // 4. Record User Transaction
         const transactionId = uuidv4();
         await connection.query(
-            `INSERT INTO transactions (id, wallet_id, type, amount, category, description, status, created_at)
-             VALUES (?, ?, 'spend', ?, 'Sponsor', ?, 'success', NOW())`,
-            [transactionId, userWallet.id, -sponsorAmount, `Sponsor turnamen ${tournament.name}`]
+            `INSERT INTO transactions(id, wallet_id, type, amount, category, description, status, created_at)
+VALUES(?, ?, 'spend', ?, 'Sponsor', ?, 'success', NOW())`,
+            [transactionId, userWallet.id, -sponsorAmount, `Sponsor turnamen ${tournament.name} `]
         );
 
         // 5. Get or Create Tournament Wallet
@@ -2931,23 +3147,23 @@ router.post('/:idOrSlug/sponsor', authenticateToken, async (req, res) => {
         if (tournamentWallets.length === 0) {
             tournamentWalletId = uuidv4();
             await connection.query(
-                `INSERT INTO tournament_wallets (id, tournament_id, balance, updated_at) VALUES (?, ?, ?, NOW())`,
+                `INSERT INTO tournament_wallets(id, tournament_id, balance, updated_at) VALUES(?, ?, ?, NOW())`,
                 [tournamentWalletId, tournament.id, sponsorAmount]
             );
         } else {
             tournamentWalletId = tournamentWallets[0].id;
             await connection.query(
-                `UPDATE tournament_wallets SET balance = balance + ?, updated_at = NOW() WHERE id = ?`,
+                `UPDATE tournament_wallets SET balance = balance + ?, updated_at = NOW() WHERE id = ? `,
                 [sponsorAmount, tournamentWalletId]
             );
         }
 
         // 6. Record Tournament Transaction
         const tTransactionId = uuidv4();
-        const sponsorDesc = text ? `${text} - ${req.user.name || req.user.username || 'User'}` : `Sponsor - ${req.user.name || req.user.username || 'User'}`;
+        const sponsorDesc = text ? `${text} - ${req.user.name || req.user.username || 'User'} ` : `Sponsor - ${req.user.name || req.user.username || 'User'} `;
         await connection.query(
-            `INSERT INTO tournament_transactions (id, tournament_wallet_id, user_id, type, amount, description, status, created_at)
-             VALUES (?, ?, ?, 'sponsored', ?, ?, 'completed', NOW())`,
+            `INSERT INTO tournament_transactions(id, tournament_wallet_id, user_id, type, amount, description, status, created_at)
+VALUES(?, ?, ?, 'sponsored', ?, ?, 'completed', NOW())`,
             [tTransactionId, tournamentWalletId, userId, sponsorAmount, sponsorDesc]
         );
 
@@ -2972,7 +3188,7 @@ router.post('/:idOrSlug/sponsor', authenticateToken, async (req, res) => {
             sources.sponsor = currentSponsor + sponsorAmount;
 
             await connection.query(
-                `UPDATE tournament_prizes SET sources = ?, total_pool = total_pool + ? WHERE id = ?`,
+                `UPDATE tournament_prizes SET sources = ?, total_pool = total_pool + ? WHERE id = ? `,
                 [JSON.stringify(sources), sponsorAmount, prize.id]
             );
         }

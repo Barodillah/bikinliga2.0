@@ -1198,9 +1198,9 @@ export default function TournamentDetail() {
         const label = (recipient.label || '').toLowerCase();
 
         // Top Scorer Logic
-        if (label.includes('top scorer') || label.includes('pencetak gol')) {
+        if (label.includes('top score') || label.includes('top skor') || label.includes('pencetak gol')) {
             const scorer = topScorers?.[0] || statistics?.scorers?.[0];
-            if (scorer) return { name: scorer.name, logo: null, sub: `${scorer.goals} Gol` };
+            if (scorer) return { name: scorer.name, logo: null, sub: scorer.team_name || `${scorer.goals} Gol`, participantId: scorer.participant_id, userId: scorer.user_id };
             return null;
         }
 
@@ -1213,9 +1213,9 @@ export default function TournamentDetail() {
                 return b.goal_difference - a.goal_difference;
             });
 
-            if (label.includes('1')) return { name: allTeams[0]?.team_name || allTeams[0]?.participant_name, logo: allTeams[0]?.team_logo };
-            if (label.includes('2')) return { name: allTeams[1]?.team_name || allTeams[1]?.participant_name, logo: allTeams[1]?.team_logo };
-            if (label.includes('3')) return { name: allTeams[2]?.team_name || allTeams[2]?.participant_name, logo: allTeams[2]?.team_logo };
+            if (label.includes('1')) return { name: allTeams[0]?.team_name || allTeams[0]?.participant_name, logo: allTeams[0]?.team_logo, participantId: allTeams[0]?.participant_id };
+            if (label.includes('2')) return { name: allTeams[1]?.team_name || allTeams[1]?.participant_name, logo: allTeams[1]?.team_logo, participantId: allTeams[1]?.participant_id };
+            if (label.includes('3')) return { name: allTeams[2]?.team_name || allTeams[2]?.participant_name, logo: allTeams[2]?.team_logo, participantId: allTeams[2]?.participant_id };
         }
 
         // Knockout Logic
@@ -1252,12 +1252,12 @@ export default function TournamentDetail() {
                 const awayWin = fm.away_score > fm.home_score || (fm.home_score === fm.away_score && (fm.away_penalty_score || 0) > (fm.home_penalty_score || 0));
 
                 if (label.includes('1')) {
-                    if (homeWin) return { name: fm.home_team_name || fm.home_player_name, logo: fm.home_logo };
-                    if (awayWin) return { name: fm.away_team_name || fm.away_player_name, logo: fm.away_logo };
+                    if (homeWin) return { name: fm.home_team_name || fm.home_player_name, logo: fm.home_logo, participantId: fm.home_participant_id };
+                    if (awayWin) return { name: fm.away_team_name || fm.away_player_name, logo: fm.away_logo, participantId: fm.away_participant_id };
                 }
                 if (label.includes('2')) {
-                    if (homeWin) return { name: fm.away_team_name || fm.away_player_name, logo: fm.away_logo };
-                    if (awayWin) return { name: fm.home_team_name || fm.home_player_name, logo: fm.home_logo };
+                    if (homeWin) return { name: fm.away_team_name || fm.away_player_name, logo: fm.away_logo, participantId: fm.away_participant_id };
+                    if (awayWin) return { name: fm.home_team_name || fm.home_player_name, logo: fm.home_logo, participantId: fm.home_participant_id };
                 }
             }
 
@@ -1266,8 +1266,8 @@ export default function TournamentDetail() {
                 const homeWin = tm.home_score > tm.away_score || (tm.home_score === tm.away_score && (tm.home_penalty_score || 0) > (tm.away_penalty_score || 0));
                 const awayWin = tm.away_score > tm.home_score || (tm.home_score === tm.away_score && (tm.away_penalty_score || 0) > (tm.home_penalty_score || 0));
 
-                if (homeWin) return { name: tm.home_team_name || tm.home_player_name, logo: tm.home_logo };
-                if (awayWin) return { name: tm.away_team_name || tm.away_player_name, logo: tm.away_logo };
+                if (homeWin) return { name: tm.home_team_name || tm.home_player_name, logo: tm.home_logo, participantId: tm.home_participant_id };
+                if (awayWin) return { name: tm.away_team_name || tm.away_player_name, logo: tm.away_logo, participantId: tm.away_participant_id };
             }
         }
 

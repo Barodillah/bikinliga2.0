@@ -709,9 +709,16 @@ export default function UserTournamentDetail() {
 
         // League Logic
         if (tournamentData.type === 'league' && standings.length > 0) {
-            if (label.includes('1') || label.includes('juara 1') || label.includes('champion') || label.includes('winner')) return { name: standings[0].team_name, logo: standings[0].team_logo, sub: 'Peringkat 1' }
-            if (label.includes('2') || label.includes('juara 2') || label.includes('runner')) return { name: standings[1].team_name, logo: standings[1].team_logo, sub: 'Peringkat 2' }
-            if (label.includes('3') || label.includes('juara 3')) return { name: standings[2].team_name, logo: standings[2].team_logo, sub: 'Peringkat 3' }
+            if (label.includes('1') || label.includes('juara 1') || label.includes('champion') || label.includes('winner')) return { name: standings[0].team_name, logo: standings[0].team_logo, sub: 'Peringkat 1', participantId: standings[0].participant_id };
+            if (label.includes('2') || label.includes('juara 2') || label.includes('runner')) return { name: standings[1].team_name, logo: standings[1].team_logo, sub: 'Peringkat 2', participantId: standings[1].participant_id };
+            if (label.includes('3') || label.includes('juara 3')) return { name: standings[2].team_name, logo: standings[2].team_logo, sub: 'Peringkat 3', participantId: standings[2].participant_id };
+        }
+
+        // Top Score Logic
+        if (label.includes('top score') || label.includes('top skor') || label.includes('pencetak gol')) {
+            if (topScorers && topScorers.length > 0) {
+                return { name: topScorers[0].name, logo: null, sub: topScorers[0].team_name, participantId: topScorers[0].participant_id, userId: topScorers[0].user_id }
+            }
         }
 
         // Knockout Logic
@@ -728,11 +735,11 @@ export default function UserTournamentDetail() {
                 if (final.status === 'completed' || final.status === 'finished') {
                     const isHomeWin = (final.home_score > final.away_score) || (final.home_penalty_score > final.away_penalty_score)
                     const winner = isHomeWin
-                        ? { name: final.home_team_name || final.home_player_name, logo: final.home_logo, sub: 'Winner Final' }
-                        : { name: final.away_team_name || final.away_player_name, logo: final.away_logo, sub: 'Winner Final' }
+                        ? { name: final.home_team_name || final.home_player_name, logo: final.home_logo, sub: 'Winner Final', participantId: final.home_participant_id }
+                        : { name: final.away_team_name || final.away_player_name, logo: final.away_logo, sub: 'Winner Final', participantId: final.away_participant_id }
                     const loser = isHomeWin
-                        ? { name: final.away_team_name || final.away_player_name, logo: final.away_logo, sub: 'Runner-up' }
-                        : { name: final.home_team_name || final.home_player_name, logo: final.home_logo, sub: 'Runner-up' }
+                        ? { name: final.away_team_name || final.away_player_name, logo: final.away_logo, sub: 'Runner-up', participantId: final.away_participant_id }
+                        : { name: final.home_team_name || final.home_player_name, logo: final.home_logo, sub: 'Runner-up', participantId: final.home_participant_id }
 
                     if (label.includes('1') || label.includes('juara 1') || label.includes('champion') || label.includes('winner')) return winner
                     if (label.includes('2') || label.includes('juara 2') || label.includes('runner')) return loser
@@ -743,8 +750,8 @@ export default function UserTournamentDetail() {
             if (thirdPlaceMatch && (thirdPlaceMatch.status === 'completed' || thirdPlaceMatch.status === 'finished')) {
                 const isHomeWin = (thirdPlaceMatch.home_score > thirdPlaceMatch.away_score) || (thirdPlaceMatch.home_penalty_score > thirdPlaceMatch.away_penalty_score)
                 const winner3rd = isHomeWin
-                    ? { name: thirdPlaceMatch.home_team_name || thirdPlaceMatch.home_player_name, logo: thirdPlaceMatch.home_logo, sub: 'Winner 3rd Place' }
-                    : { name: thirdPlaceMatch.away_team_name || thirdPlaceMatch.away_player_name, logo: thirdPlaceMatch.away_logo, sub: 'Winner 3rd Place' }
+                    ? { name: thirdPlaceMatch.home_team_name || thirdPlaceMatch.home_player_name, logo: thirdPlaceMatch.home_logo, sub: 'Winner 3rd Place', participantId: thirdPlaceMatch.home_participant_id }
+                    : { name: thirdPlaceMatch.away_team_name || thirdPlaceMatch.away_player_name, logo: thirdPlaceMatch.away_logo, sub: 'Winner 3rd Place', participantId: thirdPlaceMatch.away_participant_id }
 
                 if (label.includes('3') || label.includes('juara 3')) return winner3rd
             }
@@ -1474,15 +1481,22 @@ export default function UserTournamentDetail() {
                                                         <div className="font-bold text-white">{recipient.label}</div>
                                                     </td>
                                                     <td className="px-6 py-4 font-mono">
-                                                        <div className="flex items-center gap-2">
-                                                            {tournamentData.payment != null ? (
-                                                                <img src="/coin.png" alt="coin" className="w-4 h-4 object-contain" />
-                                                            ) : (
-                                                                <span className="text-gray-500 text-xs">Rp</span>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="flex items-center gap-2">
+                                                                {tournamentData.payment != null ? (
+                                                                    <img src="/coin.png" alt="coin" className="w-4 h-4 object-contain" />
+                                                                ) : (
+                                                                    <span className="text-gray-500 text-xs">Rp</span>
+                                                                )}
+                                                                <span className="font-bold text-white text-lg">
+                                                                    {Number(recipient.amount).toLocaleString('id-ID')}
+                                                                </span>
+                                                            </div>
+                                                            {tournamentData?.status === 'completed' && (
+                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${tournamentData.has_payout ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                                    {tournamentData.has_payout ? 'Paid' : 'Unpaid'}
+                                                                </span>
                                                             )}
-                                                            <span className="font-bold text-white text-lg">
-                                                                {Number(recipient.amount).toLocaleString('id-ID')}
-                                                            </span>
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4">
@@ -1581,8 +1595,13 @@ export default function UserTournamentDetail() {
                                             </div>
                                             <div>
                                                 <div className="text-xs font-bold text-neonPurple uppercase tracking-wider mb-1">Total Prize Pool</div>
-                                                <div className="text-2xl font-mono font-bold text-white">
-                                                    Rp {parseInt(tournamentData.prizeSettings?.totalPrizePool || 0).toLocaleString('id-ID')}
+                                                <div className="text-2xl font-mono font-bold text-white flex items-center gap-2">
+                                                    {tournamentData.payment != null ? (
+                                                        <img src="/coin.png" alt="Coin" className="w-6 h-6 object-contain" />
+                                                    ) : (
+                                                        <span>Rp</span>
+                                                    )}
+                                                    {parseInt(tournamentData.prizeSettings?.totalPrizePool || 0).toLocaleString('id-ID')}
                                                 </div>
                                             </div>
                                         </div>
