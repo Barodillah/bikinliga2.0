@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
-import { Search, Trophy, Calendar, Users, Grid, List as ListIcon, PlayCircle, ShieldCheck, Sparkles, Clock, TrendingUp, Filter, Crown, Shield, Mail } from 'lucide-react'
+import { Search, Trophy, Calendar, Users, Grid, List as ListIcon, PlayCircle, ShieldCheck, Sparkles, Clock, TrendingUp, Filter, Crown, Shield, Mail, Gift } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
@@ -291,90 +291,131 @@ export default function Competitions() {
 
             {/* Featured Competition */}
             {featuredCompetition && !searchQuery && (
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-900/50 to-purple-900/50 border border-white/10 p-6 sm:p-8" id="tour-comp-featured">
-                    {/* ... (existing featured content) ... */}
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                        <Trophy className="w-64 h-64 rotate-12" />
+                <div className="space-y-2">
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-900/50 to-purple-900/50 border border-white/10 p-6 sm:p-8" id="tour-comp-featured">
+                        {/* ... (existing featured content) ... */}
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <Trophy className="w-64 h-64 rotate-12" />
+                        </div>
+
+                        <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center">
+                            {featuredCompetition.logo && (
+                                <AdaptiveLogo
+                                    src={featuredCompetition.logo}
+                                    alt={featuredCompetition.name}
+                                    className="w-24 h-24 rounded-2xl object-cover shadow-2xl"
+                                    fallbackSize="w-10 h-10"
+                                />
+                            )}
+                            <div className="flex-1 space-y-4">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                                        <Sparkles className="w-3 h-3" /> FEATURED
+                                    </span>
+                                    {renderRecommendedBadge(featuredCompetition.creator?.tier)}
+
+                                </div>
+
+                                <div>
+                                    <h2 className="text-3xl font-display font-bold text-white mb-2">{featuredCompetition.name}</h2>
+                                    <p className="text-gray-300 max-w-xl">{featuredCompetition.description}</p>
+                                </div>
+
+                                <div className="flex flex-wrap gap-4 text-sm text-gray-300">
+                                    {/* ... (existing badges) ... */}
+                                    {featuredCompetition.registrationDeadline && (
+                                        <div className="flex items-center gap-2 bg-black/20 px-3 py-2 rounded-lg">
+                                            <Clock className="w-4 h-4 text-neonGreen" />
+                                            <span>Deadline: {formatDate(featuredCompetition.registrationDeadline)}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex items-center gap-2 bg-black/20 px-3 py-2 rounded-lg">
+                                        <Users className="w-4 h-4 text-blue-400" />
+                                        <span>{featuredCompetition.players - featuredCompetition.currentPlayers} Slot Tersisa</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-black/20 px-3 py-2 rounded-lg">
+                                        <Trophy className="w-4 h-4 text-purple-400" />
+                                        <span className="uppercase">{featuredCompetition.type.replace('_', ' ')}</span>
+                                    </div>
+                                    {featuredCompetition.prizeSettings?.enabled && (
+                                        <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 px-3 py-2 rounded-lg">
+                                            <Gift className="w-4 h-4 text-yellow-500" />
+                                            <div className="flex items-center gap-1">
+                                                {featuredCompetition.payment != null ? (
+                                                    <img src="/coin.png" alt="Coin" className="w-4 h-4" />
+                                                ) : (
+                                                    <span className="text-yellow-400 font-bold">Rp</span>
+                                                )}
+                                                <span className="text-yellow-400 font-medium whitespace-nowrap">
+                                                    {parseInt(featuredCompetition.prizeSettings.totalPrizePool || 0).toLocaleString('id-ID')}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* ... Right Side Card ... */}
+                            <div className="w-full md:w-auto bg-black/20 backdrop-blur-sm p-6 rounded-xl border border-white/10 min-w-[300px]">
+                                <div className="space-y-4">
+                                    <div className="flex justify-between text-sm mb-1">
+                                        <span className="text-gray-400">Kuota Pemain</span>
+                                        <span className="text-white font-medium">{featuredCompetition.currentPlayers}/{featuredCompetition.players}</span>
+                                    </div>
+                                    <div className="w-full bg-white/10 rounded-full h-2">
+                                        <div
+                                            className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-1000"
+                                            style={{ width: `${calculateProgress(featuredCompetition.currentPlayers, featuredCompetition.players)}%` }}
+                                        ></div>
+                                    </div>
+                                    <Button
+                                        className="w-full"
+                                        size="lg"
+                                        icon={PlayCircle}
+                                        id="tour-comp-featured-btn"
+                                        onClick={() => navigate(`/dashboard/competitions/${featuredCompetition.slug}/join`)}
+                                    >
+                                        {featuredCompetition.userStatus ? 'Lihat Detail' : 'Daftar Sekarang'}
+                                    </Button>
+                                    <div className="flex items-center justify-center gap-2 pt-2 border-t border-white/5">
+                                        <span className="text-xs text-gray-500">By</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-xs font-medium text-gray-300">{featuredCompetition.creator?.name}</span>
+                                            <UserBadge tier={featuredCompetition.creator?.tier} size="sm" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center">
-                        {featuredCompetition.logo && (
-                            <AdaptiveLogo
-                                src={featuredCompetition.logo}
-                                alt={featuredCompetition.name}
-                                className="w-24 h-24 rounded-2xl object-cover shadow-2xl"
-                                fallbackSize="w-10 h-10"
-                            />
-                        )}
-                        <div className="flex-1 space-y-4">
-                            <div className="flex flex-wrap items-center gap-3">
-                                <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
-                                    <Sparkles className="w-3 h-3" /> FEATURED
+                    {/* Running Text for Sponsors */}
+                    {featuredCompetition.sponsors && featuredCompetition.sponsors.length > 0 && (
+                        <div className="text-sm overflow-hidden whitespace-nowrap bg-black/40 border border-purple-500/20 py-2 relative rounded-lg">
+                            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#0f172a] to-transparent z-10 rounded-l-lg" />
+                            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#0f172a] to-transparent z-10 rounded-r-lg" />
+                            <div className="inline-block animate-marquee pl-[100%]">
+                                <span className="flex items-center text-purple-400 font-medium">
+                                    {featuredCompetition.sponsors.map((spo, idx) => (
+                                        <React.Fragment key={idx}>
+                                            <Sparkles className="w-3 h-3 mx-3 inline text-purple-500" />
+                                            {spo.description} <span className="text-neonPink ml-1 text-xs">+{spo.amount} Koin</span>
+                                        </React.Fragment>
+                                    ))}
+                                    <Sparkles className="w-3 h-3 mx-3 inline text-purple-500" />
                                 </span>
-                                {renderRecommendedBadge(featuredCompetition.creator?.tier)}
-
                             </div>
-
-                            <div>
-                                <h2 className="text-3xl font-display font-bold text-white mb-2">{featuredCompetition.name}</h2>
-                                <p className="text-gray-300 max-w-xl">{featuredCompetition.description}</p>
-                            </div>
-
-                            <div className="flex flex-wrap gap-4 text-sm text-gray-300">
-                                {/* ... (existing badges) ... */}
-                                <div className="flex items-center gap-2 bg-black/20 px-3 py-2 rounded-lg">
-                                    <Clock className="w-4 h-4 text-neonGreen" />
-                                    <span>Deadline: {formatDate(featuredCompetition.registrationDeadline)}</span>
-                                </div>
-                                <div className="flex items-center gap-2 bg-black/20 px-3 py-2 rounded-lg">
-                                    <Users className="w-4 h-4 text-blue-400" />
-                                    <span>{featuredCompetition.players - featuredCompetition.currentPlayers} Slot Tersisa</span>
-                                </div>
-                                <div className="flex items-center gap-2 bg-black/20 px-3 py-2 rounded-lg">
-                                    <Trophy className="w-4 h-4 text-purple-400" />
-                                    <span className="uppercase">{featuredCompetition.type.replace('_', ' ')}</span>
-                                </div>
-                                {featuredCompetition.payment != null && (
-                                    <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 px-3 py-2 rounded-lg">
-                                        <img src="/coin.png" alt="Coin" className="w-4 h-4" />
-                                        <span className="text-yellow-400 font-medium">{featuredCompetition.payment} Coin</span>
-                                    </div>
-                                )}
-                            </div>
+                            <style jsx>{`
+                        @keyframes marquee {
+                            0% { transform: translate(0, 0); }
+                            100% { transform: translate(-100%, 0); }
+                        }
+                        .animate-marquee {
+                            animation: marquee 25s linear infinite;
+                        }
+                    `}</style>
                         </div>
-
-                        {/* ... Right Side Card ... */}
-                        <div className="w-full md:w-auto bg-black/20 backdrop-blur-sm p-6 rounded-xl border border-white/10 min-w-[300px]">
-                            <div className="space-y-4">
-                                <div className="flex justify-between text-sm mb-1">
-                                    <span className="text-gray-400">Kuota Pemain</span>
-                                    <span className="text-white font-medium">{featuredCompetition.currentPlayers}/{featuredCompetition.players}</span>
-                                </div>
-                                <div className="w-full bg-white/10 rounded-full h-2">
-                                    <div
-                                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-1000"
-                                        style={{ width: `${calculateProgress(featuredCompetition.currentPlayers, featuredCompetition.players)}%` }}
-                                    ></div>
-                                </div>
-                                <Button
-                                    className="w-full"
-                                    size="lg"
-                                    icon={PlayCircle}
-                                    id="tour-comp-featured-btn"
-                                    onClick={() => navigate(`/dashboard/competitions/${featuredCompetition.slug}/join`)}
-                                >
-                                    {featuredCompetition.userStatus ? 'Lihat Detail' : 'Daftar Sekarang'}
-                                </Button>
-                                <div className="flex items-center justify-center gap-2 pt-2 border-t border-white/5">
-                                    <span className="text-xs text-gray-500">By</span>
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-xs font-medium text-gray-300">{featuredCompetition.creator?.name}</span>
-                                        <UserBadge tier={featuredCompetition.creator?.tier} size="sm" />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    )}
                 </div>
             )}
 
@@ -467,6 +508,23 @@ export default function Competitions() {
                                         {comp.type.replace('_', ' ')}
                                     </span>
                                 </div>
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    {comp.prizeSettings?.enabled && (
+                                        <div className="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded-md">
+                                            <Gift className="w-3.5 h-3.5 text-yellow-500" />
+                                            <div className="flex items-center gap-1">
+                                                {comp.payment != null ? (
+                                                    <img src="/coin.png" alt="Coin" className="w-3.5 h-3.5" />
+                                                ) : (
+                                                    <span className="text-yellow-400 font-bold text-xs">Rp</span>
+                                                )}
+                                                <span className="text-yellow-400 font-medium text-xs whitespace-nowrap">
+                                                    {parseInt(comp.prizeSettings.totalPrizePool || 0).toLocaleString('id-ID')}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                                 <p className="text-sm text-gray-500 mb-4 line-clamp-2 flex-grow">{comp.description}</p>
 
                                 <div className="space-y-3 mb-6">
@@ -513,11 +571,13 @@ export default function Competitions() {
                                             </>
                                         )
                                     })()}
-                                    <div className="flex items-center gap-4 text-xs text-gray-400">
-                                        <span className="flex items-center gap-1">
-                                            <Calendar className="w-4 h-4" /> Jadwal Selesai: {formatDate(comp.endDate)}
-                                        </span>
-                                    </div>
+                                    {comp.endDate && comp.endDate !== '-' && (
+                                        <div className="flex items-center gap-4 text-xs text-gray-400">
+                                            <span className="flex items-center gap-1">
+                                                <Calendar className="w-4 h-4" /> Jadwal Selesai: {formatDate(comp.endDate)}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <Button className={`w-full mt-auto ${comp.userStatus === 'invited' ? 'bg-orange-500 hover:bg-orange-600' : ''}`} icon={comp.userStatus === 'invited' ? Mail : PlayCircle} onClick={() => {
@@ -559,7 +619,24 @@ export default function Competitions() {
                                             <div className="font-medium">{comp.name}</div>
                                             <UserBadge tier={comp.creator?.tier} size="sm" />
                                         </div>
-                                        <div className="text-xs text-gray-500">{comp.type} • {comp.description}</div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="text-xs text-gray-500">{comp.type} • {comp.description}</div>
+                                            {comp.prizeSettings?.enabled && (
+                                                <div className="flex items-center gap-1 bg-yellow-500/10 border border-yellow-500/30 px-1.5 py-0.5 rounded">
+                                                    <Gift className="w-3 h-3 text-yellow-500" />
+                                                    <div className="flex items-center gap-0.5">
+                                                        {comp.payment != null ? (
+                                                            <img src="/coin.png" alt="Coin" className="w-3 h-3" />
+                                                        ) : (
+                                                            <span className="text-yellow-400 font-bold text-[10px]">Rp</span>
+                                                        )}
+                                                        <span className="text-yellow-400 font-medium text-[10px] whitespace-nowrap">
+                                                            {parseInt(comp.prizeSettings.totalPrizePool || 0).toLocaleString('id-ID')}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">

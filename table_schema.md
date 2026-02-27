@@ -409,6 +409,7 @@ Audit trail semua mutasi coin di tournament wallet (immutable).
   - `registration_refund`: Coin dikembalikan saat di-reject/cancel.
   - `prize_payout`: Hadiah dibayarkan ke pemenang (via `prize_recipients`).
   - `organizer_withdrawal`: Organizer menarik fee-nya.
+  - `sponsored`: Pembayaran sponsor.
 - `amount` (DECIMAL): Jumlah coin (positif = masuk ke wallet tournament, negatif = keluar).
 - `description` (TEXT): Detail transaksi.
 - `status` (ENUM: 'pending', 'completed', 'failed', 'cancelled'): Status transaksi.

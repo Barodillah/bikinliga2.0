@@ -58,7 +58,7 @@ export default function Footer() {
                                 <a href="https://chat.whatsapp.com/IixJt1jmzTj8KITMMH0nsr" target="_blank" rel="noopener noreferrer" className="hover:text-neonGreen transition">Komunitas</a>
                             </li>
                             <li>
-                                <a href="#" className="hover:text-neonGreen transition">Tutorial Video</a>
+                                <a href="/tutorial" className="hover:text-neonGreen transition">Panduan</a>
                             </li>
                         </ul>
                     </div>

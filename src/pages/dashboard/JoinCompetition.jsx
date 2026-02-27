@@ -89,6 +89,7 @@ export default function JoinCompetition() {
     const [isSponsorModalOpen, setIsSponsorModalOpen] = useState(false)
     const [sponsorAmount, setSponsorAmount] = useState('')
     const [isSponsorSubmitting, setIsSponsorSubmitting] = useState(false)
+    const [sponsorText, setSponsorText] = useState('')
 
     // Tour State
     const [runTour, setRunTour] = useState(false);
@@ -779,6 +780,34 @@ export default function JoinCompetition() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Running Text for Sponsors */}
+                            {competitionData.sponsors && competitionData.sponsors.length > 0 && (
+                                <div className="mt-2 text-sm overflow-hidden whitespace-nowrap bg-black/40 border-y border-purple-500/20 py-2 relative rounded-lg">
+                                    <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#0f172a] to-transparent z-10 rounded-l-lg" />
+                                    <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#0f172a] to-transparent z-10 rounded-r-lg" />
+                                    <div className="inline-block animate-marquee pl-[100%]">
+                                        <span className="flex items-center text-purple-400 font-medium">
+                                            {competitionData.sponsors.map((spo, idx) => (
+                                                <React.Fragment key={idx}>
+                                                    <Sparkles className="w-3 h-3 mx-3 inline text-purple-500" />
+                                                    {spo.description} <span className="text-neonPink ml-1 text-xs">+{spo.amount} Koin</span>
+                                                </React.Fragment>
+                                            ))}
+                                            <Sparkles className="w-3 h-3 mx-3 inline text-purple-500" />
+                                        </span>
+                                    </div>
+                                    <style jsx>{`
+                                        @keyframes marquee {
+                                            0% { transform: translate(0, 0); }
+                                            100% { transform: translate(-100%, 0); }
+                                        }
+                                        .animate-marquee {
+                                            animation: marquee 25s linear infinite;
+                                        }
+                                    `}</style>
+                                </div>
+                            )}
 
                             {/* Tab Navigation */}
                             <div className="flex items-center gap-2 border-b border-white/10 overflow-x-auto mt-6" id="tour-join-tabs">
@@ -1525,7 +1554,7 @@ export default function JoinCompetition() {
             {/* Sponsorship Modal */}
             <Modal
                 isOpen={isSponsorModalOpen}
-                onClose={() => { setIsSponsorModalOpen(false); setSponsorAmount(''); }}
+                onClose={() => { setIsSponsorModalOpen(false); setSponsorAmount(''); setSponsorText(''); }}
                 title="Sponsorship Turnamen"
             >
                 <div className="space-y-6">
@@ -1540,6 +1569,28 @@ export default function JoinCompetition() {
                     </div>
 
                     <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Text Ads</label>
+                        <Input
+                            type="text"
+                            value={sponsorText}
+                            onChange={(e) => {
+                                const newText = e.target.value;
+                                const maxChars = sponsorAmount ? Math.floor(Number(sponsorAmount) * 2) : 0;
+                                if (newText.length <= maxChars) {
+                                    setSponsorText(newText);
+                                }
+                            }}
+                            placeholder="Masukkan text yang diiklankan..."
+                            className="bg-white/5 border-white/10"
+                            disabled={!sponsorAmount || Number(sponsorAmount) < 100}
+                        />
+                        <div className="mt-2 text-xs text-gray-400 flex justify-between">
+                            <span>* 1 Coin = 2 Karakter. Minimal sponsor 100 coin.</span>
+                            <span>{sponsorText.length} / {sponsorAmount && Number(sponsorAmount) >= 100 ? Math.floor(Number(sponsorAmount) * 2) : 0} karakter</span>
+                        </div>
+                    </div>
+
+                    <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">Jumlah Coin</label>
                         <div className="relative">
                             <img src="/coin.png" alt="coin" className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 object-contain" />
@@ -1547,7 +1598,18 @@ export default function JoinCompetition() {
                                 type="text"
                                 inputMode="numeric"
                                 value={sponsorAmount}
-                                onChange={(e) => setSponsorAmount(e.target.value.replace(/\D/g, ''))}
+                                onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, '');
+                                    setSponsorAmount(val);
+                                    if (val && Number(val) >= 100) {
+                                        const maxChars = Number(val) * 2;
+                                        if (sponsorText.length > maxChars) {
+                                            setSponsorText(sponsorText.substring(0, maxChars));
+                                        }
+                                    } else {
+                                        setSponsorText('');
+                                    }
+                                }}
                                 placeholder="Masukkan jumlah coin..."
                                 className="pl-11 bg-white/5 border-white/10 text-lg font-bold"
                             />
@@ -1562,26 +1624,59 @@ export default function JoinCompetition() {
                     <div className="flex gap-3">
                         <Button
                             variant="secondary"
-                            onClick={() => { setIsSponsorModalOpen(false); setSponsorAmount(''); }}
+                            onClick={() => { setIsSponsorModalOpen(false); setSponsorAmount(''); setSponsorText(''); }}
                             className="flex-1 bg-white/5 hover:bg-white/10 text-white border-white/10"
                         >
                             Batal
                         </Button>
                         <Button
-                            onClick={() => {
-                                if (!sponsorAmount || Number(sponsorAmount) <= 0) {
-                                    showError('Masukkan jumlah coin yang valid')
+                            onClick={async () => {
+                                if (!sponsorAmount || Number(sponsorAmount) < 100) {
+                                    showError('Minimal sponsorship adalah 100 coin')
                                     return
                                 }
                                 setIsSponsorSubmitting(true)
-                                setTimeout(() => {
-                                    showSuccess(`Sponsorship ${Number(sponsorAmount).toLocaleString('id-ID')} coin berhasil dikirim!`)
-                                    setIsSponsorModalOpen(false)
-                                    setSponsorAmount('')
-                                    setIsSponsorSubmitting(false)
-                                }, 1000)
+
+                                try {
+                                    const response = await authFetch(`/api/tournaments/${id}/sponsor`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify({
+                                            amount: Number(sponsorAmount),
+                                            text: sponsorText
+                                        })
+                                    });
+                                    const data = await response.json();
+
+                                    if (data.success) {
+                                        showSuccess(`Sponsorship ${Number(sponsorAmount).toLocaleString('id-ID')} coin berhasil dikirim!`);
+                                        setIsSponsorModalOpen(false);
+                                        setSponsorAmount('');
+                                        setSponsorText('');
+
+                                        // Fetch latest competition data inline to avoid ReferenceError
+                                        const freshRes = await authFetch(`/api/tournaments/${id}`);
+                                        const freshData = await freshRes.json();
+                                        if (freshData.success) {
+                                            setCompetitionData(freshData.data);
+                                            setParticipants(freshData.data.participants || []);
+                                        }
+
+                                        // Navigate to Prize tab
+                                        setActiveTab('prize');
+                                    } else {
+                                        showError(data.message || 'Gagal mengirim sponsorship');
+                                    }
+                                } catch (error) {
+                                    console.error('Sponsor error:', error);
+                                    showError('Terjadi kesalahan saat mengirim sponsorship');
+                                } finally {
+                                    setIsSponsorSubmitting(false);
+                                }
                             }}
-                            disabled={isSponsorSubmitting || !sponsorAmount}
+                            disabled={isSponsorSubmitting || !sponsorAmount || Number(sponsorAmount) < 100}
                             className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold border-0"
                         >
                             {isSponsorSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}

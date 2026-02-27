@@ -198,10 +198,12 @@ export default function DashboardLayout() {
             <aside className="hidden lg:flex lg:flex-col w-64 h-screen border-r border-white/10 bg-cardBg flex-shrink-0 sticky top-0">
                 {/* Logo */}
                 <div className="h-16 flex items-center gap-2 px-6 border-b border-white/10 flex-shrink-0">
-                    <img src="/logo.png" alt="BikinLiga" className="h-7" />
-                    <span className="font-display font-bold text-xl">
-                        Bikin<span className="text-neonPink">Liga</span>
-                    </span>
+                    <Link to="/" className="flex items-center gap-2">
+                        <img src="/logo.png" alt="BikinLiga" className="h-7" />
+                        <span className="font-display font-bold text-2xl tracking-tight">
+                            Bikin<span className="text-neonPink">Liga</span>
+                        </span>
+                    </Link>
                 </div>
 
                 {/* Navigation (Scrollable) */}

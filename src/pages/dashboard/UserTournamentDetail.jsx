@@ -1003,6 +1003,34 @@ export default function UserTournamentDetail() {
                         </div>
                     </div>
                 </div>
+
+                {/* Running Text for Sponsors */}
+                {tournamentData.sponsors && tournamentData.sponsors.length > 0 && (
+                    <div className="mt-2 text-sm overflow-hidden whitespace-nowrap bg-black/40 border-y border-purple-500/20 py-2 relative rounded-lg">
+                        <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#0f172a] to-transparent z-10 rounded-l-lg" />
+                        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#0f172a] to-transparent z-10 rounded-r-lg" />
+                        <div className="inline-block animate-marquee pl-[100%]">
+                            <span className="flex items-center text-purple-400 font-medium">
+                                {tournamentData.sponsors.map((spo, idx) => (
+                                    <React.Fragment key={idx}>
+                                        <Sparkles className="w-3 h-3 mx-3 inline text-purple-500" />
+                                        {spo.description} <span className="text-neonPink ml-1 text-xs">+{spo.amount} Koin</span>
+                                    </React.Fragment>
+                                ))}
+                                <Sparkles className="w-3 h-3 mx-3 inline text-purple-500" />
+                            </span>
+                        </div>
+                        <style jsx>{`
+                            @keyframes marquee {
+                                0% { transform: translate(0, 0); }
+                                100% { transform: translate(-100%, 0); }
+                            }
+                            .animate-marquee {
+                                animation: marquee 25s linear infinite;
+                            }
+                        `}</style>
+                    </div>
+                )}
             </div>
 
 
@@ -1327,32 +1355,99 @@ export default function UserTournamentDetail() {
                             </div>
                         </div>
 
-                        {/* Calculation Section */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Breakdown Layout - Visible Publicly - Expanded to take full width if needed or centered */}
-                            <Card hover={false} className="lg:col-span-3 overflow-hidden border-white/5 bg-black/40 backdrop-blur-sm">
-                                <CardHeader className="border-b border-white/5 bg-white/5">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <div className="p-1.5 bg-blue-500/10 rounded-lg">
-                                                <DollarSign className="w-4 h-4 text-blue-400" />
+                        {/* Source & Total Prize Pool */}
+                        <Card hover={false} className="overflow-hidden border-white/5 bg-black/40 backdrop-blur-sm">
+                            <CardContent className="p-0">
+                                {/* Source Items Grid */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-white/5">
+                                    {/* Registration */}
+                                    <div className="p-5 md:p-6 group/item hover:bg-white/[0.02] transition-colors">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                                <Users className="w-4 h-4 text-blue-400" />
                                             </div>
-                                            <h4 className="font-bold">Total Prize Pool</h4>
+                                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Pendaftaran</span>
+                                        </div>
+                                        <div className="flex items-baseline gap-1.5">
+                                            {tournamentData.payment != null ? (
+                                                <img src="/coin.png" alt="coin" className="w-4 h-4 object-contain self-center" />
+                                            ) : (
+                                                <span className="text-sm text-gray-500">Rp</span>
+                                            )}
+                                            <span className="text-xl font-display font-black text-white">
+                                                {Number(tournamentData.prizeSettings.sources?.registrationFee || 0).toLocaleString('id-ID')}
+                                            </span>
+                                        </div>
+                                        <div className="text-[11px] text-gray-500 mt-1.5 flex items-center gap-1">
+                                            × <span className="text-white font-bold">{tournamentData.status === 'draft' ? (tournamentData.maxParticipants || 0) : (tournamentData.prizeSettings.sources?.playerCount || 0)}</span> peserta
+                                            {tournamentData.status === 'draft' && <span className="text-gray-600">(maks)</span>}
                                         </div>
                                     </div>
-                                </CardHeader>
-                                <CardContent className="p-6">
-                                    <div className="p-6 bg-neonGreen/5 border border-neonGreen/20 rounded-xl shadow-lg shadow-neonGreen/5 text-center">
-                                        <div className="text-sm font-bold text-neonGreen uppercase tracking-wider mb-2">Total Hadiah Diperebutkan</div>
-                                        <div className="text-4xl md:text-5xl font-display font-black text-white">
-                                            Rp {parseInt(tournamentData.prizeSettings.totalPrizePool || 0).toLocaleString('id-ID')}
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
 
-                        {/* Recipients Management */}
+                                    {/* Sponsor */}
+                                    <div className="p-5 md:p-6 group/item hover:bg-white/[0.02] transition-colors">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                                                <Sparkles className="w-4 h-4 text-purple-400" />
+                                            </div>
+                                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Sponsor</span>
+                                        </div>
+                                        <div className="flex items-baseline gap-1.5">
+                                            {tournamentData.payment != null ? (
+                                                <img src="/coin.png" alt="coin" className="w-4 h-4 object-contain self-center" />
+                                            ) : (
+                                                <span className="text-sm text-gray-500">Rp</span>
+                                            )}
+                                            <span className="text-xl font-display font-black text-white">
+                                                {Number(tournamentData.prizeSettings.sources?.sponsor || 0).toLocaleString('id-ID')}
+                                            </span>
+                                        </div>
+                                        <div className="text-[11px] text-gray-500 mt-1.5">Tambahan dari sponsor</div>
+                                    </div>
+
+                                    {/* Admin Fee */}
+                                    <div className="p-5 md:p-6 group/item hover:bg-white/[0.02] transition-colors">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+                                                <DollarSign className="w-4 h-4 text-red-400" />
+                                            </div>
+                                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Biaya Admin</span>
+                                        </div>
+                                        <div className="flex items-baseline gap-1.5">
+                                            {tournamentData.payment != null ? (
+                                                <img src="/coin.png" alt="coin" className="w-4 h-4 object-contain self-center" />
+                                            ) : (
+                                                <span className="text-sm text-gray-500">Rp</span>
+                                            )}
+                                            <span className="text-xl font-display font-black text-red-400">
+                                                -{Number(tournamentData.prizeSettings.sources?.adminFee || 0).toLocaleString('id-ID')}
+                                            </span>
+                                        </div>
+                                        <div className="text-[11px] text-gray-500 mt-1.5">Pengurangan biaya operasional</div>
+                                    </div>
+                                </div>
+
+                                {/* Total Prize Pool - Hero */}
+                                <div className="p-6 md:p-8 bg-gradient-to-r from-neonGreen/5 via-neonGreen/10 to-neonGreen/5 border-t border-neonGreen/20 relative overflow-hidden">
+                                    <div className="absolute -right-4 -top-4 opacity-5 pointer-events-none">
+                                        <Trophy className="w-32 h-32 text-neonGreen" />
+                                    </div>
+                                    <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4">
+                                        <div>
+                                            <div className="text-xs font-bold text-neonGreen uppercase tracking-widest mb-1">Total Prize Pool</div>
+                                            <div className="text-sm text-gray-400">Total hadiah yang diperebutkan</div>
+                                        </div>
+                                        <div className="text-4xl md:text-5xl font-display font-black text-white flex items-center gap-3">
+                                            {tournamentData.payment != null && <img src="/coin.png" alt="coin" className="w-10 h-10 object-contain" />}
+                                            {tournamentData.payment == null && <span className="text-2xl text-gray-400 font-bold">Rp</span>}
+                                            {parseInt(tournamentData.prizeSettings.totalPrizePool || 0).toLocaleString('id-ID')}
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Recipients Table */}
                         <Card hover={false} className="border-white/5 bg-black/40 backdrop-blur-sm overflow-hidden">
                             <CardHeader className="border-b border-white/5 flex flex-row items-center justify-between">
                                 <div className="flex items-center gap-2">
@@ -1380,7 +1475,11 @@ export default function UserTournamentDetail() {
                                                     </td>
                                                     <td className="px-6 py-4 font-mono">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-gray-500 text-xs">Rp</span>
+                                                            {tournamentData.payment != null ? (
+                                                                <img src="/coin.png" alt="coin" className="w-4 h-4 object-contain" />
+                                                            ) : (
+                                                                <span className="text-gray-500 text-xs">Rp</span>
+                                                            )}
                                                             <span className="font-bold text-white text-lg">
                                                                 {Number(recipient.amount).toLocaleString('id-ID')}
                                                             </span>

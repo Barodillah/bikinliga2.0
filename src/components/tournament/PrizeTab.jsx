@@ -132,19 +132,10 @@ export default function PrizeTab({
                                                     ) : (
                                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">Rp</span>
                                                     )}
-                                                    {isEditingPrizes ? (
-                                                        <Input
-                                                            type="text"
-                                                            inputMode="numeric"
-                                                            value={prizeSettings.sources.sponsor}
-                                                            onChange={(e) => handleSourceChange('sponsor', e.target.value.replace(/\D/g, ''))}
-                                                            className="pl-10 bg-white/5 border-white/10"
-                                                        />
-                                                    ) : (
-                                                        <div className="pl-10 py-2 border border-transparent font-bold">
-                                                            {Number(prizeSettings.sources.sponsor).toLocaleString('id-ID')}
-                                                        </div>
-                                                    )}
+                                                    <div className="pl-10 py-2 border border-transparent font-bold">
+                                                        {Number(prizeSettings.sources.sponsor || 0).toLocaleString('id-ID')}
+                                                        <span className="text-[10px] text-gray-500 font-normal ml-2 italic">(Otomatis dari donasi sponsor)</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

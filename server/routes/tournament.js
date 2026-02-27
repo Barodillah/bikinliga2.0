@@ -107,7 +107,20 @@ router.get('/public', optionalAuth, async (req, res) => {
                     AND (m.home_participant_id = p.id OR m.away_participant_id = p.id)
                     AND (m.status = 'completed' OR m.status = 'live')
                     ORDER BY m.round DESC LIMIT 1
-                ) as last_match_details
+                ) as last_match_details,
+                (SELECT is_enabled FROM tournament_prizes WHERE tournament_id = t.id LIMIT 1) as prize_enabled,
+                (SELECT total_pool FROM tournament_prizes WHERE tournament_id = t.id LIMIT 1) as total_prize_pool,
+                (
+                    SELECT JSON_ARRAYAGG(
+                        JSON_OBJECT(
+                            'description', tt.description,
+                            'amount', tt.amount
+                        )
+                    )
+                    FROM tournament_transactions tt
+                    JOIN tournament_wallets tw ON tt.tournament_wallet_id = tw.id
+                    WHERE tw.tournament_id = t.id AND tt.type = 'sponsored' AND tt.status = 'completed'
+                ) as sponsors
             FROM tournaments t
             JOIN users u ON t.organizer_id = u.id
             LEFT JOIN participants p ON t.id = p.tournament_id AND p.user_id = ?
@@ -145,7 +158,7 @@ router.get('/public', optionalAuth, async (req, res) => {
                 status: t.status,
                 startDate: t.start_date || '-',
                 endDate: t.end_date || '-',
-                registrationDeadline: t.last_registration_date || '-',
+                registrationDeadline: t.last_registration_date || null,
                 description: t.description || '',
                 userStatus: t.user_status,
                 userProgress: userProgress,
@@ -159,7 +172,12 @@ router.get('/public', optionalAuth, async (req, res) => {
                     tierPrice: t.tier_price || 0
                 },
                 logo: t.logo_url,
-                payment: t.payment ?? null
+                payment: t.payment ?? null,
+                sponsors: t.sponsors ? (typeof t.sponsors === 'string' ? JSON.parse(t.sponsors) : t.sponsors) : [],
+                prizeSettings: {
+                    enabled: !!t.prize_enabled,
+                    totalPrizePool: parseFloat(t.total_prize_pool || 0)
+                }
             };
         });
 
@@ -347,6 +365,17 @@ router.get('/:idOrSlug', optionalAuth, async (req, res) => {
                 data.wallet_transactions = [];
             }
         }
+
+        // Fetch sponsored text ads for everyone
+        const [sponsorTexts] = await db.query(
+            `SELECT tt.description, tt.amount 
+             FROM tournament_transactions tt
+             JOIN tournament_wallets tw ON tt.tournament_wallet_id = tw.id
+             WHERE tw.tournament_id = ? AND tt.type = 'sponsored' AND tt.status = 'completed'
+             ORDER BY tt.created_at DESC`,
+            [tournament.id]
+        );
+        data.sponsors = sponsorTexts;
 
         res.json({
             success: true,
@@ -2833,6 +2862,128 @@ router.post('/:idOrSlug/finish', authenticateToken, async (req, res) => {
         await connection.rollback();
         console.error('Finish tournament error:', error);
         res.status(500).json({ success: false, message: 'Gagal menyelesaikan turnamen' });
+    } finally {
+        connection.release();
+    }
+});
+
+// Sponsor tournament
+router.post('/:idOrSlug/sponsor', authenticateToken, async (req, res) => {
+    const { idOrSlug } = req.params;
+    const { amount, text } = req.body;
+    const userId = req.user.id;
+    const sponsorAmount = parseInt(amount, 10);
+
+    if (isNaN(sponsorAmount) || sponsorAmount < 100) {
+        return res.status(400).json({ success: false, message: 'Minimal sponsorship adalah 100 coin' });
+    }
+
+    const connection = await db.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        // 1. Get Tournament
+        const [tournaments] = await connection.query(
+            `SELECT id, name FROM tournaments WHERE id = ? OR slug = ?`,
+            [idOrSlug, idOrSlug]
+        );
+
+        if (tournaments.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, message: 'Turnamen tidak ditemukan' });
+        }
+        const tournament = tournaments[0];
+
+        // 2. Check User Wallet
+        const [wallets] = await connection.query(
+            `SELECT id, balance FROM wallets WHERE user_id = ? FOR UPDATE`,
+            [userId]
+        );
+
+        if (wallets.length === 0 || parseFloat(wallets[0].balance) < sponsorAmount) {
+            await connection.rollback();
+            return res.status(400).json({ success: false, message: 'Saldo coin tidak mencukupi' });
+        }
+        const userWallet = wallets[0];
+
+        // 3. Deduct from User Wallet
+        await connection.query(
+            `UPDATE wallets SET balance = balance - ?, updated_at = NOW() WHERE id = ?`,
+            [sponsorAmount, userWallet.id]
+        );
+
+        // 4. Record User Transaction
+        const transactionId = uuidv4();
+        await connection.query(
+            `INSERT INTO transactions (id, wallet_id, type, amount, category, description, status, created_at)
+             VALUES (?, ?, 'spend', ?, 'Sponsor', ?, 'success', NOW())`,
+            [transactionId, userWallet.id, -sponsorAmount, `Sponsor turnamen ${tournament.name}`]
+        );
+
+        // 5. Get or Create Tournament Wallet
+        const [tournamentWallets] = await connection.query(
+            `SELECT id FROM tournament_wallets WHERE tournament_id = ? FOR UPDATE`,
+            [tournament.id]
+        );
+
+        let tournamentWalletId;
+        if (tournamentWallets.length === 0) {
+            tournamentWalletId = uuidv4();
+            await connection.query(
+                `INSERT INTO tournament_wallets (id, tournament_id, balance, updated_at) VALUES (?, ?, ?, NOW())`,
+                [tournamentWalletId, tournament.id, sponsorAmount]
+            );
+        } else {
+            tournamentWalletId = tournamentWallets[0].id;
+            await connection.query(
+                `UPDATE tournament_wallets SET balance = balance + ?, updated_at = NOW() WHERE id = ?`,
+                [sponsorAmount, tournamentWalletId]
+            );
+        }
+
+        // 6. Record Tournament Transaction
+        const tTransactionId = uuidv4();
+        const sponsorDesc = text ? `${text} - ${req.user.name || req.user.username || 'User'}` : `Sponsor - ${req.user.name || req.user.username || 'User'}`;
+        await connection.query(
+            `INSERT INTO tournament_transactions (id, tournament_wallet_id, user_id, type, amount, description, status, created_at)
+             VALUES (?, ?, ?, 'sponsored', ?, ?, 'completed', NOW())`,
+            [tTransactionId, tournamentWalletId, userId, sponsorAmount, sponsorDesc]
+        );
+
+        // Let's also sync the sponsor to the prize pool sources JSON inside tournament_prizes
+        const [prizes] = await connection.query(
+            `SELECT id, sources FROM tournament_prizes WHERE tournament_id = ? FOR UPDATE`,
+            [tournament.id]
+        );
+
+        if (prizes.length > 0) {
+            const prize = prizes[0];
+            let sources = {};
+            if (prize.sources) {
+                if (typeof prize.sources === 'string') {
+                    try { sources = JSON.parse(prize.sources); } catch (e) { }
+                } else {
+                    sources = prize.sources;
+                }
+            }
+
+            const currentSponsor = parseFloat(sources.sponsor || 0);
+            sources.sponsor = currentSponsor + sponsorAmount;
+
+            await connection.query(
+                `UPDATE tournament_prizes SET sources = ?, total_pool = total_pool + ? WHERE id = ?`,
+                [JSON.stringify(sources), sponsorAmount, prize.id]
+            );
+        }
+
+        await connection.commit();
+        res.json({ success: true, message: 'Sponsorship berhasil dikirim' });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error('Sponsor tournament error:', error);
+        res.status(500).json({ success: false, message: 'Gagal mengirim sponsorship' });
     } finally {
         connection.release();
     }
