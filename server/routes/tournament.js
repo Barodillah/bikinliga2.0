@@ -212,6 +212,52 @@ router.get('/public', optionalAuth, async (req, res) => {
     }
 });
 
+// Restore archived tournament (owner only)
+router.put('/:idOrSlug/restore', authenticateToken, async (req, res) => {
+    try {
+        const { idOrSlug } = req.params;
+        const userId = req.user.id;
+
+        const [tournaments] = await db.query(
+            `SELECT t.id, t.name, t.status, t.organizer_id,
+                (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id) as match_count
+            FROM tournaments t
+            WHERE t.id = ? OR t.slug = ?`,
+            [idOrSlug, idOrSlug]
+        );
+
+        if (tournaments.length === 0) {
+            return res.status(404).json({ success: false, message: 'Turnamen tidak ditemukan' });
+        }
+
+        const tournament = tournaments[0];
+
+        // Only owner can restore
+        if (tournament.organizer_id !== userId && !isAdmin(req.user)) {
+            return res.status(403).json({ success: false, message: 'Hanya pemilik turnamen yang dapat mengembalikan status' });
+        }
+
+        if (tournament.status !== 'archived') {
+            return res.status(400).json({ success: false, message: 'Turnamen ini tidak dalam status archived' });
+        }
+
+        const newStatus = (tournament.match_count || 0) > 0 ? 'active' : 'draft';
+
+        await db.query('UPDATE tournaments SET status = ? WHERE id = ?', [newStatus, tournament.id]);
+
+        await logActivity(userId, 'Restore Tournament', `User restored tournament "${tournament.name}" from archived to ${newStatus}`, tournament.id, 'tournament');
+
+        res.json({
+            success: true,
+            message: `Turnamen berhasil dikembalikan ke status ${newStatus}`,
+            data: { new_status: newStatus }
+        });
+    } catch (error) {
+        console.error('Restore tournament error:', error);
+        res.status(500).json({ success: false, message: 'Gagal mengembalikan status turnamen' });
+    }
+});
+
 // Get tournament detail by ID or Slug
 router.get('/:idOrSlug', optionalAuth, async (req, res) => {
     try {
@@ -382,9 +428,10 @@ router.get('/:idOrSlug', optionalAuth, async (req, res) => {
 
         // Fetch sponsored text ads for everyone
         const [sponsorTexts] = await db.query(
-            `SELECT tt.description, tt.amount 
+            `SELECT tt.description, tt.amount, tt.created_at as sponsored_at, u.name as sponsor_name, u.username as sponsor_username, u.avatar_url as sponsor_avatar
              FROM tournament_transactions tt
              JOIN tournament_wallets tw ON tt.tournament_wallet_id = tw.id
+             LEFT JOIN users u ON tt.user_id = u.id
              WHERE tw.tournament_id = ? AND tt.type = 'sponsored' AND tt.status = 'completed'
              ORDER BY tt.created_at DESC`,
             [tournament.id]

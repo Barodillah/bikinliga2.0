@@ -85,7 +85,7 @@ const leagueOptions = [
     { value: 'BYD SEALION 6 LEAGUE 1', label: 'BYD SEALION 6 LEAGUE 1' },
     { value: 'Korean League', label: 'Korean League' },
     { value: 'AFC Champions League Two™', label: 'AFC Champions League Two™' },
-    { value: 'Brazilian League', label: 'Brazilian League' },
+    { value: 'Brasileirão Betano', label: 'Brasileirão Betano' },
     { value: 'Argentine League', label: 'Argentine League' },
     { value: 'American Cup', label: 'American Cup' },
     { value: 'Chilean League', label: 'Chilean League' },
@@ -93,6 +93,11 @@ const leagueOptions = [
     { value: 'Brazilian 2nd Division', label: 'Brazilian 2nd Division' },
     { value: 'CAF AFRICA CUP OF NATIONS 25', label: 'CAF AFRICA CUP OF NATIONS 25' },
     { value: 'American League', label: 'American League' },
+    { value: 'USL Championship', label: 'USL Championship' },
+    { value: 'Other European Teams', label: 'Other European Teams' },
+    { value: 'Other Latin American Teams', label: 'Other Latin American Teams' },
+    { value: 'Other Asian Teams', label: 'Other Asian Teams' },
+    { value: 'Other African Teams', label: 'Other African Teams' },
 ]
 
 // Sample draft players data
@@ -1547,6 +1552,27 @@ export default function TournamentDetail() {
                         setTournamentData(null)
                         return
                     }
+
+                    // Auto-restore archived tournament when owner opens it
+                    if (data.data.status === 'archived') {
+                        try {
+                            const restoreRes = await authFetch(`/api/tournaments/${id}/restore`, { method: 'PUT' })
+                            const restoreData = await restoreRes.json()
+                            if (restoreData.success) {
+                                showSuccess(`Turnamen dikembalikan ke status ${restoreData.data.new_status}`)
+                                // Re-fetch with updated status
+                                const refreshRes = await authFetch(`/api/tournaments/${id}`)
+                                const refreshData = await refreshRes.json()
+                                if (refreshData.success) {
+                                    setTournamentData(refreshData.data)
+                                    return
+                                }
+                            }
+                        } catch (restoreErr) {
+                            console.error('Failed to restore tournament:', restoreErr)
+                        }
+                    }
+
                     setTournamentData(data.data)
                 } else {
                     throw new Error(data.message)

@@ -40,7 +40,7 @@ const leagueOptions = [
     { value: 'BYD SEALION 6 LEAGUE 1', label: 'BYD SEALION 6 LEAGUE 1' },
     { value: 'Korean League', label: 'Korean League' },
     { value: 'AFC Champions League Two™', label: 'AFC Champions League Two™' },
-    { value: 'Brazilian League', label: 'Brazilian League' },
+    { value: 'Brasileirão Betano', label: 'Brasileirão Betano' },
     { value: 'Argentine League', label: 'Argentine League' },
     { value: 'American Cup', label: 'American Cup' },
     { value: 'Chilean League', label: 'Chilean League' },
@@ -48,6 +48,11 @@ const leagueOptions = [
     { value: 'Brazilian 2nd Division', label: 'Brazilian 2nd Division' },
     { value: 'CAF AFRICA CUP OF NATIONS 25', label: 'CAF AFRICA CUP OF NATIONS 25' },
     { value: 'American League', label: 'American League' },
+    { value: 'USL Championship', label: 'USL Championship' },
+    { value: 'Other European Teams', label: 'Other European Teams' },
+    { value: 'Other Latin American Teams', label: 'Other Latin American Teams' },
+    { value: 'Other Asian Teams', label: 'Other Asian Teams' },
+    { value: 'Other African Teams', label: 'Other African Teams' },
 ]
 
 import { useToast } from '../../contexts/ToastContext'

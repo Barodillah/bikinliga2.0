@@ -188,11 +188,11 @@ router.get('/stats', authMiddleware, async (req, res) => {
                     SELECT 
                         t.id, t.name, t.slug, t.logo_url, t.type, t.status,
                         p.status as user_status,
-                        (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id AND (m.home_participant_id = p.id OR m.away_participant_id = p.id) AND m.status = 'completed') as played_matches,
-                        (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id AND (m.home_participant_id = p.id OR m.away_participant_id = p.id)) as total_matches
+                        (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id AND m.status = 'completed') as played_matches,
+                        (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id) as total_matches
                     FROM participants p
                     JOIN tournaments t ON p.tournament_id = t.id
-                    WHERE p.user_id = ?
+                    WHERE p.user_id = ? AND p.status = 'approved'
                     ORDER BY t.created_at DESC
                     LIMIT 3
                 `, [userId])

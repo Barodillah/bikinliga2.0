@@ -337,11 +337,13 @@ export default function Dashboard() {
                                                     <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full whitespace-nowrap block w-fit ml-auto ${tournament.status === 'active' ? 'bg-neonGreen/20 text-neonGreen' :
                                                         tournament.status === 'open' ? 'bg-blue-500/20 text-blue-400' :
                                                             tournament.status === 'completed' ? 'bg-gray-500/20 text-gray-400' :
-                                                                'bg-yellow-500/20 text-yellow-400' // draft
+                                                                tournament.status === 'archived' ? 'bg-red-500/20 text-red-400' :
+                                                                    'bg-yellow-500/20 text-yellow-400' // draft
                                                         }`}>
                                                         {tournament.status === 'active' ? 'Aktif' :
                                                             tournament.status === 'open' ? 'Terbuka' :
-                                                                tournament.status === 'completed' ? 'Selesai' : 'Draft'}
+                                                                tournament.status === 'completed' ? 'Selesai' :
+                                                                    tournament.status === 'archived' ? 'Diarsipkan' : 'Draft'}
                                                     </span>
                                                     <div className="text-[10px] sm:text-xs text-gray-500 mt-1">{tournament.matches || 0} pertandingan</div>
                                                 </div>

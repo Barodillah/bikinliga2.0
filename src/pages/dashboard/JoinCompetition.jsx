@@ -45,7 +45,7 @@ const leagueOptions = [
     { value: 'BYD SEALION 6 LEAGUE 1', label: 'BYD SEALION 6 LEAGUE 1' },
     { value: 'Korean League', label: 'Korean League' },
     { value: 'AFC Champions League Two™', label: 'AFC Champions League Two™' },
-    { value: 'Brazilian League', label: 'Brazilian League' },
+    { value: 'Brasileirão Betano', label: 'Brasileirão Betano' },
     { value: 'Argentine League', label: 'Argentine League' },
     { value: 'American Cup', label: 'American Cup' },
     { value: 'Chilean League', label: 'Chilean League' },
@@ -53,6 +53,11 @@ const leagueOptions = [
     { value: 'Brazilian 2nd Division', label: 'Brazilian 2nd Division' },
     { value: 'CAF AFRICA CUP OF NATIONS 25', label: 'CAF AFRICA CUP OF NATIONS 25' },
     { value: 'American League', label: 'American League' },
+    { value: 'USL Championship', label: 'USL Championship' },
+    { value: 'Other European Teams', label: 'Other European Teams' },
+    { value: 'Other Latin American Teams', label: 'Other Latin American Teams' },
+    { value: 'Other Asian Teams', label: 'Other Asian Teams' },
+    { value: 'Other African Teams', label: 'Other African Teams' },
 ]
 
 export default function JoinCompetition() {
@@ -197,6 +202,7 @@ export default function JoinCompetition() {
     const [teams, setTeams] = useState([])
     const [loadingTeams, setLoadingTeams] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [sponsorModalOpen, setSponsorModalOpen] = useState(false)
 
     const [error, setError] = useState('')
 
@@ -765,7 +771,7 @@ export default function JoinCompetition() {
                                         </div>
                                         <div className="flex items-center gap-2 text-gray-300 bg-black/20 px-3 py-1.5 rounded-lg">
                                             <Users className="w-4 h-4 text-blue-400" />
-                                            <span>Slot: {competitionData.max_participants - (competitionData.current_participants || 0)} Tersisa</span>
+                                            <span>Slot: {Math.max(0, (competitionData.maxParticipants || competitionData.max_participants || 0) - participants.filter(p => p.status === 'approved').length)} Tersisa</span>
                                         </div>
                                         {!isPublic && (
                                             <button
@@ -1396,12 +1402,18 @@ export default function JoinCompetition() {
                                                     </div>
 
                                                     {/* Sponsor */}
-                                                    <div className="p-5 md:p-6 group/item hover:bg-white/[0.02] transition-colors">
+                                                    <div
+                                                        className={`p-5 md:p-6 group/item hover:bg-white/[0.02] transition-colors ${competitionData.payment != null ? 'cursor-pointer' : ''}`}
+                                                        onClick={() => competitionData.payment != null && setSponsorModalOpen(true)}
+                                                    >
                                                         <div className="flex items-center gap-2 mb-3">
                                                             <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
                                                                 <Sparkles className="w-4 h-4 text-purple-400" />
                                                             </div>
                                                             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Sponsor</span>
+                                                            {competitionData.payment != null && (
+                                                                <ChevronDown className="w-3 h-3 text-gray-500 ml-auto" />
+                                                            )}
                                                         </div>
                                                         <div className="flex items-baseline gap-1.5">
                                                             {competitionData.payment != null ? (
@@ -1413,7 +1425,11 @@ export default function JoinCompetition() {
                                                                 {Number(competitionData.prizeSettings.sources?.sponsor || 0).toLocaleString('id-ID')}
                                                             </span>
                                                         </div>
-                                                        <div className="text-[11px] text-gray-500 mt-1.5">Tambahan dari sponsor</div>
+                                                        <div className="text-[11px] text-gray-500 mt-1.5">
+                                                            {competitionData.payment != null && competitionData.sponsors?.length > 0
+                                                                ? `${competitionData.sponsors.length} sponsor · Tap untuk detail`
+                                                                : 'Tambahan dari sponsor'}
+                                                        </div>
                                                     </div>
 
                                                     {/* Admin Fee */}
@@ -1683,6 +1699,45 @@ export default function JoinCompetition() {
                             {isSponsorSubmitting ? 'Mengirim...' : 'Kirim Sponsorship'}
                         </Button>
                     </div>
+                </div>
+            </Modal>
+
+            {/* Sponsor Detail Modal */}
+            <Modal isOpen={sponsorModalOpen} onClose={() => setSponsorModalOpen(false)} title="Detail Sponsor">
+                <div className="space-y-3">
+                    {competitionData?.sponsors?.length > 0 ? competitionData.sponsors.map((spo, idx) => (
+                        <div key={idx} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    {spo.sponsor_avatar ? (
+                                        <img className="w-8 h-8 rounded-full border border-white/10 object-cover" src={spo.sponsor_avatar} alt="Avatar" />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-xs">
+                                            {spo.sponsor_name?.charAt(0) || '?'}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <p className="text-sm font-bold text-white">{spo.sponsor_name || 'Anonim'}</p>
+                                        {spo.sponsor_username && <p className="text-[10px] text-gray-500">@{spo.sponsor_username}</p>}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/20 px-2.5 py-1 rounded-full">
+                                    <img src="/coin.png" alt="coin" className="w-3.5 h-3.5" />
+                                    <span className="text-sm font-bold text-yellow-400">{Number(spo.amount).toLocaleString('id-ID')}</span>
+                                </div>
+                            </div>
+                            {spo.description && (
+                                <div className="bg-black/20 rounded-lg px-3 py-2 mt-2">
+                                    <p className="text-xs text-gray-300 italic">"{spo.description}"</p>
+                                </div>
+                            )}
+                        </div>
+                    )) : (
+                        <div className="text-center py-8 text-gray-500">
+                            <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm">Belum ada sponsor</p>
+                        </div>
+                    )}
                 </div>
             </Modal>
 

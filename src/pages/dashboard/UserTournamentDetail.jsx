@@ -4,6 +4,7 @@ import { Trophy, Users, Calendar, BarChart2, ArrowLeft, ArrowUp, TrendingUp, Act
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
+import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import StandingsTable from '../../components/tournament/StandingsTable'
 import TopScorerList from '../../components/tournament/TopScorerList'
@@ -132,6 +133,7 @@ export default function UserTournamentDetail() {
     const [copied, setCopied] = useState(false)
     const [winnerData, setWinnerData] = useState(null)
     const [shareModalOpen, setShareModalOpen] = useState(false)
+    const [sponsorModalOpen, setSponsorModalOpen] = useState(false)
     const carouselRef = useRef(null)
     const fixtureRoundRefs = useRef({})
     const [showScrollTop, setShowScrollTop] = useState(false)
@@ -1392,12 +1394,18 @@ export default function UserTournamentDetail() {
                                     </div>
 
                                     {/* Sponsor */}
-                                    <div className="p-5 md:p-6 group/item hover:bg-white/[0.02] transition-colors">
+                                    <div
+                                        className={`p-5 md:p-6 group/item hover:bg-white/[0.02] transition-colors ${tournamentData.payment != null ? 'cursor-pointer' : ''}`}
+                                        onClick={() => tournamentData.payment != null && setSponsorModalOpen(true)}
+                                    >
                                         <div className="flex items-center gap-2 mb-3">
                                             <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
                                                 <Sparkles className="w-4 h-4 text-purple-400" />
                                             </div>
                                             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Sponsor</span>
+                                            {tournamentData.payment != null && (
+                                                <ChevronRight className="w-3 h-3 text-gray-500 ml-auto" />
+                                            )}
                                         </div>
                                         <div className="flex items-baseline gap-1.5">
                                             {tournamentData.payment != null ? (
@@ -1409,7 +1417,11 @@ export default function UserTournamentDetail() {
                                                 {Number(tournamentData.prizeSettings.sources?.sponsor || 0).toLocaleString('id-ID')}
                                             </span>
                                         </div>
-                                        <div className="text-[11px] text-gray-500 mt-1.5">Tambahan dari sponsor</div>
+                                        <div className="text-[11px] text-gray-500 mt-1.5">
+                                            {tournamentData.payment != null && tournamentData.sponsors?.length > 0
+                                                ? `${tournamentData.sponsors.length} sponsor · Tap untuk detail`
+                                                : 'Tambahan dari sponsor'}
+                                        </div>
                                     </div>
 
                                     {/* Admin Fee */}
@@ -2020,6 +2032,45 @@ export default function UserTournamentDetail() {
                     </motion.button>
                 )}
             </AnimatePresence>
+
+            {/* Sponsor Detail Modal */}
+            <Modal isOpen={sponsorModalOpen} onClose={() => setSponsorModalOpen(false)} title="Detail Sponsor">
+                <div className="space-y-3">
+                    {tournamentData?.sponsors?.length > 0 ? tournamentData.sponsors.map((spo, idx) => (
+                        <div key={idx} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    {spo.sponsor_avatar ? (
+                                        <img className="w-8 h-8 rounded-full border border-white/10 object-cover" src={spo.sponsor_avatar} alt="Avatar" />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-xs">
+                                            {spo.sponsor_name?.charAt(0) || '?'}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <p className="text-sm font-bold text-white">{spo.sponsor_name || 'Anonim'}</p>
+                                        {spo.sponsor_username && <p className="text-[10px] text-gray-500">@{spo.sponsor_username}</p>}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/20 px-2.5 py-1 rounded-full">
+                                    <img src="/coin.png" alt="coin" className="w-3.5 h-3.5" />
+                                    <span className="text-sm font-bold text-yellow-400">{Number(spo.amount).toLocaleString('id-ID')}</span>
+                                </div>
+                            </div>
+                            {spo.description && (
+                                <div className="bg-black/20 rounded-lg px-3 py-2 mt-2">
+                                    <p className="text-xs text-gray-300 italic">"{spo.description}"</p>
+                                </div>
+                            )}
+                        </div>
+                    )) : (
+                        <div className="text-center py-8 text-gray-500">
+                            <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm">Belum ada sponsor</p>
+                        </div>
+                    )}
+                </div>
+            </Modal>
         </div >
     )
 }

@@ -109,7 +109,8 @@ router.get('/tournaments', async (req, res) => {
                 u.avatar_url as creator_avatar,
                 (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id) as match_count,
                 (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id AND m.status = 'completed') as completed_match_count,
-                (SELECT COUNT(*) FROM participants p WHERE p.tournament_id = t.id) as participant_count
+                (SELECT COUNT(*) FROM participants p WHERE p.tournament_id = t.id) as participant_count,
+                (SELECT MAX(m.updated_at) FROM matches m WHERE m.tournament_id = t.id) as latest_match_updated_at
             FROM tournaments t
             LEFT JOIN users u ON t.organizer_id = u.id
             ORDER BY t.created_at DESC
@@ -594,6 +595,145 @@ router.get('/transactions/doku-status/:invoiceNumber', async (req, res) => {
     } catch (error) {
         console.error('DOKU status check error:', error);
         res.status(500).json({ success: false, message: 'Failed to check DOKU status' });
+    }
+});
+
+// GET /tournaments/:id/status-info - Get tournament status info with competition age
+router.get('/tournaments/:id/status-info', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const [tournament] = await query(
+            `SELECT 
+                t.id, t.name, t.status, t.updated_at,
+                (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id) as match_count,
+                (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id AND m.status = 'completed') as completed_match_count,
+                (SELECT MAX(m.updated_at) FROM matches m WHERE m.tournament_id = t.id) as latest_match_updated_at
+            FROM tournaments t
+            WHERE t.id = ?`,
+            [id]
+        );
+
+        if (!tournament) {
+            return res.status(404).json({ success: false, message: 'Tournament not found' });
+        }
+
+        // Calculate competition age
+        const now = new Date();
+        let referenceDate;
+
+        if (tournament.status === 'active' && tournament.latest_match_updated_at) {
+            referenceDate = new Date(tournament.latest_match_updated_at);
+        } else {
+            referenceDate = new Date(tournament.updated_at);
+        }
+
+        const diffMs = now - referenceDate;
+        const ageDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const ageHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+        const totalMatches = tournament.match_count || 0;
+        const completedMatches = tournament.completed_match_count || 0;
+        const progress = totalMatches > 0 ? Math.round((completedMatches / totalMatches) * 100) : 0;
+
+        res.json({
+            success: true,
+            data: {
+                id: tournament.id,
+                name: tournament.name,
+                status: tournament.status,
+                updated_at: tournament.updated_at,
+                latest_match_updated_at: tournament.latest_match_updated_at,
+                match_count: totalMatches,
+                completed_match_count: completedMatches,
+                progress,
+                age_days: ageDays,
+                age_hours: ageHours,
+                reference_date: referenceDate
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching tournament status info:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch tournament status info' });
+    }
+});
+
+// PUT /tournaments/:id/status - Update tournament status (admin)
+router.put('/tournaments/:id/status', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { new_status } = req.body;
+
+        if (!new_status || !['archived', 'completed'].includes(new_status)) {
+            return res.status(400).json({ success: false, message: 'Invalid status. Must be "archived" or "completed".' });
+        }
+
+        // Get current tournament info
+        const [tournament] = await query(
+            `SELECT 
+                t.id, t.name, t.status, t.organizer_id, t.slug,
+                (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id) as match_count,
+                (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id AND m.status = 'completed') as completed_match_count
+            FROM tournaments t
+            WHERE t.id = ?`,
+            [id]
+        );
+
+        if (!tournament) {
+            return res.status(404).json({ success: false, message: 'Tournament not found' });
+        }
+
+        const totalMatches = tournament.match_count || 0;
+        const completedMatches = tournament.completed_match_count || 0;
+        const progress = totalMatches > 0 ? Math.round((completedMatches / totalMatches) * 100) : 0;
+
+        // Validation rules
+        if (new_status === 'archived') {
+            if (!['draft', 'active'].includes(tournament.status)) {
+                return res.status(400).json({ success: false, message: 'Only draft or active tournaments can be archived.' });
+            }
+            if (progress >= 100) {
+                return res.status(400).json({ success: false, message: 'Cannot archive a tournament with 100% progress. Use "completed" instead.' });
+            }
+        }
+
+        if (new_status === 'completed') {
+            if (tournament.status !== 'active') {
+                return res.status(400).json({ success: false, message: 'Only active tournaments can be marked as completed.' });
+            }
+            if (progress < 100) {
+                return res.status(400).json({ success: false, message: `Cannot complete tournament. Progress is ${progress}%, must be 100%.` });
+            }
+        }
+
+        await query('UPDATE tournaments SET status = ? WHERE id = ?', [new_status, id]);
+
+        // Notify tournament owner
+        if (tournament.organizer_id) {
+            const notifType = new_status === 'archived' ? 'tournament_archived' : 'tournament_completed';
+            const notifTitle = new_status === 'archived' ? 'Turnamen Diarsipkan 📦' : 'Turnamen Selesai 🏆';
+            const notifMessage = new_status === 'archived'
+                ? `Turnamen "${tournament.name}" telah diarsipkan oleh admin. Buka turnamen untuk mengembalikan statusnya.`
+                : `Turnamen "${tournament.name}" telah ditandai selesai oleh admin. Selamat!`;
+
+            await createNotification(
+                tournament.organizer_id,
+                notifType,
+                notifTitle,
+                notifMessage,
+                { tournament_id: tournament.slug, slug: tournament.slug }
+            );
+        }
+
+        // Log activity
+        if (req.user && req.user.id) {
+            await logActivity(req.user.id, 'Admin Update Tournament Status', `Admin changed tournament "${tournament.name}" status from ${tournament.status} to ${new_status}`, id, 'tournament');
+        }
+
+        res.json({ success: true, message: `Tournament status updated to ${new_status}` });
+    } catch (error) {
+        console.error('Error updating tournament status:', error);
+        res.status(500).json({ success: false, message: 'Failed to update tournament status' });
     }
 });
 

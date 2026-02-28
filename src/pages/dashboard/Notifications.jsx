@@ -73,6 +73,8 @@ const Notifications = () => {
             case 'tournament_invite_accepted':
             case 'tournament_invite_declined':
             case 'tournament_join_request':
+            case 'tournament_archived':
+            case 'tournament_completed':
                 return `/dashboard/tournaments/${data.tournament_id}`;
             case 'tournament_join_approved':
             case 'tournament_join_rejected':
@@ -126,6 +128,8 @@ const Notifications = () => {
             case 'tournament_news': return { icon: Megaphone, color: 'text-orange-400', bg: 'bg-orange-400/10' };
             case 'coin_adjustment': return { icon: Wallet, color: 'text-yellow-400', bg: 'bg-yellow-400/10' };
             case 'admin_announcement': return { icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-400/10' };
+            case 'tournament_archived': return { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-400/10' };
+            case 'tournament_completed': return { icon: Trophy, color: 'text-blue-400', bg: 'bg-blue-400/10' };
             case 'community_join_request':
             case 'community_join_approved': return { icon: Users, color: 'text-pink-400', bg: 'bg-pink-400/10' };
             case 'post_like': return { icon: Heart, color: 'text-red-500', bg: 'bg-red-500/10' };
