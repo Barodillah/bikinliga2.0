@@ -725,37 +725,54 @@ export default function UserTournamentDetail() {
 
         // Knockout Logic
         if ((tournamentData.type === 'knockout' || tournamentData.type === 'group_knockout') && matches.length > 0) {
-            const maxRound = Math.max(...matches.map(m => m.round))
-            // Check for Final
-            const finalMatches = matches.filter(m => m.round === maxRound && !m.details?.is3rdPlace)
-            // Check for 3rd Place
-            const thirdPlaceMatch = matches.find(m => m.details?.is3rdPlace) || matches.find(m => m.round === maxRound && m.details?.is3rdPlace)
+            // Filter matches based on stage
+            const bracketMatches = matches.filter(m => {
+                try {
+                    const d = typeof m.details === 'string' ? JSON.parse(m.details) : m.details || {};
+                    return tournamentData.type === 'group_knockout' ? d.stage === 'knockout' : true;
+                } catch (e) { return false; }
+            });
 
-            // Final Winner
-            if (finalMatches.length > 0) {
-                const final = finalMatches[0] // Assuming single leg final for now or logic to handle leg
-                if (final.status === 'completed' || final.status === 'finished') {
-                    const isHomeWin = (final.home_score > final.away_score) || (final.home_penalty_score > final.away_penalty_score)
-                    const winner = isHomeWin
-                        ? { name: final.home_team_name || final.home_player_name, logo: final.home_logo, sub: 'Winner Final', participantId: final.home_participant_id }
-                        : { name: final.away_team_name || final.away_player_name, logo: final.away_logo, sub: 'Winner Final', participantId: final.away_participant_id }
-                    const loser = isHomeWin
-                        ? { name: final.away_team_name || final.away_player_name, logo: final.away_logo, sub: 'Runner-up', participantId: final.away_participant_id }
-                        : { name: final.home_team_name || final.home_player_name, logo: final.home_logo, sub: 'Runner-up', participantId: final.home_participant_id }
+            const maxRound = Math.max(...bracketMatches.map(m => m.round), 0);
 
-                    if (label.includes('1') || label.includes('juara 1') || label.includes('champion') || label.includes('winner')) return winner
-                    if (label.includes('2') || label.includes('juara 2') || label.includes('runner')) return loser
+            // Find Final match (the one that is NOT a 3rd place match in the max round)
+            const finalMatch = bracketMatches.find(m => {
+                try {
+                    const d = typeof m.details === 'string' ? JSON.parse(m.details) : m.details || {};
+                    return m.round === maxRound && !d.is3rdPlace;
+                } catch (e) { return false; }
+            });
+
+            // Find 3rd Place match
+            const thirdPlaceMatch = bracketMatches.find(m => {
+                try {
+                    const d = typeof m.details === 'string' ? JSON.parse(m.details) : m.details || {};
+                    return d.is3rdPlace;
+                } catch (e) { return false; }
+            });
+
+            if (finalMatch) {
+                const fm = finalMatch;
+                const homeWin = fm.home_score > fm.away_score || (fm.home_score === fm.away_score && (fm.home_penalty_score || 0) > (fm.away_penalty_score || 0));
+                const awayWin = fm.away_score > fm.home_score || (fm.home_score === fm.away_score && (fm.away_penalty_score || 0) > (fm.home_penalty_score || 0));
+
+                if (label.includes('1') || label.includes('juara 1') || label.includes('champion') || label.includes('winner')) {
+                    if (homeWin) return { name: fm.home_team_name || fm.home_player_name, logo: fm.home_logo, sub: 'Winner Final', participantId: fm.home_participant_id };
+                    if (awayWin) return { name: fm.away_team_name || fm.away_player_name, logo: fm.away_logo, sub: 'Winner Final', participantId: fm.away_participant_id };
+                }
+                if (label.includes('2') || label.includes('juara 2') || label.includes('runner')) {
+                    if (homeWin) return { name: fm.away_team_name || fm.away_player_name, logo: fm.away_logo, sub: 'Runner-up', participantId: fm.away_participant_id };
+                    if (awayWin) return { name: fm.home_team_name || fm.home_player_name, logo: fm.home_logo, sub: 'Runner-up', participantId: fm.home_participant_id };
                 }
             }
 
-            // 3rd Place Winner
-            if (thirdPlaceMatch && (thirdPlaceMatch.status === 'completed' || thirdPlaceMatch.status === 'finished')) {
-                const isHomeWin = (thirdPlaceMatch.home_score > thirdPlaceMatch.away_score) || (thirdPlaceMatch.home_penalty_score > thirdPlaceMatch.away_penalty_score)
-                const winner3rd = isHomeWin
-                    ? { name: thirdPlaceMatch.home_team_name || thirdPlaceMatch.home_player_name, logo: thirdPlaceMatch.home_logo, sub: 'Winner 3rd Place', participantId: thirdPlaceMatch.home_participant_id }
-                    : { name: thirdPlaceMatch.away_team_name || thirdPlaceMatch.away_player_name, logo: thirdPlaceMatch.away_logo, sub: 'Winner 3rd Place', participantId: thirdPlaceMatch.away_participant_id }
+            if (thirdPlaceMatch && (label.includes('3') || label.includes('juara 3'))) {
+                const tm = thirdPlaceMatch;
+                const homeWin = tm.home_score > tm.away_score || (tm.home_score === tm.away_score && (tm.home_penalty_score || 0) > (tm.away_penalty_score || 0));
+                const awayWin = tm.away_score > tm.home_score || (tm.home_score === tm.away_score && (tm.away_penalty_score || 0) > (tm.home_penalty_score || 0));
 
-                if (label.includes('3') || label.includes('juara 3')) return winner3rd
+                if (homeWin) return { name: tm.home_team_name || tm.home_player_name, logo: tm.home_logo, sub: 'Winner 3rd Place', participantId: tm.home_participant_id };
+                if (awayWin) return { name: tm.away_team_name || tm.away_player_name, logo: tm.away_logo, sub: 'Winner 3rd Place', participantId: tm.away_participant_id };
             }
         }
         return null
@@ -1504,7 +1521,7 @@ export default function UserTournamentDetail() {
                                                                     {Number(recipient.amount).toLocaleString('id-ID')}
                                                                 </span>
                                                             </div>
-                                                            {tournamentData?.status === 'completed' && (
+                                                            {tournamentData?.status === 'completed' && tournamentData.payment != null && (
                                                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${tournamentData.has_payout ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                                                                     {tournamentData.has_payout ? 'Paid' : 'Unpaid'}
                                                                 </span>

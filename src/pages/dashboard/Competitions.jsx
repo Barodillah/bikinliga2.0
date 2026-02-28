@@ -116,7 +116,8 @@ export default function Competitions() {
             matchesFilter = (c.status === 'register' || c.status === 'draft') && c.isPublic
         } else if (filterType === 'participating') {
             // Show competitions where userStatus exists (registered, pending, playing, finished, etc.)
-            matchesFilter = !!c.userStatus
+            // Exclude archived tournaments
+            matchesFilter = !!c.userStatus && c.status !== 'archived'
         }
 
         // Exclude featured competition from list if it is already displayed as highlighted (no search query)
