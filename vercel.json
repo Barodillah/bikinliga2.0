@@ -10,6 +10,18 @@
             "destination": "/api/index.js"
         },
         {
+            "source": "/t/:path*",
+            "destination": "/api/index.js"
+        },
+        {
+            "source": "/c/:path*",
+            "destination": "/api/index.js"
+        },
+        {
+            "source": "/post/:path*",
+            "destination": "/api/index.js"
+        },
+        {
             "source": "/(.*)",
             "destination": "/"
         }

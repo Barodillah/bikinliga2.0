@@ -37,6 +37,7 @@ app.use(cookieParser());
 
 // Meta routes for social media crawlers (must be before API routes)
 app.use('/', metaRoutes);
+app.use('/api/meta', metaRoutes); // Also mount under /api/meta for Vercel Edge Middleware
 
 // Routes
 app.use('/api/auth', authRoutes);
