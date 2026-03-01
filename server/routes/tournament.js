@@ -2740,6 +2740,43 @@ router.get('/:idOrSlug/standings', optionalAuth, async (req, res) => {
             [tournamentId]
         );
 
+        // Fetch last 5 match results for each participant
+        const [completedMatches] = await db.query(
+            `SELECT m.home_participant_id, m.away_participant_id, m.home_score, m.away_score, m.updated_at
+             FROM matches m
+             WHERE m.tournament_id = ? AND m.status = 'completed'
+             ORDER BY m.updated_at DESC`,
+            [tournamentId]
+        );
+
+        // Build form (last 5) for each participant
+        const formMap = {};
+        completedMatches.forEach(m => {
+            // Home team result
+            if (m.home_participant_id) {
+                if (!formMap[m.home_participant_id]) formMap[m.home_participant_id] = [];
+                if (formMap[m.home_participant_id].length < 5) {
+                    if (m.home_score > m.away_score) formMap[m.home_participant_id].push('W');
+                    else if (m.home_score < m.away_score) formMap[m.home_participant_id].push('L');
+                    else formMap[m.home_participant_id].push('D');
+                }
+            }
+            // Away team result
+            if (m.away_participant_id) {
+                if (!formMap[m.away_participant_id]) formMap[m.away_participant_id] = [];
+                if (formMap[m.away_participant_id].length < 5) {
+                    if (m.away_score > m.home_score) formMap[m.away_participant_id].push('W');
+                    else if (m.away_score < m.home_score) formMap[m.away_participant_id].push('L');
+                    else formMap[m.away_participant_id].push('D');
+                }
+            }
+        });
+
+        // Attach last_5 to each standing
+        standings.forEach(s => {
+            s.last_5 = formMap[s.participant_id] || [];
+        });
+
         res.json({ success: true, data: standings });
     } catch (error) {
         console.error('Get standings error:', error);

@@ -15,6 +15,7 @@ const tournamentTypes = [
     { value: 'league', label: 'Liga (Round Robin)', desc: 'Semua tim bermain melawan satu sama lain' },
     { value: 'knockout', label: 'Knockout (Gugur)', desc: 'Kalah berarti tersingkir langsung' },
     { value: 'group_knockout', label: 'Group Stage + Knockout', desc: 'Babak grup lalu babak gugur' },
+    { value: 'new_ucl', label: 'New UCL Format', desc: 'Format Baru UEFA Champions League', disabled: true },
 ]
 
 const pointSystems = [
@@ -557,10 +558,13 @@ export default function CreateTournament() {
                                     {tournamentTypes.map((type) => (
                                         <label
                                             key={type.value}
-                                            className={`p-4 rounded-lg border cursor-pointer transition ${formData.type === type.value
-                                                ? 'border-neonGreen bg-neonGreen/10'
-                                                : 'border-white/10 hover:border-white/30'
+                                            className={`p-4 rounded-lg border transition ${type.disabled
+                                                ? 'border-white/5 opacity-50 cursor-not-allowed'
+                                                : formData.type === type.value
+                                                    ? 'border-neonGreen bg-neonGreen/10 cursor-pointer'
+                                                    : 'border-white/10 hover:border-white/30 cursor-pointer'
                                                 }`}
+                                            onClick={(e) => type.disabled && e.preventDefault()}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <input
@@ -570,15 +574,25 @@ export default function CreateTournament() {
                                                     checked={formData.type === type.value}
                                                     onChange={(e) => handleChange('type', e.target.value)}
                                                     className="sr-only"
+                                                    disabled={type.disabled}
                                                 />
-                                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.type === type.value ? 'border-neonGreen' : 'border-white/30'
+                                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${type.disabled
+                                                    ? 'border-white/10'
+                                                    : formData.type === type.value ? 'border-neonGreen' : 'border-white/30'
                                                     }`}>
-                                                    {formData.type === type.value && (
+                                                    {formData.type === type.value && !type.disabled && (
                                                         <div className="w-2.5 h-2.5 rounded-full bg-neonGreen" />
                                                     )}
                                                 </div>
-                                                <div>
-                                                    <div className="font-medium">{type.label}</div>
+                                                <div className="flex-1">
+                                                    <div className="font-medium flex items-center gap-2">
+                                                        {type.label}
+                                                        {type.disabled && (
+                                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 font-bold uppercase tracking-wider">
+                                                                Coming Soon
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <div className="text-sm text-gray-500">{type.desc}</div>
                                                 </div>
                                             </div>

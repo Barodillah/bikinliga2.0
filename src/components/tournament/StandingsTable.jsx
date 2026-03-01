@@ -48,6 +48,9 @@ export default function StandingsTable({ compact = false, limit = 5, standings =
                         )}
                         <th className="py-3 px-3 text-center w-10">GD</th>
                         <th className="py-3 px-3 text-center w-12">Pts</th>
+                        {!compact && (
+                            <th className="py-3 px-2 text-center hidden md:table-cell w-28">Last 5</th>
+                        )}
                     </tr>
                 </thead>
                 <tbody>
@@ -93,6 +96,27 @@ export default function StandingsTable({ compact = false, limit = 5, standings =
                                 <td className="py-3 px-3 text-center">
                                     <span className="font-display font-bold text-lg">{row.points}</span>
                                 </td>
+                                {!compact && (
+                                    <td className="py-3 px-2 hidden md:table-cell w-28">
+                                        <div className="flex items-center justify-center gap-[6px]">
+                                            {[...(row.last_5 || [])].reverse().map((result, i, arr) => {
+                                                const isLast = i === arr.length - 1;
+                                                const bgColor = result === 'W' ? 'bg-[#22c55e]' : result === 'L' ? 'bg-[#ef4444]' : 'bg-[#9ca3af]';
+                                                const outlineColor = result === 'W' ? 'outline-[#22c55e]' : result === 'L' ? 'outline-[#ef4444]' : 'outline-[#9ca3af]';
+
+                                                return (
+                                                    <div
+                                                        key={i}
+                                                        className={`w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold text-white ${bgColor} ${isLast ? `outline outline-1 outline-offset-[2px] ${outlineColor}` : ''
+                                                            }`}
+                                                    >
+                                                        {result === 'W' ? '✓' : result === 'L' ? '✕' : '—'}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </td>
+                                )}
                             </tr>
                         );
                     })}
