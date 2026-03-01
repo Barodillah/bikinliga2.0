@@ -1,11 +1,12 @@
 ﻿import React, { useState, useEffect, useRef } from 'react'
 import Joyride, { STATUS } from 'react-joyride'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Timer, User, Goal, Flag, Play, Square, Save, Clock, Trophy, ChevronRight, CheckCircle, RotateCcw, Brain, Percent, History, BarChart2, Search, Loader2, ShieldOff } from 'lucide-react'
+import { ArrowLeft, Timer, User, Goal, Flag, Play, Square, Save, Clock, Trophy, ChevronRight, CheckCircle, RotateCcw, Brain, Percent, History, BarChart2, Search, Loader2, ShieldOff, Share2 } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import AsyncPlayerSelect from '../../components/ui/AsyncPlayerSelect'
+import ShareModal from '../../components/ui/ShareModal'
 import { authFetch } from '../../utils/api'
 import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../../contexts/AuthContext'
@@ -52,6 +53,7 @@ export default function MatchManagement() {
     const [showResetModal, setShowResetModal] = useState(false)
     const [resetPassword, setResetPassword] = useState('')
     const [isResetting, setIsResetting] = useState(false)
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
     // Joyride States
     const [runTour, setRunTour] = useState(false)
@@ -892,12 +894,20 @@ export default function MatchManagement() {
             </Modal>
 
             {/* Header / Nav */}
-            <button
-                onClick={() => navigate(`/dashboard/tournaments/${id}`)}
-                className="flex items-center gap-2 text-gray-400 hover:text-white transition"
-            >
-                <ArrowLeft className="w-4 h-4" /> Kembali ke Turnamen
-            </button>
+            <div className="flex items-center justify-between">
+                <button
+                    onClick={() => navigate(`/dashboard/tournaments/${id}`)}
+                    className="flex items-center gap-2 text-gray-400 hover:text-white transition"
+                >
+                    <ArrowLeft className="w-4 h-4" /> Kembali ke Turnamen
+                </button>
+                <button
+                    onClick={() => setIsShareModalOpen(true)}
+                    className="flex items-center gap-2 text-gray-400 hover:text-neonGreen transition text-sm"
+                >
+                    <Share2 className="w-4 h-4" /> Bagikan
+                </button>
+            </div>
 
             {/* Scoreboard Main */}
             <Card className="tour-main-card overflow-hidden">
@@ -1833,6 +1843,15 @@ export default function MatchManagement() {
                     <p className="text-gray-400">Mohon tunggu sebentar...</p>
                 </div>
             )}
+
+            {/* Share Modal */}
+            <ShareModal
+                isOpen={isShareModalOpen}
+                onClose={() => setIsShareModalOpen(false)}
+                link={`${window.location.origin}/t/${id}/match/${matchId}`}
+                text={`${match.homeTeam?.teamName || match.homeTeam?.name} vs ${match.awayTeam?.teamName || match.awayTeam?.name} di BikinLiga!`}
+                title="Bagikan Pertandingan"
+            />
         </div >
     )
 }

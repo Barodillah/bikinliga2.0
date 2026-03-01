@@ -14,7 +14,7 @@
             "destination": "/api/index.js"
         },
         {
-            "source": "/c/:path*",
+            "source": "/eclub/:path*",
             "destination": "/api/index.js"
         },
         {

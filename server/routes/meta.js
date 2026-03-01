@@ -259,7 +259,7 @@ router.get('/t/:slug/match/:matchId', async (req, res, next) => {
 // ============================================
 // COMMUNITY META TAGS: /c/:id
 // ============================================
-router.get('/c/:id', async (req, res, next) => {
+router.get('/eclub/:id', async (req, res, next) => {
     const userAgent = req.get('User-Agent');
     const isVercel = !!process.env.VERCEL;
 
@@ -282,7 +282,7 @@ router.get('/c/:id', async (req, res, next) => {
             return servePage(res, {
                 title: 'Komunitas Tidak Ditemukan - BikinLiga',
                 description: 'Komunitas yang kamu cari tidak ditemukan.',
-                url: `${BASE_URL}/c/${id}`
+                url: `${BASE_URL}/eclub/${id}`
             });
         }
 
@@ -291,7 +291,7 @@ router.get('/c/:id', async (req, res, next) => {
             title: `${c.name} - Komunitas BikinLiga`,
             description: c.description || `Bergabunglah dengan komunitas ${c.name}! ${c.member_count || 0} anggota aktif.`,
             image: c.icon_url || c.banner_url || DEFAULT_IMAGE,
-            url: `${BASE_URL}/c/${id}`,
+            url: `${BASE_URL}/eclub/${id}`,
             type: 'profile',
             favicon: c.icon_url
         });
