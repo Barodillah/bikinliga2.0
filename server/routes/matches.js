@@ -95,7 +95,9 @@ router.get('/:id', optionalAuth, async (req, res) => {
                 p1.name as home_player_name, p1.team_name as home_team_name, p1.logo_url as home_team_logo, p1.id as home_team_id, p1.user_id as home_user_id,
                 p2.name as away_player_name, p2.team_name as away_team_name, p2.logo_url as away_team_logo, p2.id as away_team_id, p2.user_id as away_user_id,
                 t.type as tournament_type,
-                t.organizer_id as organizer_id
+                t.organizer_id as organizer_id,
+                t.logo_url as tournament_logo,
+                t.name as tournament_name
              FROM matches m
              LEFT JOIN participants p1 ON m.home_participant_id = p1.id
              LEFT JOIN participants p2 ON m.away_participant_id = p2.id
@@ -400,7 +402,9 @@ router.get('/:id', optionalAuth, async (req, res) => {
             details: typeof match.details === 'string' ? JSON.parse(match.details || '{}') : (match.details || {}),
             startTime: match.created_at,
             events: events,
-            analysis: analysis // Include Analysis
+            analysis: analysis, // Include Analysis
+            tournamentName: match.tournament_name,
+            tournament_logo: match.tournament_logo
         };
 
         res.json({ success: true, data: responseData });

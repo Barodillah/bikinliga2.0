@@ -11,6 +11,17 @@ export default function PublicCommunityDetail() {
     const [loading, setLoading] = useState(true);
     const [shareModalOpen, setShareModalOpen] = useState(false);
 
+    // Dynamic title & favicon
+    useEffect(() => {
+        if (!community) return;
+        document.title = `${community.name} - Komunitas BikinLiga`;
+        const link = document.querySelector("link[rel~='icon']") || document.createElement('link');
+        link.rel = 'icon';
+        link.href = community.icon_url || '/favicon.png';
+        document.head.appendChild(link);
+        return () => { document.title = 'BikinLiga - Platform Turnamen eFootball Terbaik'; link.href = '/favicon.png'; };
+    }, [community]);
+
     useEffect(() => {
         const fetchCommunity = async () => {
             try {

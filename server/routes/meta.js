@@ -39,11 +39,12 @@ function isCrawler(userAgent) {
 /**
  * Generate HTML with Open Graph meta tags
  */
-function generateMetaHTML({ title, description, image, url, type = 'website' }) {
+function generateMetaHTML({ title, description, image, url, type = 'website', favicon }) {
     const safeTitle = escapeHtml(title || SITE_NAME);
     const safeDesc = escapeHtml(description || 'Platform Turnamen eFootball Terbaik');
     const safeImage = image || DEFAULT_IMAGE;
     const safeUrl = url || BASE_URL;
+    const safeFavicon = favicon || '/favicon.png';
 
     return `<!DOCTYPE html>
 <html lang="id">
@@ -52,6 +53,7 @@ function generateMetaHTML({ title, description, image, url, type = 'website' }) 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${safeTitle}</title>
     <meta name="description" content="${safeDesc}">
+    <link rel="icon" type="image/png" href="${safeFavicon}">
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="${type}">
@@ -133,7 +135,8 @@ router.get('/t/:slug', async (req, res, next) => {
             description: t.description || `Turnamen ${t.name} diselenggarakan oleh ${t.organizer_name || 'BikinLiga'}. Ikuti sekarang!`,
             image: t.logo_url || DEFAULT_IMAGE,
             url: `${BASE_URL}/t/${t.slug}`,
-            type: 'article'
+            type: 'article',
+            favicon: t.logo_url
         });
 
         res.send(html);
@@ -187,7 +190,8 @@ router.get('/t/:slug/match/:matchId', async (req, res, next) => {
             description: `Pertandingan ${m.home_name} melawan ${m.away_name} di turnamen ${m.tournament_name}. Lihat detail dan statistik pertandingan!`,
             image: m.tournament_logo || DEFAULT_IMAGE,
             url: `${BASE_URL}/t/${m.tournament_slug}/match/${matchId}`,
-            type: 'article'
+            type: 'article',
+            favicon: m.tournament_logo
         });
 
         res.send(html);
@@ -232,7 +236,8 @@ router.get('/c/:id', async (req, res, next) => {
             description: c.description || `Bergabunglah dengan komunitas ${c.name}! ${c.member_count || 0} anggota aktif.`,
             image: c.icon_url || c.banner_url || DEFAULT_IMAGE,
             url: `${BASE_URL}/c/${id}`,
-            type: 'profile'
+            type: 'profile',
+            favicon: c.icon_url
         });
 
         res.send(html);
@@ -255,9 +260,11 @@ router.get('/post/:id', async (req, res, next) => {
     try {
         const { id } = req.params;
         const [posts] = await pool.query(
-            `SELECT p.*, u.name as user_name, u.avatar_url as user_avatar
+            `SELECT p.*, u.name as user_name, u.avatar_url as user_avatar,
+                    c.icon_url as community_icon, c.name as community_name
              FROM posts p
              LEFT JOIN users u ON p.user_id = u.id
+             LEFT JOIN communities c ON p.community_id = c.id
              WHERE p.id = ?`,
             [id]
         );
@@ -275,11 +282,12 @@ router.get('/post/:id', async (req, res, next) => {
         const contentPreview = p.content ? p.content.substring(0, 160) + (p.content.length > 160 ? '...' : '') : '';
 
         const html = generateMetaHTML({
-            title: `${p.user_name} di BikinLiga`,
+            title: p.community_name ? `${p.user_name} di ${p.community_name} - BikinLiga` : `${p.user_name} di BikinLiga`,
             description: contentPreview || `Lihat postingan dari ${p.user_name} di BikinLiga!`,
-            image: p.image_url || p.user_avatar || DEFAULT_IMAGE,
+            image: p.image_url || p.community_icon || p.user_avatar || DEFAULT_IMAGE,
             url: `${BASE_URL}/post/${id}`,
-            type: 'article'
+            type: 'article',
+            favicon: p.community_icon
         });
 
         res.send(html);

@@ -54,6 +54,17 @@ export default function TournamentPublicView() {
     const [error, setError] = useState(null)
     const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
+    // Dynamic title & favicon
+    useEffect(() => {
+        if (!tournament) return;
+        document.title = `${tournament.name} - BikinLiga`;
+        const link = document.querySelector("link[rel~='icon']") || document.createElement('link');
+        link.rel = 'icon';
+        link.href = tournament.logo || '/favicon.png';
+        document.head.appendChild(link);
+        return () => { document.title = 'BikinLiga - Platform Turnamen eFootball Terbaik'; link.href = '/favicon.png'; };
+    }, [tournament]);
+
     useEffect(() => {
         const fetchTournament = async () => {
             try {

@@ -11,6 +11,19 @@ export default function PublicPostDetail() {
     const [loading, setLoading] = useState(true);
     const [shareModalOpen, setShareModalOpen] = useState(false);
 
+    // Dynamic title & favicon
+    useEffect(() => {
+        if (!post) return;
+        document.title = post.community_name
+            ? `${post.user_name} di ${post.community_name} - BikinLiga`
+            : `${post.user_name} di BikinLiga`;
+        const link = document.querySelector("link[rel~='icon']") || document.createElement('link');
+        link.rel = 'icon';
+        link.href = post.community_icon || '/favicon.png';
+        document.head.appendChild(link);
+        return () => { document.title = 'BikinLiga - Platform Turnamen eFootball Terbaik'; link.href = '/favicon.png'; };
+    }, [post]);
+
     useEffect(() => {
         const fetchPost = async () => {
             try {

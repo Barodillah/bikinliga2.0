@@ -195,6 +195,21 @@ export default function MatchPublicView() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
 
+    // Dynamic title & favicon
+    useEffect(() => {
+        if (!match) return;
+        const homeName = match.homeTeam?.teamName || match.homeTeam?.name || 'Home';
+        const awayName = match.awayTeam?.teamName || match.awayTeam?.name || 'Away';
+        const scoreText = (match.status === 'completed' || match.status === 'finished')
+            ? `${match.homeScore} - ${match.awayScore}` : 'vs';
+        document.title = `${homeName} ${scoreText} ${awayName} | ${match.tournamentName || 'BikinLiga'}`;
+        const link = document.querySelector("link[rel~='icon']") || document.createElement('link');
+        link.rel = 'icon';
+        link.href = match.tournament_logo || '/favicon.png';
+        document.head.appendChild(link);
+        return () => { document.title = 'BikinLiga - Platform Turnamen eFootball Terbaik'; link.href = '/favicon.png'; };
+    }, [match]);
+
     useEffect(() => {
         const fetchMatch = async () => {
             try {
