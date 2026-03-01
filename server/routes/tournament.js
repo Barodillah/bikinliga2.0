@@ -3080,6 +3080,7 @@ router.post('/:idOrSlug/news/:newsId/comments', authenticateToken, async (req, r
 // Finish Tournament (Trigger Achievements)
 router.post('/:idOrSlug/finish', authenticateToken, async (req, res) => {
     const { idOrSlug } = req.params;
+    const { winners } = req.body;
     const connection = await db.getConnection();
 
     try {
@@ -3112,58 +3113,52 @@ router.post('/:idOrSlug/finish', authenticateToken, async (req, res) => {
         await connection.query('UPDATE tournaments SET status = ? WHERE id = ?', ['completed', tournament.id]);
 
         // 3. Award Achievements
+        if (winners) {
+            // function to resolve participant to user
+            const resolveUser = async (participantId) => {
+                if (!participantId) return null;
+                const [rows] = await connection.query('SELECT user_id FROM participants WHERE id = ?', [participantId]);
+                return rows.length > 0 ? rows[0].user_id : null;
+            };
 
-        // Get Standings (Rank 1, 2, 3)
-        // Note: For Knockout, standings might not be populated in real-time, 
-        // but let's assume standings table is the source of truth for ranks. 
-        // If not, we might need to calculate from matches.
-        // For this version, let's rely on standings for League/Group. 
-        // For Knockout, we might need a specific logic or ensure standings are updated.
+            const champUser = await resolveUser(winners.champ);
+            const runnerUpUser = await resolveUser(winners.runnerUp);
+            const thirdPlaceUser = await resolveUser(winners.thirdPlace);
+            const topScorerUserFromFrontend = await resolveUser(winners.topScorerUser) || winners.topScorerUser;
 
-        // Let's assume standings are populated/calculated.
-        const [standings] = await connection.query(
-            `SELECT s.participant_id, p.user_id 
-             FROM standings s
-             JOIN participants p ON s.participant_id = p.id
-             WHERE s.tournament_id = ?
-    ORDER BY s.points DESC, s.goal_difference DESC, s.goals_for DESC
-             LIMIT 3`,
-            [tournament.id]
-        );
+            if (champUser) await unlockAchievement(champUser, 'tour_champ', { tournament: tournament.id });
+            if (runnerUpUser) await unlockAchievement(runnerUpUser, 'tour_runner_up', { tournament: tournament.id });
+            if (thirdPlaceUser) await unlockAchievement(thirdPlaceUser, 'tour_3rd_place', { tournament: tournament.id });
 
-        if (standings.length > 0 && standings[0].user_id) await unlockAchievement(standings[0].user_id, 'tour_champ', { tournament: tournament.id });
-        if (standings.length > 1 && standings[1].user_id) await unlockAchievement(standings[1].user_id, 'tour_runner_up', { tournament: tournament.id });
-        if (standings.length > 2 && standings[2].user_id) await unlockAchievement(standings[2].user_id, 'tour_3rd_place', { tournament: tournament.id });
+            if (topScorerUserFromFrontend) {
+                await unlockAchievement(topScorerUserFromFrontend, 'tour_top_scorer', { tournament: tournament.id });
+            } else {
+                // Fallback backend calculation if frontend misses it
+                const [ts] = await connection.query(`
+                    SELECT p.user_id 
+                    FROM match_events me
+                    LEFT JOIN participants p ON me.participant_id = p.id
+                    WHERE me.tournament_id = ? AND me.type IN ('goal', 'penalty_goal')
+                    GROUP BY me.player_name, me.participant_id, p.user_id
+                    ORDER BY COUNT(me.id) DESC
+                    LIMIT 1
+                `, [tournament.id]);
 
-        // Get Top Scorer
-        // Need to query match_scorers (but we don't have that table in the migration list provided above?)
-        // Wait, the user mentioned match_scorers table issue in a previous conversation. 
-        // Let's assume there is a way to get top scorers. 
-        // If not, we skip top scorer for now or use a placeholder query.
-        // Or check `009_create_match_events_table.sql` ?
-
-        // Let's look for player stats. 
-        // Assuming we have basic stats in `standings` (NO, that's team stats).
-        // Since `match_scorers` was an issue, let's skip Top Scorer automation if table is missing or unsafe.
-        // But user explicitly asked for "juara 1,2,3 top score".
-        // I will add the logic but wrap in try-catch or check existence in my mind.
-        // Logic:
-        // const [topScorers] = await connection.query(`SELECT player_id, COUNT(*) as goals FROM match_events WHERE type = 'goal' AND tournament_id =? GROUP BY player_id ORDER BY goals DESC LIMIT 1`, [tournament.id]);
-
-        // Since I can't be 100% sure of the table `match_events` structure from here without checking `009`, 
-        // I will skip automatic top scorer for this iteration to avoid breaking the endpoint, 
-        // OR I can use the manual `unlockAchievement` payload from frontend if the organizer selects the top scorer manually?
-        // Let's stick to Ranks 1-3 for now which are more reliable via standings.
+                if (ts.length > 0 && ts[0].user_id) {
+                    await unlockAchievement(ts[0].user_id, 'tour_top_scorer', { tournament: tournament.id });
+                }
+            }
+        }
 
         await connection.commit();
         res.json({ success: true, message: 'Turnamen selesai! Achievement didistribusikan.' });
 
     } catch (error) {
-        await connection.rollback();
+        if (connection) await connection.rollback();
         console.error('Finish tournament error:', error);
         res.status(500).json({ success: false, message: 'Gagal menyelesaikan turnamen' });
     } finally {
-        connection.release();
+        if (connection) connection.release();
     }
 });
 

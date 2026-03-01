@@ -557,6 +557,11 @@ export default function Profile() {
                                             <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-gray-900 border border-white/10 p-2 rounded-lg text-xs opacity-0 group-hover:opacity-100 pointer-events-none transition z-50 shadow-xl">
                                                 <div className="font-bold text-white mb-1">{achievement.name}</div>
                                                 <div className="text-gray-400">{achievement.description}</div>
+                                                {achievement.tournament_name && (
+                                                    <div className="text-yellow-400 mt-1.5 font-semibold text-[10px] break-words">
+                                                        🏆 {achievement.tournament_name}
+                                                    </div>
+                                                )}
                                                 {achievement.unlocked_at && <div className={`${colors.text} mt-1 text-[10px]`}>Unlocked: {new Date(achievement.unlocked_at).toLocaleDateString()}</div>}
                                             </div>
                                         </div>

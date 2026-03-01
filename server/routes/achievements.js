@@ -24,9 +24,11 @@ router.get('/user/:username', async (req, res) => {
         const [achievements] = await db.query(`
             SELECT 
                 a.id, a.id as achievement_id, a.name, a.description, a.icon, a.category, a.xp_value,
-                ua.unlocked_at, ua.is_showcased
+                ua.unlocked_at, ua.is_showcased, ua.metadata,
+                t.name as tournament_name
             FROM user_achievements ua
             JOIN achievements a ON ua.achievement_id = a.id
+            LEFT JOIN tournaments t ON JSON_UNQUOTE(JSON_EXTRACT(ua.metadata, '$.tournament')) = t.id
             WHERE ua.user_id = ?
             ORDER BY ua.is_showcased DESC, ua.unlocked_at DESC, a.xp_value DESC
         `, [userId]);
@@ -46,9 +48,11 @@ router.get('/me', authenticateToken, async (req, res) => {
         const [achievements] = await db.query(`
             SELECT 
                 a.id, a.id as achievement_id, a.name, a.description, a.icon, a.category, a.xp_value,
-                ua.unlocked_at, ua.is_showcased, ua.metadata
+                ua.unlocked_at, ua.is_showcased, ua.metadata,
+                t.name as tournament_name
             FROM user_achievements ua
             JOIN achievements a ON ua.achievement_id = a.id
+            LEFT JOIN tournaments t ON JSON_UNQUOTE(JSON_EXTRACT(ua.metadata, '$.tournament')) = t.id
             WHERE ua.user_id = ?
             ORDER BY ua.unlocked_at DESC
         `, [userId]);

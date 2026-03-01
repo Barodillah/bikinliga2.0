@@ -407,10 +407,10 @@ router.get('/public/:username', async (req, res) => {
 
         // 2. Fetched Joined Tournaments (Top 3 Recent)
         const joinedTournaments = await query(
-            `SELECT t.id, t.name, t.slug, t.logo_url, t.type
+            `SELECT t.id, t.name, t.slug, t.logo_url, t.type, t.status
              FROM participants p
              JOIN tournaments t ON p.tournament_id = t.id
-             WHERE p.user_id = ?
+             WHERE p.user_id = ? AND p.status = 'approved'
              ORDER BY p.created_at DESC
              LIMIT 3`,
             [user.id]

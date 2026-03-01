@@ -37,8 +37,8 @@ export const unlockAchievement = async (userId, achievementId, metadata = {}) =>
         // 3. Unlock it
         const id = uuidv4();
         await db.query(
-            `INSERT INTO user_achievements (id, user_id, achievement_id, metadata, unlocked_at)
-             VALUES (?, ?, ?, ?, NOW())`,
+            `INSERT INTO user_achievements (id, user_id, achievement_id, metadata, unlocked_at, is_showcased)
+             VALUES (?, ?, ?, ?, NOW(), TRUE)`,
             [id, userId, achievementId, JSON.stringify(metadata)]
         );
 

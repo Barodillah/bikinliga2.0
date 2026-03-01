@@ -1761,10 +1761,23 @@ export default function TournamentDetail() {
     const handleCompleteTournament = async () => {
         setIsCompleting(true)
         try {
-            const response = await authFetch(`/api/tournaments/${id}`, {
-                method: 'PATCH',
+            // Find winners using existing getAutomaticWinner logic to grant achievements
+            const champ = getAutomaticWinner({ label: '1' });
+            const runnerUp = getAutomaticWinner({ label: '2' });
+            const thirdPlace = getAutomaticWinner({ label: '3' });
+            const topScorer = getAutomaticWinner({ label: 'top score' });
+
+            const winners = {
+                champ: champ?.participantId || null,
+                runnerUp: runnerUp?.participantId || null,
+                thirdPlace: thirdPlace?.participantId || null,
+                topScorerUser: topScorer?.userId || null
+            };
+
+            const response = await authFetch(`/api/tournaments/${id}/finish`, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'completed' })
+                body: JSON.stringify({ winners })
             })
             const data = await response.json()
             if (data.success) {
@@ -2638,7 +2651,7 @@ export default function TournamentDetail() {
 
             {/* Complete Action */}
             {!isDraft && tournamentData.status !== 'completed' && tournamentData.matches > 0 && Math.round((tournamentData.completed / tournamentData.matches) * 100) >= 100 && (
-                <div className="bg-gradient-to-r from-neonGreen/20 to-blue-500/20 border border-neonGreen/30 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse-glow">
+                <div className="bg-gradient-to-r from-neonGreen/20 to-blue-500/20 border border-neonGreen/30 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse-glow mt-4 mb-2">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-neonGreen/20 flex items-center justify-center text-neonGreen">
                             <CheckCircle className="w-6 h-6" />
