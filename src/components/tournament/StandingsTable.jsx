@@ -25,7 +25,7 @@ export default function StandingsTable({ compact = false, limit = 5, standings =
         if (pos === 1) return 'bg-neonGreen text-black'
         if (pos === 2) return 'bg-neonGreen/50 text-white'
         if (pos === 3) return 'bg-neonGreen/30 text-white'
-        if (pos >= standingsData.length - 1) return 'bg-red-500/30 text-white'
+        if (standings.length > 8 && pos > standings.length - 3) return 'bg-red-500/30 text-white'
         return 'bg-white/10'
     }
 

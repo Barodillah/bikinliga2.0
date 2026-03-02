@@ -2512,6 +2512,23 @@ router.post('/:idOrSlug/matches/generate', authenticateToken, async (req, res) =
         // Log Activity
         await logActivity(req.user.id, 'Generate Matches', `Generated matches for ${tournament.name}`, tournament.id, 'tournament');
 
+        // NOTIFICATION TRIGGERS
+        const [notifParticipants] = await connection.query(
+            `SELECT user_id FROM participants WHERE tournament_id = ? AND status = 'approved' AND user_id IS NOT NULL`,
+            [tournament.id]
+        );
+
+        const userIds = notifParticipants.map(p => p.user_id);
+        if (userIds.length > 0) {
+            await createBulkNotifications(
+                userIds,
+                'tournament_started',
+                'Turnamen Dimulai! 🏆',
+                `Turnamen ${tournament.name} telah resmi dimulai. Cek jadwal pertandingan Anda!`,
+                { tournament_id: tournament.id, slug: idOrSlug }
+            );
+        }
+
         res.status(201).json({ success: true, message: 'Jadwal berhasil digenerate', count: matches.length });
 
     } catch (error) {
@@ -3088,7 +3105,7 @@ router.post('/:idOrSlug/finish', authenticateToken, async (req, res) => {
 
         // 1. Get Tournament
         const [tournaments] = await connection.query(
-            `SELECT id, organizer_id, status FROM tournaments WHERE id = ? OR slug = ? `,
+            `SELECT id, name, organizer_id, status FROM tournaments WHERE id = ? OR slug = ? `,
             [idOrSlug, idOrSlug]
         );
 
@@ -3151,6 +3168,24 @@ router.post('/:idOrSlug/finish', authenticateToken, async (req, res) => {
         }
 
         await connection.commit();
+
+        // NOTIFICATION TRIGGERS
+        const [notifParticipants] = await connection.query(
+            `SELECT user_id FROM participants WHERE tournament_id = ? AND status = 'approved' AND user_id IS NOT NULL`,
+            [tournament.id]
+        );
+
+        const userIdsFinished = notifParticipants.map(p => p.user_id);
+        if (userIdsFinished.length > 0) {
+            await createBulkNotifications(
+                userIdsFinished,
+                'tournament_completed',
+                'Turnamen Selesai! 🏆🎉',
+                `Turnamen "${tournament.name}" telah resmi selesai. Cek hasil akhir dan klasemen sekarang!`,
+                { tournament_id: tournament.id, slug: idOrSlug }
+            );
+        }
+
         res.json({ success: true, message: 'Turnamen selesai! Achievement didistribusikan.' });
 
     } catch (error) {

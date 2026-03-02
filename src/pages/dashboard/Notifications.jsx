@@ -74,11 +74,11 @@ const Notifications = () => {
             case 'tournament_invite_declined':
             case 'tournament_join_request':
             case 'tournament_archived':
-            case 'tournament_completed':
                 return `/dashboard/tournaments/${data.tournament_id}`;
             case 'tournament_join_approved':
             case 'tournament_join_rejected':
             case 'tournament_started':
+            case 'tournament_completed':
                 return `/dashboard/competitions/${data.tournament_id}/view`;
             case 'tournament_invite':
                 return `/dashboard/competitions/${data.tournament_id}/join`;
