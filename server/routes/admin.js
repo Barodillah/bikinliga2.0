@@ -347,10 +347,12 @@ router.post('/email-blast', async (req, res) => {
     });
 });
 
-// Get System History
+// Get System History (with filters)
 router.get('/history', async (req, res) => {
     try {
-        const sql = `
+        const { startDate, endDate, userId, action } = req.query;
+
+        let sql = `
             SELECT 
                 l.id,
                 l.action,
@@ -358,23 +360,62 @@ router.get('/history', async (req, res) => {
                 l.created_at,
                 l.reference_id,
                 l.reference_type,
+                l.user_id,
                 u.name as user_name,
                 u.email as user_email,
                 u.avatar_url as user_avatar,
                 u.role as user_role
             FROM user_logs l
             JOIN users u ON l.user_id = u.id
-            ORDER BY l.created_at DESC
-            LIMIT 100
+            WHERE 1=1
         `;
+        const params = [];
 
-        const logs = await query(sql);
+        if (startDate) {
+            sql += ` AND l.created_at >= ?`;
+            params.push(startDate + ' 00:00:00');
+        }
+        if (endDate) {
+            sql += ` AND l.created_at <= ?`;
+            params.push(endDate + ' 23:59:59');
+        }
+        if (userId) {
+            sql += ` AND l.user_id = ?`;
+            params.push(userId);
+        }
+        if (action) {
+            sql += ` AND l.action = ?`;
+            params.push(action);
+        }
 
-        // Format relative time if needed, or let frontend handle it
+        sql += ` ORDER BY l.created_at DESC LIMIT 500`;
+
+        const logs = await query(sql, params);
         res.json({ success: true, data: logs });
     } catch (error) {
         console.error('Error fetching history:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch history' });
+    }
+});
+
+// Get distinct users & actions for history filter dropdowns
+router.get('/history/filters', async (req, res) => {
+    try {
+        const usersSQL = `
+            SELECT DISTINCT l.user_id, u.name as user_name, u.email as user_email, u.avatar_url as user_avatar
+            FROM user_logs l
+            JOIN users u ON l.user_id = u.id
+            ORDER BY u.name ASC
+        `;
+        const actionsSQL = `SELECT DISTINCT action FROM user_logs ORDER BY action ASC`;
+
+        const users = await query(usersSQL);
+        const actions = await query(actionsSQL);
+
+        res.json({ success: true, data: { users, actions: actions.map(a => a.action) } });
+    } catch (error) {
+        console.error('Error fetching history filters:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch filter options' });
     }
 });
 
