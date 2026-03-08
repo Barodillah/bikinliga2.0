@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
-import { Trophy, Users, Calendar, BarChart2, ArrowLeft, ArrowUp, TrendingUp, Activity, Sparkles, Brain, Goal, Newspaper, Gift, ChevronRight, ArrowRight, Grid3X3, GitMerge, DollarSign, Medal, Crown, Percent, Target, Share2, Lock, Maximize2, Minimize2 } from 'lucide-react'
+import { Trophy, Users, Calendar, BarChart2, ArrowLeft, ArrowUp, TrendingUp, Activity, Sparkles, Brain, Goal, Newspaper, Gift, ChevronRight, ArrowRight, Grid3X3, GitMerge, DollarSign, Medal, Crown, Percent, Target, Share2, Lock, Maximize2, Minimize2, RefreshCw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
@@ -187,6 +187,309 @@ export default function UserTournamentDetail() {
         const myStanding = standings.find(s => String(s.user_id) === String(user.id));
         return myStanding ? myStanding.participant_id : null;
     }, [user, standings]);
+
+    // --- Quick Insight: Predicted Final Position ---
+    const quickInsight = React.useMemo(() => {
+        if (!userParticipantId || !standings.length || tournamentData?.type !== 'league') return null;
+
+        const myStanding = standings.find(s => String(s.participant_id) === String(userParticipantId));
+        if (!myStanding) return null;
+
+        const currentPos = standings.indexOf(myStanding) + 1;
+        const played = myStanding.played || 0;
+        const currentPoints = myStanding.points || 0;
+        const totalTeams = standings.length;
+
+        // Total matches in a league = (N-1) * 2 for home & away
+        const totalMatchesPerTeam = (totalTeams - 1) * 2;
+        const remainingMatches = Math.max(0, totalMatchesPerTeam - played);
+
+        // Points per game extrapolation
+        const ppg = played > 0 ? currentPoints / played : 0;
+        const projectedPoints = currentPoints + (ppg * remainingMatches);
+
+        // Project all teams
+        const projections = standings.map(s => {
+            const sp = s.played || 0;
+            const sPoints = s.points || 0;
+            const sPpg = sp > 0 ? sPoints / sp : 0;
+            const sRemaining = Math.max(0, totalMatchesPerTeam - sp);
+            return {
+                participant_id: s.participant_id,
+                projected: sPoints + (sPpg * sRemaining)
+            };
+        });
+
+        // Sort by projected points descending
+        projections.sort((a, b) => b.projected - a.projected);
+        const predictedPos = projections.findIndex(p => String(p.participant_id) === String(userParticipantId)) + 1;
+
+        // Determine label & color
+        let label, color;
+        if (predictedPos <= 1) { label = 'Very High (Juara)'; color = 'text-neonGreen'; }
+        else if (predictedPos <= 3) { label = `High (Top ${predictedPos})`; color = 'text-neonGreen'; }
+        else if (predictedPos <= Math.ceil(totalTeams / 2)) { label = `Medium (Pos ${predictedPos})`; color = 'text-yellow-400'; }
+        else { label = `Low (Pos ${predictedPos})`; color = 'text-red-400'; }
+
+        // Progress bar: ratio of max possible points
+        const maxPossiblePoints = totalMatchesPerTeam * 3;
+        const percentage = maxPossiblePoints > 0 ? Math.round((projectedPoints / maxPossiblePoints) * 100) : 0;
+
+        return {
+            predictedPos,
+            label,
+            color,
+            percentage: Math.min(100, percentage),
+            currentPos,
+            played,
+            remainingMatches
+        };
+    }, [standings, userParticipantId, tournamentData]);
+
+    // --- Quick Insight: Next Match Analysis ---
+    const [nextMatchAnalysis, setNextMatchAnalysis] = React.useState(null);
+    const [nextMatchLoading, setNextMatchLoading] = React.useState(false);
+
+    React.useEffect(() => {
+        if (!userParticipantId || !matches.length) return;
+
+        // Find next scheduled match for user
+        const nextMatch = matches.find(m =>
+            m.status === 'scheduled' &&
+            (String(m.home_participant_id) === String(userParticipantId) ||
+                String(m.away_participant_id) === String(userParticipantId))
+        );
+
+        if (!nextMatch) {
+            setNextMatchAnalysis({ noMatch: true });
+            return;
+        }
+
+        const isHome = String(nextMatch.home_participant_id) === String(userParticipantId);
+        const opponentName = isHome
+            ? (nextMatch.away_team_name || nextMatch.away_player_name || 'TBD')
+            : (nextMatch.home_team_name || nextMatch.home_player_name || 'TBD');
+
+        // Fetch match detail for analysis/winProbability
+        setNextMatchLoading(true);
+        authFetch(`/api/matches/${nextMatch.id}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.data?.analysis?.winProbability) {
+                    const wp = data.data.analysis.winProbability;
+                    const userWinProb = isHome ? wp.home : wp.away;
+
+                    let difficulty, diffColor;
+                    if (userWinProb >= 65) { difficulty = 'Easy'; diffColor = 'text-neonGreen'; }
+                    else if (userWinProb >= 40) { difficulty = 'Medium'; diffColor = 'text-yellow-400'; }
+                    else { difficulty = 'Hard'; diffColor = 'text-red-400'; }
+
+                    setNextMatchAnalysis({
+                        opponentName,
+                        difficulty,
+                        diffColor,
+                        userWinProb,
+                        noMatch: false
+                    });
+                } else {
+                    setNextMatchAnalysis({
+                        opponentName,
+                        difficulty: 'Unknown',
+                        diffColor: 'text-gray-400',
+                        userWinProb: null,
+                        noMatch: false
+                    });
+                }
+            })
+            .catch(() => {
+                setNextMatchAnalysis({
+                    opponentName,
+                    difficulty: 'Unknown',
+                    diffColor: 'text-gray-400',
+                    userWinProb: null,
+                    noMatch: false
+                });
+            })
+            .finally(() => setNextMatchLoading(false));
+    }, [matches, userParticipantId]);
+
+    // --- AI Next Match Insight Tips ---
+    const [aiInsightText, setAiInsightText] = React.useState('');
+    const [aiInsightLoading, setAiInsightLoading] = React.useState(false);
+    const [aiInsightExpanded, setAiInsightExpanded] = React.useState(false);
+
+    // Load from localStorage on mount / when next match changes
+    React.useEffect(() => {
+        if (!userParticipantId || !matches.length) return;
+        const nextMatch = matches.find(m =>
+            m.status === 'scheduled' &&
+            (String(m.home_participant_id) === String(userParticipantId) ||
+                String(m.away_participant_id) === String(userParticipantId))
+        );
+        if (nextMatch) {
+            const key = `ai_insight_${id}_${nextMatch.id}`;
+            const saved = localStorage.getItem(key);
+            if (saved) setAiInsightText(saved);
+            else setAiInsightText('');
+        }
+    }, [matches, userParticipantId, id]);
+
+    const requestAiInsight = async () => {
+        if (!userParticipantId || !matches.length || !standings.length) return;
+
+        const nextMatch = matches.find(m =>
+            m.status === 'scheduled' &&
+            (String(m.home_participant_id) === String(userParticipantId) ||
+                String(m.away_participant_id) === String(userParticipantId))
+        );
+        if (!nextMatch) return;
+
+        const isHome = String(nextMatch.home_participant_id) === String(userParticipantId);
+        const opponentParticipantId = isHome ? nextMatch.away_participant_id : nextMatch.home_participant_id;
+        const userName = isHome
+            ? (nextMatch.home_team_name || nextMatch.home_player_name || 'User')
+            : (nextMatch.away_team_name || nextMatch.away_player_name || 'User');
+        const opponentName = isHome
+            ? (nextMatch.away_team_name || nextMatch.away_player_name || 'Lawan')
+            : (nextMatch.home_team_name || nextMatch.home_player_name || 'Lawan');
+
+        // Gather user & opponent standings
+        const userStanding = standings.find(s => String(s.participant_id) === String(userParticipantId));
+        const opponentStanding = standings.find(s => String(s.participant_id) === String(opponentParticipantId));
+        const userRank = userStanding ? standings.indexOf(userStanding) + 1 : '-';
+        const opponentRank = opponentStanding ? standings.indexOf(opponentStanding) + 1 : '-';
+
+        // H2H from completed matches
+        const h2hMatches = matches.filter(m =>
+            (m.status === 'completed' || m.status === 'finished') &&
+            ((String(m.home_participant_id) === String(userParticipantId) && String(m.away_participant_id) === String(opponentParticipantId)) ||
+                (String(m.home_participant_id) === String(opponentParticipantId) && String(m.away_participant_id) === String(userParticipantId)))
+        );
+        const h2hSummary = h2hMatches.map(m => {
+            const uIsHome = String(m.home_participant_id) === String(userParticipantId);
+            return `${uIsHome ? m.home_score : m.away_score}-${uIsHome ? m.away_score : m.home_score}`;
+        }).join(', ') || 'Belum ada';
+
+        // Last 5 matches for user & opponent
+        const getLastN = (pid, n = 5) => {
+            return matches.filter(m =>
+                (m.status === 'completed' || m.status === 'finished') &&
+                (String(m.home_participant_id) === String(pid) || String(m.away_participant_id) === String(pid))
+            ).slice(-n).map(m => {
+                const pH = String(m.home_participant_id) === String(pid);
+                const myScore = pH ? m.home_score : m.away_score;
+                const oppScore = pH ? m.away_score : m.home_score;
+                return myScore > oppScore ? 'W' : myScore < oppScore ? 'L' : 'D';
+            });
+        };
+        const userForm = getLastN(userParticipantId).join('') || '-';
+        const opponentForm = getLastN(opponentParticipantId).join('') || '-';
+
+        // Win rate last 5
+        const calcWinRate5 = (form) => {
+            if (!form || form === '-') return 0;
+            const wins = form.split('').filter(c => c === 'W').length;
+            return Math.round((wins / form.length) * 100);
+        };
+
+        // Top scorer for opponent
+        const opponentGoals = matches
+            .filter(m => (m.status === 'completed' || m.status === 'finished') &&
+                (String(m.home_participant_id) === String(opponentParticipantId) || String(m.away_participant_id) === String(opponentParticipantId)))
+            .reduce((total, m) => {
+                const pH = String(m.home_participant_id) === String(opponentParticipantId);
+                return total + (pH ? (m.home_score || 0) : (m.away_score || 0));
+            }, 0);
+
+        const opponentConceded = matches
+            .filter(m => (m.status === 'completed' || m.status === 'finished') &&
+                (String(m.home_participant_id) === String(opponentParticipantId) || String(m.away_participant_id) === String(opponentParticipantId)))
+            .reduce((total, m) => {
+                const pH = String(m.home_participant_id) === String(opponentParticipantId);
+                return total + (pH ? (m.away_score || 0) : (m.home_score || 0));
+            }, 0);
+
+        // Win probability from analysis (if available)
+        const wpInfo = nextMatchAnalysis && !nextMatchAnalysis.noMatch
+            ? `Win probability user: ${nextMatchAnalysis.userWinProb ?? '-'}%, Difficulty: ${nextMatchAnalysis.difficulty}`
+            : 'Win probability belum tersedia';
+
+        const formatStanding = (s, rank) => {
+            if (!s) return 'Data tidak tersedia';
+            const gpm = s.played > 0 ? ((s.goals_for || 0) / s.played).toFixed(2) : '0';
+            return `Rank ${rank}, P:${s.played} W:${s.won} D:${s.drawn} L:${s.lost}, GF:${s.goals_for || 0} GA:${s.goals_against || 0} GD:${s.goal_difference || 0}, Pts:${s.points}, GPM:${gpm}`;
+        };
+
+        // Opponent's top 3 goal scorers in this tournament
+        const opponentTopScorers = topScorers
+            .filter(ts => String(ts.participant_id) === String(opponentParticipantId))
+            .sort((a, b) => (b.goals || 0) - (a.goals || 0))
+            .slice(0, 3);
+        const dangerousPlayers = opponentTopScorers.length > 0
+            ? opponentTopScorers.map((ts, i) => `${i + 1}. ${ts.name} (${ts.goals} gol)`).join('\n')
+            : 'Belum ada data';
+
+        const prompt = `Kamu adalah analis sepak bola AI untuk platform BikinLiga. Berikan insight singkat dan actionable (maks 2-3 paragraf pendek) untuk pertandingan berikutnya.
+
+Data pertandingan: ${userName} vs ${opponentName}
+
+Statistik ${userName}:
+${formatStanding(userStanding, userRank)}
+Form 5 laga terakhir: ${userForm} (Win rate: ${calcWinRate5(userForm)}%)
+
+Statistik ${opponentName}:
+${formatStanding(opponentStanding, opponentRank)}
+Form 5 laga terakhir: ${opponentForm} (Win rate: ${calcWinRate5(opponentForm)}%)
+Total gol musuh: ${opponentGoals}, Kebobolan musuh: ${opponentConceded}
+
+Pemain Berbahaya ${opponentName} (Top Scorer):
+${dangerousPlayers}
+
+Head to Head di turnamen ini: ${h2hSummary}
+${wpInfo}
+
+Berikan analisis dalam Bahasa Indonesia yang mencakup:
+1. Perbandingan kekuatan kedua tim (statistik, form, produktivitas gol)
+2. Pemain lawan yang perlu diwaspadai dan alasannya
+3. Kelemahan lawan yang bisa dieksploitasi
+4. Tips dan strategi untuk memenangkan pertandingan
+5. Prediksi hasil akhir
+
+Gunakan emoji untuk mempercantik. Tulis ringkas tapi informatif.`;
+
+        setAiInsightLoading(true);
+        setAiInsightText('');
+        setAiInsightExpanded(false);
+
+        try {
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
+                },
+                body: JSON.stringify({
+                    model: import.meta.env.VITE_OPENROUTER_MODEL || 'google/gemini-2.5-flash-lite',
+                    messages: [{ role: 'user', content: prompt }],
+                    max_tokens: 500,
+                    temperature: 0.7,
+                }),
+            });
+
+            const data = await response.json();
+            const text = data.choices?.[0]?.message?.content || 'Gagal mendapatkan insight dari AI.';
+
+            setAiInsightText(text);
+            // Save to localStorage
+            const key = `ai_insight_${id}_${nextMatch.id}`;
+            localStorage.setItem(key, text);
+        } catch (err) {
+            console.error('AI Insight error:', err);
+            setAiInsightText('Gagal memuat insight. Silakan coba lagi.');
+        } finally {
+            setAiInsightLoading(false);
+        }
+    };
 
     // AI Analysis State - MOVED UP before early returns
     const [aiSessionId, setAiSessionId] = useState(null)
@@ -1165,26 +1468,119 @@ export default function UserTournamentDetail() {
                                         </h3>
                                     </CardHeader>
                                     <CardContent className="p-3 md:p-4 pt-0 md:pt-0 space-y-3 md:space-y-4">
-                                        <div className="p-2.5 md:p-3 bg-white/5 rounded-lg border border-white/5">
-                                            <div className="text-[10px] md:text-xs text-gray-500 mb-0.5 md:mb-1">Win Probability</div>
-                                            <div className="font-bold text-base md:text-lg text-white">High (Top 3)</div>
-                                            <div className="h-1 md:h-1.5 w-full bg-white/10 rounded-full mt-1.5 md:mt-2 overflow-hidden">
-                                                <div className="h-full bg-neonGreen w-[75%]"></div>
-                                            </div>
+                                        <div className="p-2.5 md:p-3 bg-white/5 rounded-lg border border-white/5 mt-3">
+                                            <div className="text-[10px] md:text-xs text-gray-500 mb-0.5 md:mb-1">Prediksi Akhir Musim</div>
+                                            {quickInsight ? (
+                                                <>
+                                                    <div className={`font-bold text-base md:text-lg ${quickInsight.color}`}>{quickInsight.label}</div>
+                                                    <div className="h-1 md:h-1.5 w-full bg-white/10 rounded-full mt-1.5 md:mt-2 overflow-hidden">
+                                                        <div className="h-full bg-neonGreen transition-all duration-1000" style={{ width: `${quickInsight.percentage}%` }}></div>
+                                                    </div>
+                                                    <div className="text-[10px] md:text-xs text-gray-500 mt-1">Posisi saat ini: {quickInsight.currentPos} · Sisa {quickInsight.remainingMatches} match</div>
+                                                </>
+                                            ) : (
+                                                <div className="text-sm text-gray-500 italic">Data klasemen belum tersedia</div>
+                                            )}
                                         </div>
                                         <div className="p-2.5 md:p-3 bg-white/5 rounded-lg border border-white/5">
                                             <div className="text-[10px] md:text-xs text-gray-500 mb-0.5 md:mb-1">Next Opponent Difficulty</div>
-                                            <div className="font-bold text-base md:text-lg text-yellow-400">Medium</div>
-                                            <div className="text-[10px] md:text-xs text-gray-400 mt-0.5 md:mt-1">vs Real Madrid</div>
+                                            {nextMatchLoading ? (
+                                                <div className="text-sm text-gray-500 italic animate-pulse">Menganalisis...</div>
+                                            ) : nextMatchAnalysis?.noMatch ? (
+                                                <div className="font-bold text-base md:text-lg text-gray-500">Tidak Ada Pertandingan</div>
+                                            ) : nextMatchAnalysis ? (
+                                                <>
+                                                    <div className={`font-bold text-base md:text-lg ${nextMatchAnalysis.diffColor}`}>{nextMatchAnalysis.difficulty}</div>
+                                                    <div className="text-[10px] md:text-xs text-gray-400 mt-0.5 md:mt-1">vs {nextMatchAnalysis.opponentName}</div>
+                                                    {nextMatchAnalysis.userWinProb != null && (
+                                                        <div className="text-[10px] md:text-xs text-gray-500 mt-0.5">Win prob: {nextMatchAnalysis.userWinProb}%</div>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <div className="text-sm text-gray-500 italic animate-pulse">Memuat data...</div>
+                                            )}
                                         </div>
                                     </CardContent>
                                 </Card>
 
-                                <Card className="flex-shrink-0 w-[200px] md:w-auto h-auto md:h-1/3 flex items-center justify-center p-4 md:p-6 text-center border-dashed border-white/20">
-                                    <div className="space-y-1 md:space-y-2 opacity-50">
-                                        <BarChart2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-gray-400" />
-                                        <div className="text-xs md:text-sm font-medium">More analytics coming soon</div>
-                                    </div>
+                                <Card className="flex-shrink-0 w-[280px] md:w-auto md:flex-1 bg-gradient-to-b from-purple-900/20 to-transparent border-purple-500/20">
+                                    <CardHeader className="p-3 md:p-4">
+                                        <h3 className="font-bold flex items-center gap-2 text-purple-400 text-sm md:text-base">
+                                            <Brain className="w-4 h-4" /> AI Match Tips
+                                        </h3>
+                                    </CardHeader>
+                                    <CardContent className="p-3 md:p-4 pt-0 md:pt-0 mt-3">
+                                        {aiInsightLoading ? (
+                                            <div className="space-y-2">
+                                                <div className="h-3 bg-white/10 rounded animate-pulse w-full"></div>
+                                                <div className="h-3 bg-white/10 rounded animate-pulse w-4/5"></div>
+                                                <div className="h-3 bg-white/10 rounded animate-pulse w-3/5"></div>
+                                                <p className="text-[10px] text-purple-400 mt-2 animate-pulse">🤖 AI sedang menganalisis...</p>
+                                            </div>
+                                        ) : aiInsightText ? (
+                                            <div className="space-y-2">
+                                                <div className={`text-xs md:text-sm text-gray-300 leading-relaxed ${!aiInsightExpanded && aiInsightText.length > 100 ? 'max-h-[60px] overflow-hidden relative' : ''}`}>
+                                                    <ReactMarkdown
+                                                        remarkPlugins={[remarkGfm]}
+                                                        components={{
+                                                            strong: ({ node, ...props }) => <span className="font-bold text-purple-300" {...props} />,
+                                                            em: ({ node, ...props }) => <span className="italic opacity-80" {...props} />,
+                                                            p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                                                            ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
+                                                            ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2 space-y-1" {...props} />,
+                                                            li: ({ node, ...props }) => <li className="pl-1" {...props} />,
+                                                            h1: ({ node, ...props }) => <h1 className="text-sm font-bold my-2 border-b border-white/10 pb-1 text-purple-300" {...props} />,
+                                                            h2: ({ node, ...props }) => <h2 className="text-xs font-bold my-2 text-purple-300" {...props} />,
+                                                            h3: ({ node, ...props }) => <h3 className="text-xs font-bold my-1 text-purple-300" {...props} />,
+                                                            blockquote: ({ node, ...props }) => <blockquote className="border-l-2 border-purple-500/50 pl-2 italic my-2 opacity-70" {...props} />,
+                                                            code: ({ node, inline, className, children, ...props }) => {
+                                                                return inline ? (
+                                                                    <code className="bg-black/30 text-purple-300 rounded px-1 py-0.5 text-[10px] font-mono" {...props}>{children}</code>
+                                                                ) : (
+                                                                    <code className="block bg-black/50 p-2 rounded-lg my-2 text-[10px] font-mono overflow-x-auto border border-white/10" {...props}>{children}</code>
+                                                                )
+                                                            },
+                                                            a: ({ node, ...props }) => <a className="text-purple-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                                                            hr: ({ node, ...props }) => <hr className="border-white/10 my-3" {...props} />,
+                                                            del: ({ node, ...props }) => <del className="opacity-60" {...props} />,
+                                                        }}
+                                                    >
+                                                        {aiInsightText}
+                                                    </ReactMarkdown>
+                                                    {!aiInsightExpanded && aiInsightText.length > 100 && (
+                                                        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#0d0d1a] to-transparent"></div>
+                                                    )}
+                                                </div>
+                                                {aiInsightText.length > 100 && (
+                                                    <button
+                                                        onClick={() => setAiInsightExpanded(!aiInsightExpanded)}
+                                                        className="text-[10px] md:text-xs text-purple-400 hover:text-purple-300 font-medium transition"
+                                                    >
+                                                        {aiInsightExpanded ? 'Sembunyikan' : 'Baca Selengkapnya \u2192'}
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={requestAiInsight}
+                                                    className="w-full mt-2 text-[10px] md:text-xs bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 py-1.5 rounded-lg border border-purple-500/20 transition font-medium flex items-center justify-center gap-1.5"
+                                                    disabled={aiInsightLoading}
+                                                >
+                                                    <RefreshCw className={`w-3 h-3 ${aiInsightLoading ? 'animate-spin' : ''}`} />
+                                                    {aiInsightLoading ? 'Menganalisis...' : 'Generate Ulang'}
+                                                </button>
+                                            </div>
+                                        ) : nextMatchAnalysis?.noMatch ? (
+                                            <div className="text-center py-2">
+                                                <div className="text-xs text-gray-500">Tidak ada pertandingan berikutnya</div>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={requestAiInsight}
+                                                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white py-2.5 md:py-3 rounded-lg text-xs md:text-sm font-bold transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
+                                            >
+                                                <Sparkles className="w-3.5 h-3.5" /> Request Insight
+                                            </button>
+                                        )}
+                                    </CardContent>
                                 </Card>
                             </div>
                         </div>
@@ -1234,7 +1630,7 @@ export default function UserTournamentDetail() {
                                                     {isPro ? "PRO" : "LITE"}
                                                 </span>
                                             </div>
-                                            <div className="text-[10px] md:text-xs text-gray-400 truncate">Powered by advanced match data</div>
+                                            <div className="text-[10px] md:text-xs text-gray-400 truncate">Powered by BikinLiga match data</div>
                                         </div>
                                     </div>
 
