@@ -21,7 +21,8 @@ router.get('/', async (req, res) => {
                 (
                     SELECT COUNT(*)
                     FROM participants p
-                    WHERE p.user_id = u.id
+                    JOIN tournaments t ON p.tournament_id = t.id
+                    WHERE p.user_id = u.id AND p.status = 'approved' AND t.status != 'draft'
                 ) as totalTournaments,
                 (
                     SELECT c.name 
@@ -98,7 +99,10 @@ router.get('/user/:username', async (req, res) => {
 
         // Fetch recent matches (Last 5) - Aligned with user.js logic
         const [tournaments] = await db.query(
-            'SELECT COUNT(*) as count FROM participants WHERE user_id = ?',
+            `SELECT COUNT(*) as count 
+             FROM participants p
+             JOIN tournaments t ON p.tournament_id = t.id
+             WHERE p.user_id = ? AND p.status = 'approved' AND t.status != 'draft'`,
             [userId]
         );
         const totalTournaments = tournaments[0].count;
@@ -155,15 +159,16 @@ router.get('/user/:username/most-goal', async (req, res) => {
                AND me.player_name != ''
              GROUP BY me.player_name
              ORDER BY total_goals DESC
-             LIMIT 1`,
+             LIMIT 3`,
             [userId]
         );
 
         if (rows.length === 0) {
-            return res.json({ success: true, data: null });
+            return res.json({ success: true, data: [] });
         }
 
-        res.json({ success: true, data: { name: rows[0].player_name, goals: rows[0].total_goals } });
+        const data = rows.map(r => ({ name: r.player_name, goals: r.total_goals }));
+        res.json({ success: true, data });
     } catch (error) {
         console.error('Fetch most goal error:', error);
         res.status(500).json({ success: false, message: 'Server Error' });

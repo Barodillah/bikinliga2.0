@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom'
 import AdSlot from '../../components/ui/AdSlot'
 import Modal from '../../components/ui/Modal'
 import UserBadge from '../../components/ui/UserBadge'
+import { useAuth } from '../../contexts/AuthContext'
 
 // Removed MOCK_RANKINGS
 const MOCK_RANKINGS = []
 
 export default function Ranking() {
+    const { user } = useAuth()
     const [rankings, setRankings] = useState([])
     const [loading, setLoading] = useState(true)
     const [selectedPlayer, setSelectedPlayer] = useState(null)
@@ -77,11 +79,12 @@ export default function Ranking() {
             const goalData = await goalRes.json();
 
             let mostGoal = null;
-            if (goalData.success && goalData.data) {
+            if (goalData.success && goalData.data && goalData.data.length > 0) {
+                const topPlayer = goalData.data[0];
                 // Fetch face for the most-goal player
                 let faceUrl = 'https://www.efootballdb.com/img/players/player_noface.png';
                 try {
-                    const faceRes = await fetch(`/api/external/player-face?q=${encodeURIComponent(goalData.data.name)}`);
+                    const faceRes = await fetch(`/api/external/player-face?q=${encodeURIComponent(topPlayer.name)}`);
                     if (faceRes.ok) {
                         const faceData = await faceRes.json();
                         if (faceData.status === true && faceData.data && faceData.data.length > 0) {
@@ -91,7 +94,7 @@ export default function Ranking() {
                 } catch (e) {
                     console.error("Failed to fetch face:", e);
                 }
-                mostGoal = { name: goalData.data.name, goals: goalData.data.goals, face: faceUrl };
+                mostGoal = { name: topPlayer.name, goals: topPlayer.goals, face: faceUrl };
             }
 
             setSelectedPlayer(prev => ({
@@ -184,7 +187,12 @@ export default function Ranking() {
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-center gap-1 mb-0.5 md:mb-1">
-                                    <h3 className="text-xs sm:text-sm md:text-xl font-bold text-white truncate">{topThree[1].name}</h3>
+                                    <h3 className="text-xs sm:text-sm md:text-xl font-bold text-white truncate">
+                                        {topThree[1].name}
+                                        {user && topThree[1].username.replace('@', '') === user.username && (
+                                            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-neonGreen/20 text-neonGreen font-bold border border-neonGreen/30 align-middle">Anda</span>
+                                        )}
+                                    </h3>
                                     <div className="scale-75 origin-left">
                                         <UserBadge tier={topThree[1].tier} />
                                     </div>
@@ -229,7 +237,12 @@ export default function Ranking() {
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-center gap-1 mb-0.5 md:mb-1">
-                                    <h3 className="text-sm sm:text-base md:text-2xl font-bold text-white truncate">{topThree[0].name}</h3>
+                                    <h3 className="text-sm sm:text-base md:text-2xl font-bold text-white truncate">
+                                        {topThree[0].name}
+                                        {user && topThree[0].username.replace('@', '') === user.username && (
+                                            <span className="ml-2 text-[10px] md:text-xs px-1.5 py-0.5 rounded bg-neonGreen/20 text-neonGreen font-bold border border-neonGreen/30 align-middle">Anda</span>
+                                        )}
+                                    </h3>
                                     <UserBadge tier={topThree[0].tier} />
                                 </div>
                                 <p className="text-[10px] md:text-sm text-gray-400 mb-2 md:mb-4 truncate">{topThree[0].team}</p>
@@ -272,7 +285,12 @@ export default function Ranking() {
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-center gap-1 mb-0.5 md:mb-1">
-                                    <h3 className="text-xs sm:text-sm md:text-xl font-bold text-white truncate">{topThree[2].name}</h3>
+                                    <h3 className="text-xs sm:text-sm md:text-xl font-bold text-white truncate">
+                                        {topThree[2].name}
+                                        {user && topThree[2].username.replace('@', '') === user.username && (
+                                            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-neonGreen/20 text-neonGreen font-bold border border-neonGreen/30 align-middle">Anda</span>
+                                        )}
+                                    </h3>
                                     <div className="scale-75 origin-left">
                                         <UserBadge tier={topThree[2].tier} />
                                     </div>
@@ -338,8 +356,8 @@ export default function Ranking() {
                             {restOfPlayers.map((player, index) => (
                                 <tr
                                     key={player.id}
-                                    className="hover:bg-white/5 transition cursor-pointer"
-                                    onClick={() => handleProfileClick(player.username)}
+                                    className={`hover:bg-white/5 transition cursor-pointer ${user && player.username.replace('@', '') === user.username ? 'bg-neonGreen/5 border-l-2 border-l-neonGreen' : ''}`}
+                                    onClick={() => handleDetailClick(player)}
                                 >
                                     <td className="p-4 text-gray-400 font-medium whitespace-nowrap">
                                         <div className="flex items-center gap-1">
@@ -360,7 +378,12 @@ export default function Ranking() {
                                             />
                                             <div>
                                                 <div className="flex items-center gap-2">
-                                                    <div className="font-bold text-white">{player.name}</div>
+                                                    <div className="font-bold text-white">
+                                                        {player.name}
+                                                        {user && player.username.replace('@', '') === user.username && (
+                                                            <span className="ml-2 px-1.5 py-0.5 rounded bg-neonGreen/20 text-neonGreen text-[10px] font-bold border border-neonGreen/30">Anda</span>
+                                                        )}
+                                                    </div>
                                                     <UserBadge tier={player.tier} />
                                                 </div>
                                                 <div className="text-sm text-gray-500 flex items-center gap-1">
@@ -394,8 +417,8 @@ export default function Ranking() {
                 {restOfPlayers.map((player, index) => (
                     <div
                         key={player.id}
-                        className="bg-cardBg border border-white/10 rounded-xl p-3 hover:bg-white/5 transition cursor-pointer"
-                        onClick={() => handleProfileClick(player.username)}
+                        className={`bg-cardBg border rounded-xl p-3 hover:bg-white/5 transition cursor-pointer ${user && player.username.replace('@', '') === user.username ? 'border-neonGreen/50 bg-neonGreen/5' : 'border-white/10'}`}
+                        onClick={() => handleDetailClick(player)}
                     >
                         <div className="flex items-center gap-3">
                             {/* Rank Badge */}
@@ -418,7 +441,12 @@ export default function Ranking() {
                             {/* Player Info */}
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1">
-                                    <div className="font-bold text-white text-sm truncate">{player.name}</div>
+                                    <div className="font-bold text-white text-sm truncate">
+                                        {player.name}
+                                        {user && player.username.replace('@', '') === user.username && (
+                                            <span className="ml-2 px-1.5 py-0.5 rounded bg-neonGreen/20 text-neonGreen text-[10px] font-bold border border-neonGreen/30">Anda</span>
+                                        )}
+                                    </div>
                                     <UserBadge tier={player.tier} size="sm" className="scale-75 origin-left" />
                                 </div>
                                 <div className="text-xs text-gray-500 flex items-center gap-1">

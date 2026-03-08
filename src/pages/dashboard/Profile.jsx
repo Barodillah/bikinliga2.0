@@ -42,21 +42,28 @@ export default function Profile() {
                 const achievementsData = await achievementsRes.json()
                 const goalData = await goalRes.json()
 
-                // Fetch face for most-goal player
-                if (goalData.success && goalData.data) {
-                    let faceUrl = 'https://www.efootballdb.com/img/players/player_noface.png';
-                    try {
-                        const faceRes = await fetch(`/api/external/player-face?q=${encodeURIComponent(goalData.data.name)}`);
-                        if (faceRes.ok) {
-                            const faceData = await faceRes.json();
-                            if (faceData.status === true && faceData.data && faceData.data.length > 0) {
-                                faceUrl = faceData.data[0].link;
+                // Fetch face for most-goal players
+                if (goalData.success && goalData.data && goalData.data.length > 0) {
+                    const mostGoalPlayers = await Promise.all(
+                        goalData.data.map(async (player) => {
+                            let faceUrl = 'https://www.efootballdb.com/img/players/player_noface.png';
+                            try {
+                                const faceRes = await fetch(`/api/external/player-face?q=${encodeURIComponent(player.name)}`);
+                                if (faceRes.ok) {
+                                    const faceData = await faceRes.json();
+                                    if (faceData.status === true && faceData.data && faceData.data.length > 0) {
+                                        faceUrl = faceData.data[0].link;
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Failed to fetch face:', e);
                             }
-                        }
-                    } catch (e) { console.error('Failed to fetch face:', e); }
-                    setMostGoal({ name: goalData.data.name, goals: goalData.data.goals, face: faceUrl });
+                            return { ...player, face: faceUrl };
+                        })
+                    );
+                    setMostGoal(mostGoalPlayers);
                 } else {
-                    setMostGoal(null);
+                    setMostGoal([]);
                 }
 
                 if (!profileData.success) {
@@ -400,25 +407,32 @@ export default function Profile() {
                 <div className="space-y-8">
 
                     {/* Most Goal Played */}
-                    {mostGoal && (
+                    {mostGoal && mostGoal.length > 0 && (
                         <div className="bg-cardBg border border-white/10 rounded-2xl p-6">
                             <div className="flex items-center gap-2 mb-4">
                                 <Gamepad2 className="w-5 h-5 text-purple-500" />
-                                <h3 className="font-display font-bold text-white text-lg">Most Goal Played</h3>
+                                <h3 className="font-display font-bold text-white text-lg">Top 3 Most Goal Played</h3>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-purple-500/50 bg-black flex-shrink-0">
-                                    <img
-                                        src={mostGoal.face}
-                                        alt={mostGoal.name}
-                                        className="w-full h-full object-cover"
-                                        onError={(e) => { e.target.src = 'https://www.efootballdb.com/img/players/player_noface.png' }}
-                                    />
-                                </div>
-                                <div className="min-w-0">
-                                    <div className="text-base font-bold text-white truncate">{mostGoal.name}</div>
-                                    <div className="text-sm text-purple-400 font-medium">{mostGoal.goals} goals</div>
-                                </div>
+                            <div className="space-y-4">
+                                {mostGoal.map((player, index) => (
+                                    <div key={index} className="flex items-center gap-4 relative border-b border-white/5 pb-4 last:border-0 last:pb-0">
+                                        <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-purple-500/50 bg-black flex-shrink-0">
+                                            <img
+                                                src={player.face}
+                                                alt={player.name}
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => { e.target.src = 'https://www.efootballdb.com/img/players/player_noface.png' }}
+                                            />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-base font-bold text-white truncate">{player.name}</div>
+                                            <div className="text-sm text-purple-400 font-medium">{player.goals} goals</div>
+                                        </div>
+                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 text-2xl font-bold font-display opacity-20 text-purple-400">
+                                            #{index + 1}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     )}

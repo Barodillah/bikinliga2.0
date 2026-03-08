@@ -358,7 +358,7 @@ function DraftPlayerList({ players, tournamentId, navigate, onStatusUpdate, onEd
 }
 
 // Edit Participant Modal
-function EditParticipantModal({ isOpen, onClose, participant, onSave, onDelete, isDeleting }) {
+function EditParticipantModal({ isOpen, onClose, participant, onSave, onDelete, isDeleting, isDraft }) {
     const [formData, setFormData] = useState({
         name: '',
         team_name: '',
@@ -514,15 +514,17 @@ function EditParticipantModal({ isOpen, onClose, participant, onSave, onDelete, 
                     </div>
 
                     {/* Toggle Button */}
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant={formData.status === 'approved' ? 'danger' : 'primary'}
-                        className={formData.status === 'approved' ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-neonGreen/20 text-neonGreen hover:bg-neonGreen/30'}
-                        onClick={handleToggleStatus}
-                    >
-                        {formData.status === 'approved' ? 'Reject' : 'Approve'}
-                    </Button>
+                    {isDraft && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={formData.status === 'approved' ? 'danger' : 'primary'}
+                            className={formData.status === 'approved' ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-neonGreen/20 text-neonGreen hover:bg-neonGreen/30'}
+                            onClick={handleToggleStatus}
+                        >
+                            {formData.status === 'approved' ? 'Reject' : 'Approve'}
+                        </Button>
+                    )}
                 </div>
 
                 {/* Section Keterangan for Registered Users */}
@@ -617,16 +619,19 @@ function EditParticipantModal({ isOpen, onClose, participant, onSave, onDelete, 
                 )}
 
                 <div className="flex gap-3 pt-4 border-t border-white/10 mt-6">
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10 mr-auto"
-                        onClick={() => onDelete(participant.id)}
-                        disabled={isDeleting || loading}
-                    >
-                        {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                        Hapus Peserta
-                    </Button>
+                    {isDraft && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 mr-auto"
+                            onClick={() => onDelete(participant.id)}
+                            disabled={isDeleting || loading}
+                        >
+                            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                            Hapus Peserta
+                        </Button>
+                    )}
+                    {!isDraft && <div className="mr-auto" />}
                     <Button type="button" variant="ghost" onClick={onClose} disabled={loading || isDeleting}>
                         Batal
                     </Button>
@@ -4217,9 +4222,11 @@ export default function TournamentDetail() {
                                                         </span>
                                                         <p className="text-xs text-gray-500 mt-2">{formatDate(participant.created_at)}</p>
                                                     </div>
-                                                    <Button variant="ghost" size="sm">
-                                                        <Edit className="w-4 h-4" />
-                                                    </Button>
+                                                    {isOrganizer && (
+                                                        <Button variant="ghost" size="sm" onClick={() => handleEditParticipant(participant)}>
+                                                            <Edit className="w-4 h-4" />
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
@@ -4382,6 +4389,7 @@ export default function TournamentDetail() {
                 onSave={handleSaveParticipant}
                 onDelete={handleRequestDelete}
                 isDeleting={isDeletingParticipant}
+                isDraft={isDraft}
             />
 
             {/* Confirmation Modal */}

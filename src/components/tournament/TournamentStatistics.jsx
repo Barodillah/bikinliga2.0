@@ -1,8 +1,11 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BarChart, Activity, ShieldAlert, Award, TrendingUp, Percent } from 'lucide-react'
+import { BarChart, Activity, ShieldAlert, Award, TrendingUp, Percent, Star, Trophy, Gamepad2, Swords, Shield } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../ui/Card'
 import AdSlot from '../ui/AdSlot'
+import Modal from '../ui/Modal'
+import UserBadge from '../ui/UserBadge'
+import AdaptiveLogo from '../ui/AdaptiveLogo'
 
 const TopScorerCell = ({ playerName }) => {
     const [faceUrl, setFaceUrl] = React.useState('https://www.efootballdb.com/img/players/player_noface.png');
@@ -62,6 +65,29 @@ const TopScorerCell = ({ playerName }) => {
 
 export default function TournamentStatistics({ stats, loading }) {
     const navigate = useNavigate()
+    const [selectedTeam, setSelectedTeam] = useState(null)
+    const [topScorerFace, setTopScorerFace] = useState(null)
+
+    const handleDetailClick = async (team) => {
+        setSelectedTeam(team);
+        setTopScorerFace(null);
+
+        // Fetch face for top scorer
+        if (team.topScorer && team.topScorer !== '-') {
+            const searchName = team.topScorer.split(' (')[0];
+            try {
+                const faceRes = await fetch(`/api/external/player-face?q=${encodeURIComponent(searchName)}`);
+                if (faceRes.ok) {
+                    const faceData = await faceRes.json();
+                    if (faceData.status === true && faceData.data && faceData.data.length > 0) {
+                        setTopScorerFace(faceData.data[0].link);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to fetch face:', e);
+            }
+        }
+    }
 
     if (loading) {
         return (
@@ -149,8 +175,8 @@ export default function TournamentStatistics({ stats, loading }) {
                                 {teamStats.map((team, idx) => (
                                     <tr
                                         key={team.id}
-                                        className={`transition ${team.username ? 'hover:bg-white/10 cursor-pointer' : 'hover:bg-white/5'}`}
-                                        onClick={() => team.username && navigate(`/dashboard/profile/${team.username}`)}
+                                        className="transition hover:bg-white/10 cursor-pointer"
+                                        onClick={() => handleDetailClick(team)}
                                     >
                                         <td className="p-4 font-medium">
                                             <div className="flex items-center gap-3">
@@ -195,6 +221,124 @@ export default function TournamentStatistics({ stats, loading }) {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Player Detail Modal */}
+            <Modal
+                isOpen={!!selectedTeam}
+                onClose={() => setSelectedTeam(null)}
+                title="Player Statistics"
+            >
+                {selectedTeam && (
+                    <div className="space-y-6">
+                        {/* Player Header */}
+                        <div className="flex items-center gap-4">
+                            <AdaptiveLogo
+                                src={selectedTeam.logo}
+                                alt={selectedTeam.name}
+                                className="w-20 h-20 rounded-full border-4 border-white/10"
+                            />
+                            <div>
+                                <h4 className="text-xl font-bold text-white">{selectedTeam.name}</h4>
+                                {selectedTeam.playerName && (
+                                    <div className="text-neonGreen font-medium">{selectedTeam.playerName}</div>
+                                )}
+                                {selectedTeam.username && (
+                                    <div className="text-sm text-gray-400 mt-0.5">@{selectedTeam.username}</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Main Stats */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                                <div className="flex items-center gap-2 text-gray-400 mb-2">
+                                    <Star className="w-4 h-4 text-yellow-500" />
+                                    <span className="text-sm">Points</span>
+                                </div>
+                                <div className="text-2xl font-display font-bold text-white">{(selectedTeam.won * 3) + (selectedTeam.draw * 1)}</div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                    {selectedTeam.played} matches played
+                                </div>
+                            </div>
+                            <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                                <div className="flex items-center gap-2 text-gray-400 mb-2">
+                                    <TrendingUp className="w-4 h-4 text-green-500" />
+                                    <span className="text-sm">Win Rate</span>
+                                </div>
+                                <div className="text-2xl font-display font-bold text-white">{selectedTeam.winRate}%</div>
+                            </div>
+                            <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                                <div className="flex items-center gap-2 text-gray-400 mb-2">
+                                    <Activity className="w-4 h-4 text-neonGreen" />
+                                    <span className="text-sm">Total Goals</span>
+                                </div>
+                                <div className="text-2xl font-display font-bold text-white">{selectedTeam.goalsFor}</div>
+                                <div className="text-xs text-gray-500 mt-1">{selectedTeam.goalsAgainst} conceded</div>
+                            </div>
+                            <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                                <div className="flex items-center gap-2 text-gray-400 mb-2">
+                                    <Gamepad2 className="w-4 h-4 text-purple-500" />
+                                    <span className="text-sm">Top Scorer</span>
+                                </div>
+                                {selectedTeam.topScorer && selectedTeam.topScorer !== '-' ? (
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-purple-500/50 bg-black flex-shrink-0">
+                                            <img
+                                                src={topScorerFace || 'https://www.efootballdb.com/img/players/player_noface.png'}
+                                                alt={selectedTeam.topScorer}
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => { e.target.src = 'https://www.efootballdb.com/img/players/player_noface.png' }}
+                                            />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-bold text-white truncate">{selectedTeam.topScorer.split(' (')[0]}</div>
+                                            <div className="text-xs text-purple-400 font-medium">{selectedTeam.topScorer.match(/\((\d+)\)/)?.[1] || 0} goals</div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-lg font-display font-bold text-white">-</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Additional Stats */}
+                        <div className="space-y-4">
+                            <h5 className="text-white font-medium flex items-center gap-2">
+                                <BarChart className="w-4 h-4 text-neonGreen" />
+                                Tournament Performance
+                            </h5>
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
+                                    <div className="text-lg font-bold text-green-400">{selectedTeam.won}</div>
+                                    <div className="text-[10px] text-gray-400 uppercase">Wins</div>
+                                </div>
+                                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 text-center">
+                                    <div className="text-lg font-bold text-yellow-400">{selectedTeam.draw}</div>
+                                    <div className="text-[10px] text-gray-400 uppercase">Draws</div>
+                                </div>
+                                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-center">
+                                    <div className="text-lg font-bold text-red-400">{selectedTeam.lost}</div>
+                                    <div className="text-[10px] text-gray-400 uppercase">Losses</div>
+                                </div>
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-400 pt-1">
+                                <span>Productivity: {selectedTeam.productivity} G/M</span>
+                                <span>Chance: {selectedTeam.chance}%</span>
+                            </div>
+                        </div>
+
+                        {/* View Full Profile Button */}
+                        {selectedTeam.username && (
+                            <button
+                                onClick={() => navigate(`/dashboard/profile/${selectedTeam.username}`)}
+                                className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 transition text-white font-medium border border-white/10 flex items-center justify-center gap-2"
+                            >
+                                View Full Profile
+                            </button>
+                        )}
+                    </div>
+                )}
+            </Modal>
         </div>
     )
 }
