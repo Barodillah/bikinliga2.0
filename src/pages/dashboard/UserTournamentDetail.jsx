@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
-import { Trophy, Users, Calendar, BarChart2, ArrowLeft, ArrowUp, TrendingUp, Activity, Sparkles, Brain, Goal, Newspaper, Gift, ChevronRight, ArrowRight, Grid3X3, GitMerge, DollarSign, Medal, Crown, Percent, Target, Share2, Lock, Maximize2, Minimize2, RefreshCw } from 'lucide-react'
+import { Trophy, Users, Calendar, BarChart2, ArrowLeft, ArrowUp, TrendingUp, Activity, Sparkles, Brain, Goal, Newspaper, Gift, ChevronRight, ArrowRight, Grid3X3, GitMerge, DollarSign, Medal, Crown, Percent, Target, Share2, Lock, Maximize2, Minimize2, RefreshCw, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
@@ -20,6 +20,7 @@ import ShareDestinationModal from '../../components/ui/ShareDestinationModal'
 
 import { authFetch } from '../../utils/api'
 import { useAuth } from '../../contexts/AuthContext'
+import { useToast } from '../../contexts/ToastContext'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -115,6 +116,7 @@ export default function UserTournamentDetail() {
     const { id } = useParams()
     const navigate = useNavigate()
     const { user } = useAuth()
+    const { success, error: toastError } = useToast()
 
     const [tournamentData, setTournamentData] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -317,6 +319,7 @@ export default function UserTournamentDetail() {
     const [aiInsightText, setAiInsightText] = React.useState('');
     const [aiInsightLoading, setAiInsightLoading] = React.useState(false);
     const [aiInsightExpanded, setAiInsightExpanded] = React.useState(false);
+    const [showInsightConfirm, setShowInsightConfirm] = React.useState(false);
 
     // Load from localStorage on mount / when next match changes
     React.useEffect(() => {
@@ -483,6 +486,31 @@ Gunakan emoji untuk mempercantik. Tulis ringkas tapi informatif.`;
             // Save to localStorage
             const key = `ai_insight_${id}_${nextMatch.id}`;
             localStorage.setItem(key, text);
+
+            // Save to database + deduct coins
+            try {
+                const saveRes = await authFetch('/api/ai/minliga/insight', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tournamentId: id,
+                        matchId: nextMatch.id,
+                        prompt,
+                        response: text,
+                        opponentName
+                    })
+                });
+                const saveData = await saveRes.json();
+                if (saveData.success) {
+                    const cost = saveData.data?.coinCost || 0;
+                    success(cost > 0 ? `Insight berhasil! -${cost} coin` : 'Insight berhasil dibuat!');
+                } else {
+                    toastError(saveData.message || 'Gagal menyimpan insight');
+                }
+            } catch (dbErr) {
+                console.warn('Failed to save insight to DB:', dbErr);
+                toastError('Gagal menyimpan ke database');
+            }
         } catch (err) {
             console.error('AI Insight error:', err);
             setAiInsightText('Gagal memuat insight. Silakan coba lagi.');
@@ -530,6 +558,17 @@ Gunakan emoji untuk mempercantik. Tulis ringkas tapi informatif.`;
 
     const isPremiumUser = userSubscription?.plan_name?.toLowerCase().includes('captain') || userSubscription?.plan_name?.toLowerCase().includes('pro') || userSubscription?.plan_name?.toLowerCase().includes('superadmin');
     const isPro = userSubscription?.plan_name?.toLowerCase().includes('pro') || userSubscription?.plan_name?.toLowerCase().includes('superadmin');
+
+    // Coin cost for AI Insight based on subscription
+    const insightCoinCost = isPro ? 0 : isPremiumUser ? 5 : 15;
+
+    const handleInsightRequest = () => {
+        if (insightCoinCost > 0) {
+            setShowInsightConfirm(true);
+        } else {
+            requestAiInsight();
+        }
+    };
 
     // Top Scorer Face URL
     const [topScorerFaceUrl, setTopScorerFaceUrl] = useState('https://www.efootballdb.com/img/players/player_noface.png');
@@ -1560,12 +1599,21 @@ Gunakan emoji untuk mempercantik. Tulis ringkas tapi informatif.`;
                                                     </button>
                                                 )}
                                                 <button
-                                                    onClick={requestAiInsight}
+                                                    onClick={handleInsightRequest}
                                                     className="w-full mt-2 text-[10px] md:text-xs bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 py-1.5 rounded-lg border border-purple-500/20 transition font-medium flex items-center justify-center gap-1.5"
                                                     disabled={aiInsightLoading}
                                                 >
                                                     <RefreshCw className={`w-3 h-3 ${aiInsightLoading ? 'animate-spin' : ''}`} />
-                                                    {aiInsightLoading ? 'Menganalisis...' : 'Generate Ulang'}
+                                                    {aiInsightLoading ? 'Menganalisis...' : (
+                                                        <>
+                                                            Generate Ulang
+                                                            {insightCoinCost > 0 && (
+                                                                <span className="bg-purple-500/20 px-1.5 py-0.5 rounded-full text-[9px] md:text-[10px] flex items-center gap-1 ml-1">
+                                                                    <img src="/coin.png" className="w-2.5 h-2.5 inline" alt="coin" />{insightCoinCost}
+                                                                </span>
+                                                            )}
+                                                        </>
+                                                    )}
                                                 </button>
                                             </div>
                                         ) : nextMatchAnalysis?.noMatch ? (
@@ -1574,16 +1622,52 @@ Gunakan emoji untuk mempercantik. Tulis ringkas tapi informatif.`;
                                             </div>
                                         ) : (
                                             <button
-                                                onClick={requestAiInsight}
+                                                onClick={handleInsightRequest}
                                                 className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white py-2.5 md:py-3 rounded-lg text-xs md:text-sm font-bold transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
                                             >
                                                 <Sparkles className="w-3.5 h-3.5" /> Request Insight
+                                                {insightCoinCost > 0 && (
+                                                    <span className="bg-white/20 px-2 py-0.5 rounded-full text-[10px] md:text-xs flex items-center gap-1">
+                                                        <img src="/coin.png" className="w-3 h-3 inline" alt="coin" />{insightCoinCost} coin
+                                                    </span>
+                                                )}
                                             </button>
                                         )}
                                     </CardContent>
                                 </Card>
                             </div>
                         </div>
+
+                        {/* AI Insight Confirmation Modal */}
+                        {showInsightConfirm && (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowInsightConfirm(false)}>
+                                <div className="bg-[#1a1a2e] border border-purple-500/30 rounded-2xl p-6 max-w-sm mx-4 w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+                                    <div className="text-center">
+                                        <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-purple-500/20 flex items-center justify-center">
+                                            <Brain className="w-7 h-7 text-purple-400" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-white mb-2">Generate AI Insight?</h3>
+                                        <p className="text-sm text-gray-400 mb-4">
+                                            Fitur ini membutuhkan <span className="text-yellow-400 font-bold">{insightCoinCost} coin</span> untuk menganalisis pertandingan berikutnya.
+                                        </p>
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={() => setShowInsightConfirm(false)}
+                                                className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-sm font-medium border border-white/10 transition"
+                                            >
+                                                Batal
+                                            </button>
+                                            <button
+                                                onClick={() => { setShowInsightConfirm(false); requestAiInsight(); }}
+                                                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white text-sm font-bold transition flex items-center justify-center gap-1.5"
+                                            >
+                                                <img src="/coin.png" className="w-3.5 h-3.5" alt="coin" /> {insightCoinCost} Coin
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Chat Area & Input */}
                         <div className="md:col-span-2 flex flex-col gap-3 md:gap-4 relative">

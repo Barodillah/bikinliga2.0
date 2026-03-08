@@ -368,4 +368,114 @@ router.post('/message', authenticateToken, async (req, res) => {
     }
 });
 
+// Save AI Match Insight to database + deduct coins
+router.post('/insight', authenticateToken, async (req, res) => {
+    const { getConnection } = await import('../config/db.js');
+
+    try {
+        const userId = req.user.id;
+        const { tournamentId, matchId, prompt, response, opponentName } = req.body;
+
+        if (!prompt || !response) {
+            return res.status(400).json({ success: false, message: 'Prompt and response are required' });
+        }
+
+        // Determine coin cost based on subscription
+        const subscriptions = await query(
+            `SELECT us.plan_id, sp.name as plan_name 
+             FROM user_subscriptions us
+             JOIN subscription_plans sp ON us.plan_id = sp.id
+             WHERE us.user_id = ? AND us.status = 'active'
+             ORDER BY sp.price DESC LIMIT 1`,
+            [userId]
+        );
+
+        const planId = subscriptions?.[0]?.plan_id || 1;
+        let coinCost = 15; // Free plan default
+        if (planId === 2) coinCost = 5;   // Captain
+        if (planId >= 3) coinCost = 0;    // Pro League / Superadmin
+
+        const connection = await getConnection();
+        try {
+            await connection.beginTransaction();
+
+            if (coinCost > 0) {
+                // Check wallet balance
+                const [wallets] = await connection.execute(
+                    'SELECT id, balance FROM wallets WHERE user_id = ? FOR UPDATE',
+                    [userId]
+                );
+
+                if (wallets.length === 0) {
+                    await connection.rollback();
+                    return res.status(400).json({ success: false, message: 'Wallet tidak ditemukan' });
+                }
+
+                const wallet = wallets[0];
+                if (parseFloat(wallet.balance) < coinCost) {
+                    await connection.rollback();
+                    return res.status(400).json({
+                        success: false,
+                        message: `Saldo koin tidak mencukupi. Dibutuhkan ${coinCost} coin, saldo Anda ${Math.floor(wallet.balance)} coin.`,
+                        code: 'INSUFFICIENT_BALANCE'
+                    });
+                }
+
+                // Deduct coins
+                const newBalance = parseFloat(wallet.balance) - coinCost;
+                await connection.execute(
+                    'UPDATE wallets SET balance = ? WHERE id = ?',
+                    [newBalance, wallet.id]
+                );
+
+                // Record transaction
+                const txId = uuidv4();
+                await connection.execute(
+                    `INSERT INTO transactions (id, wallet_id, type, amount, category, description, status) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                    [txId, wallet.id, 'spend', -coinCost, 'AI Insight', `AI Match Insight vs ${opponentName || 'Lawan'}`, 'success']
+                );
+            }
+
+            // Save chat session
+            const sessionId = uuidv4();
+            const title = `AI Insight: vs ${opponentName || 'Lawan'}`;
+
+            await connection.execute(
+                'INSERT INTO chat_sessions (id, user_id, title) VALUES (?, ?, ?)',
+                [sessionId, userId, title]
+            );
+
+            // Save prompt message
+            const promptMessageId = uuidv4();
+            await connection.execute(
+                'INSERT INTO chat_messages (id, session_id, role, content) VALUES (?, ?, ?, ?)',
+                [promptMessageId, sessionId, 'user', prompt]
+            );
+
+            // Save response message
+            const responseMessageId = uuidv4();
+            await connection.execute(
+                'INSERT INTO chat_messages (id, session_id, role, content) VALUES (?, ?, ?, ?)',
+                [responseMessageId, sessionId, 'assistant', response]
+            );
+
+            await connection.commit();
+
+            // Log activity
+            await logActivity(userId, 'AI Match Insight', `Generated AI insight for match vs ${opponentName || 'opponent'} (${coinCost} coins)`, tournamentId || sessionId, 'tournament');
+
+            res.json({ success: true, data: { sessionId, coinCost } });
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('Save Insight Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to save insight' });
+    }
+});
+
 export default router;
