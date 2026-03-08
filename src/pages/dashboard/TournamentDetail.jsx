@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Trophy, Users, Calendar, BarChart2, Settings, Share2, Download, ArrowLeft, ArrowRight, ArrowUp, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2, Gift, DollarSign, Percent, Save, Loader2, User, Phone, Shield, Sparkles, Medal, Crown, Target, ListFilter, MessageSquare, MessageCircle, Send, ChevronDown, UserCheck, ShieldCheck, Mail } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Trophy, Users, Calendar, BarChart2, Settings, Share2, Download, ArrowLeft, ArrowRight, ArrowUp, Edit, Copy, Check, GitMerge, Grid3X3, UserPlus, Clock, CheckCircle, XCircle, CreditCard, TrendingUp, Activity, Info, Newspaper, Plus, Trash2, Gift, DollarSign, Percent, Save, Loader2, User, Phone, Shield, Sparkles, Medal, Crown, Target, ListFilter, MessageSquare, MessageCircle, Send, ChevronDown, UserCheck, ShieldCheck, Mail, RefreshCw } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -3855,10 +3855,17 @@ export default function TournamentDetail() {
                                     </div>
 
                                     <div className="pb-12 px-6">
-                                        <Button onClick={handleGenerateSchedule} className="bg-neonGreen hover:bg-neonGreen/80 text-black mx-auto">
-                                            <Sparkles className="w-4 h-4 mr-2" />
-                                            Generate Jadwal
-                                        </Button>
+                                        {tournamentData.status === 'draft' ? (
+                                            <Button onClick={handleGenerateSchedule} className="bg-neonGreen hover:bg-neonGreen/80 text-black mx-auto">
+                                                <Sparkles className="w-4 h-4 mr-2" />
+                                                Generate Jadwal
+                                            </Button>
+                                        ) : (
+                                            <Button onClick={() => window.location.reload()} className="bg-neonGreen hover:bg-neonGreen/80 text-black mx-auto">
+                                                <RefreshCw className="w-4 h-4 mr-2" />
+                                                Refresh
+                                            </Button>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
