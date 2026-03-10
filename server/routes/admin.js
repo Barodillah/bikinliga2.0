@@ -68,6 +68,106 @@ router.get('/dashboard-stats', async (req, res) => {
     }
 });
 
+// Get daily user logins chart data (last 14 days) from user_logs
+router.get('/dashboard-chart/logins', async (req, res) => {
+    try {
+        // Count distinct users who have activity each day for the last 14 days
+        const dailyLoginsSQL = `
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(DISTINCT user_id) as logins
+            FROM user_logs
+            WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        `;
+        const dailyLogins = await query(dailyLoginsSQL);
+
+        // Engagement: percentage of total users that were active this month
+        const [totalUsers] = await query(`SELECT COUNT(*) as count FROM users WHERE username IS NOT NULL AND username != ''`);
+        const [activeThisMonth] = await query(`
+            SELECT COUNT(DISTINCT user_id) as count 
+            FROM user_logs 
+            WHERE YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())
+        `);
+        const [activeLastMonth] = await query(`
+            SELECT COUNT(DISTINCT user_id) as count 
+            FROM user_logs 
+            WHERE YEAR(created_at) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) 
+              AND MONTH(created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
+        `);
+
+        const engagementThisMonth = totalUsers.count > 0 ? ((activeThisMonth.count / totalUsers.count) * 100).toFixed(1) : 0;
+        const engagementLastMonth = totalUsers.count > 0 ? ((activeLastMonth.count / totalUsers.count) * 100).toFixed(1) : 0;
+        const engagementChange = (engagementThisMonth - engagementLastMonth).toFixed(1);
+
+        res.json({
+            success: true,
+            data: {
+                chart: dailyLogins,
+                engagementPercentage: engagementThisMonth,
+                engagementChange: engagementChange,
+                activeThisMonth: activeThisMonth.count,
+                activeLastMonth: activeLastMonth.count,
+                totalUsers: totalUsers.count
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching login chart data:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch login chart data' });
+    }
+});
+
+// Get daily new users chart data (last 14 days) from users table
+router.get('/dashboard-chart/new-users', async (req, res) => {
+    try {
+        const dailyNewUsersSQL = `
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(*) as users
+            FROM users
+            WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
+              AND username IS NOT NULL AND username != ''
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        `;
+        const dailyNewUsers = await query(dailyNewUsersSQL);
+
+        // Growth: compare new users this month vs last month
+        const [newThisMonth] = await query(`
+            SELECT COUNT(*) as count FROM users 
+            WHERE YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())
+              AND username IS NOT NULL AND username != ''
+        `);
+        const [newLastMonth] = await query(`
+            SELECT COUNT(*) as count FROM users 
+            WHERE YEAR(created_at) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) 
+              AND MONTH(created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
+              AND username IS NOT NULL AND username != ''
+        `);
+
+        let growthPercentage = 0;
+        if (newLastMonth.count > 0) {
+            growthPercentage = (((newThisMonth.count - newLastMonth.count) / newLastMonth.count) * 100).toFixed(1);
+        } else if (newThisMonth.count > 0) {
+            growthPercentage = 100;
+        }
+
+        res.json({
+            success: true,
+            data: {
+                chart: dailyNewUsers,
+                newThisMonth: newThisMonth.count,
+                newLastMonth: newLastMonth.count,
+                growthPercentage: growthPercentage
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching new users chart data:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch new users chart data' });
+    }
+});
+
 // Get all users with stats
 router.get('/users', async (req, res) => {
     try {

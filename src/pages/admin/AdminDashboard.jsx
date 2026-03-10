@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Users, AlertCircle, TrendingUp, Activity, Trophy, Swords, CreditCard, UserPlus, Banknote } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { format, subDays } from 'date-fns'
 import { api } from '../../utils/api'
 
 export default function AdminDashboard() {
@@ -8,14 +10,23 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true)
     const [midtransRevenue, setMidtransRevenue] = useState(0)
     const [midtransLoading, setMidtransLoading] = useState(true)
+    const [loginChartData, setLoginChartData] = useState([])
+    const [engagementPercentage, setEngagementPercentage] = useState(0)
+    const [engagementChange, setEngagementChange] = useState(0)
+    const [engagementDetail, setEngagementDetail] = useState({ activeThisMonth: 0, totalUsers: 0 })
+    const [newUserChartData, setNewUserChartData] = useState([])
+    const [growthPercentage, setGrowthPercentage] = useState(0)
+    const [growthDetail, setGrowthDetail] = useState({ newThisMonth: 0, newLastMonth: 0 })
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [statsRes, historyRes, topupRes] = await Promise.all([
+                const [statsRes, historyRes, topupRes, loginChartRes, newUserChartRes] = await Promise.all([
                     api.get('/api/admin/dashboard-stats'),
                     api.get('/api/admin/history'),
-                    api.get('/api/admin/transactions/topup')
+                    api.get('/api/admin/transactions/topup'),
+                    api.get('/api/admin/dashboard-chart/logins'),
+                    api.get('/api/admin/dashboard-chart/new-users')
                 ])
 
                 if (statsRes.success) {
@@ -39,6 +50,33 @@ export default function AdminDashboard() {
                     await calculateMidtransRevenue(topupData)
                 } else {
                     setMidtransLoading(false)
+                }
+
+                // Process login chart data
+                const loginData = loginChartRes.success ? loginChartRes.data : loginChartRes.data?.data
+                if (loginData) {
+                    const filledLoginData = fillMissingDays(loginData.chart || [], 'logins')
+                    setLoginChartData(filledLoginData)
+                    const change = parseFloat(loginData.engagementChange || 0)
+                    setEngagementPercentage(parseFloat(loginData.engagementPercentage || 0))
+                    setEngagementChange(change)
+                    setEngagementDetail({
+                        activeThisMonth: loginData.activeThisMonth || 0,
+                        totalUsers: loginData.totalUsers || 0
+                    })
+                }
+
+                // Process new user chart data
+                const newUserData = newUserChartRes.success ? newUserChartRes.data : newUserChartRes.data?.data
+                if (newUserData) {
+                    const filledNewUserData = fillMissingDays(newUserData.chart || [], 'users')
+                    setNewUserChartData(filledNewUserData)
+                    const growth = parseFloat(newUserData.growthPercentage || 0)
+                    setGrowthPercentage(growth)
+                    setGrowthDetail({
+                        newThisMonth: newUserData.newThisMonth || 0,
+                        newLastMonth: newUserData.newLastMonth || 0
+                    })
                 }
             } catch (error) {
                 console.error('Error fetching dashboard data:', error)
@@ -107,6 +145,22 @@ export default function AdminDashboard() {
             } finally {
                 setMidtransLoading(false)
             }
+        }
+
+        // Fill missing days with 0 for a complete 14-day chart
+        const fillMissingDays = (data, valueKey) => {
+            const result = []
+            for (let i = 13; i >= 0; i--) {
+                const d = subDays(new Date(), i)
+                const dateStr = format(d, 'yyyy-MM-dd')
+                const label = format(d, 'dd MMM')
+                const found = data.find(item => {
+                    const itemDate = format(new Date(item.date), 'yyyy-MM-dd')
+                    return itemDate === dateStr
+                })
+                result.push({ date: label, [valueKey]: found ? Number(found[valueKey]) : 0 })
+            }
+            return result
         }
 
         fetchData()
@@ -203,6 +257,129 @@ export default function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Daily User Logins Chart Card */}
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-900">Daily User Logins (Last 14 Days)</h2>
+                            <p className="text-sm text-gray-500 mt-1">
+                                User engagement bulan ini:{' '}
+                                <span className="relative group inline-block">
+                                    <span className={`font-semibold cursor-help border-b border-dashed ${engagementChange >= 0 ? 'text-green-600 border-green-400' : 'text-red-600 border-red-400'}`}>
+                                        {engagementPercentage}% ({engagementChange >= 0 ? '+' : ''}{engagementChange}%)
+                                    </span>
+                                    <span className="invisible group-hover:visible absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg">
+                                        <span className="font-semibold block mb-1">📊 Detail Perhitungan</span>
+                                        <span className="block">User aktif bulan ini: <b>{engagementDetail.activeThisMonth}</b></span>
+                                        <span className="block">Total user terdaftar: <b>{engagementDetail.totalUsers}</b></span>
+                                        <span className="block mt-1 border-t border-gray-700 pt-1">Engagement = {engagementDetail.activeThisMonth} / {engagementDetail.totalUsers} × 100% = <b>{engagementPercentage}%</b></span>
+                                        <span className="block mt-1 text-gray-400">Perubahan dari bulan lalu: {engagementChange >= 0 ? '+' : ''}{engagementChange}%</span>
+                                        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></span>
+                                    </span>
+                                </span>
+                            </p>
+                        </div>
+                        <div className="p-3 bg-blue-50 rounded-lg">
+                            <TrendingUp className="w-6 h-6 text-blue-600" />
+                        </div>
+                    </div>
+                    <div className="h-72 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={loginChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                <XAxis
+                                    dataKey="date"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#6B7280', fontSize: 12 }}
+                                    dy={10}
+                                />
+                                <YAxis
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#6B7280', fontSize: 12 }}
+                                />
+                                <Tooltip
+                                    labelFormatter={(label) => `Tanggal: ${label}`}
+                                    labelStyle={{ color: '#111827', fontWeight: 600 }}
+                                    formatter={(value) => [value, 'User Logins']}
+                                    cursor={{ fill: '#F3F4F6' }}
+                                    contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                />
+                                <Bar
+                                    dataKey="logins"
+                                    fill="#3B82F6"
+                                    radius={[4, 4, 0, 0]}
+                                    barSize={32}
+                                />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Daily New Users Chart Card */}
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-900">New Users (Last 14 Days)</h2>
+                            <p className="text-sm text-gray-500 mt-1">
+                                Growth dari bulan lalu:{' '}
+                                <span className="relative group inline-block">
+                                    <span className={`font-semibold cursor-help border-b border-dashed ${growthPercentage >= 0 ? 'text-green-600 border-green-400' : 'text-red-600 border-red-400'}`}>
+                                        {growthPercentage >= 0 ? '+' : ''}{growthPercentage}%
+                                    </span>
+                                    <span className="invisible group-hover:visible absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg">
+                                        <span className="font-semibold block mb-1">📊 Detail Perhitungan</span>
+                                        <span className="block">User baru bulan ini: <b>{growthDetail.newThisMonth}</b></span>
+                                        <span className="block">User baru bulan lalu: <b>{growthDetail.newLastMonth}</b></span>
+                                        <span className="block mt-1 border-t border-gray-700 pt-1">
+                                            Growth = ({growthDetail.newThisMonth} - {growthDetail.newLastMonth}) / {growthDetail.newLastMonth || 1} × 100% = <b>{growthPercentage >= 0 ? '+' : ''}{growthPercentage}%</b>
+                                        </span>
+                                        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></span>
+                                    </span>
+                                </span>
+                            </p>
+                        </div>
+                        <div className="p-3 bg-cyan-50 rounded-lg">
+                            <UserPlus className="w-6 h-6 text-cyan-600" />
+                        </div>
+                    </div>
+                    <div className="h-72 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={newUserChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                <XAxis
+                                    dataKey="date"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#6B7280', fontSize: 12 }}
+                                    dy={10}
+                                />
+                                <YAxis
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#6B7280', fontSize: 12 }}
+                                />
+                                <Tooltip
+                                    labelFormatter={(label) => `Tanggal: ${label}`}
+                                    labelStyle={{ color: '#111827', fontWeight: 600 }}
+                                    formatter={(value) => [value, 'User Baru']}
+                                    cursor={{ fill: '#F3F4F6' }}
+                                    contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                />
+                                <Bar
+                                    dataKey="users"
+                                    fill="#06B6D4"
+                                    radius={[4, 4, 0, 0]}
+                                    barSize={32}
+                                />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <h2 className="text-lg font-bold text-gray-900 mb-4">Recent Activity</h2>
                     <div className="space-y-4 max-h-[400px] overflow-y-auto">
@@ -251,7 +428,7 @@ export default function AdminDashboard() {
                         <div className="flex items-center justify-between mt-4">
                             <span className="text-sm text-gray-600">Database Usage</span>
                             <span className={`text-sm font-medium ${(statsData?.db_usage || 0) > 90 ? 'text-red-600' :
-                                    (statsData?.db_usage || 0) > 70 ? 'text-yellow-600' : 'text-blue-600'
+                                (statsData?.db_usage || 0) > 70 ? 'text-yellow-600' : 'text-blue-600'
                                 }`}>
                                 {statsData?.db_usage || 0}% {statsData?.db_size_mb ? `(${statsData.db_size_mb} MB / ${statsData.db_max_mb} MB)` : ''}
                             </span>
@@ -259,7 +436,7 @@ export default function AdminDashboard() {
                         <div className="w-full bg-gray-100 rounded-full h-2">
                             <div
                                 className={`h-2 rounded-full transition-all duration-500 ${(statsData?.db_usage || 0) > 90 ? 'bg-red-500' :
-                                        (statsData?.db_usage || 0) > 70 ? 'bg-yellow-500' : 'bg-blue-500'
+                                    (statsData?.db_usage || 0) > 70 ? 'bg-yellow-500' : 'bg-blue-500'
                                     }`}
                                 style={{ width: `${statsData?.db_usage || 0}%` }}
                             ></div>
