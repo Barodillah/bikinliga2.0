@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Send, Bot, User, Clock, MoreVertical, Search, MessageSquare, Trash2, Loader2, Plus } from 'lucide-react'
+import { Send, Bot, User, Clock, MoreVertical, Search, MessageSquare, Trash2, Loader2, Plus, Menu, X } from 'lucide-react'
 import { api } from '../../utils/api'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -11,6 +11,7 @@ export default function AdminAIAnalysis() {
     const [sessionId, setSessionId] = useState(null)
     const [loading, setLoading] = useState(false)
     const [historyLoading, setHistoryLoading] = useState(true)
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const messagesEndRef = useRef(null)
 
     const scrollToBottom = () => {
@@ -39,6 +40,7 @@ export default function AdminAIAnalysis() {
     }
 
     const loadSession = async (id) => {
+        setIsSidebarOpen(false)
         try {
             setLoading(true)
             const res = await api.get(`/api/admin/ai/session/${id}`)
@@ -70,6 +72,7 @@ export default function AdminAIAnalysis() {
     }
 
     const handleNewChat = () => {
+        setIsSidebarOpen(false)
         setSessionId(null)
         setMessages([])
         setInput('')
@@ -136,6 +139,12 @@ export default function AdminAIAnalysis() {
                 {/* Chat Header */}
                 <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
                     <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setIsSidebarOpen(true)}
+                            className="lg:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-200 rounded-lg transition"
+                        >
+                            <Menu className="w-5 h-5" />
+                        </button>
                         <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
                             <Bot className="w-6 h-6" />
                         </div>
@@ -222,9 +231,25 @@ export default function AdminAIAnalysis() {
             </div>
 
             {/* Right Sidebar - History */}
-            <div className="w-80 flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hidden lg:flex">
+            {/* Overlay for mobile */}
+            {isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
+            <div className={`fixed inset-y-0 right-0 z-50 w-80 flex flex-col bg-white shadow-2xl transition-transform duration-300 ease-in-out lg:relative lg:flex lg:shadow-sm lg:border border-l border-gray-200 lg:rounded-xl overflow-hidden ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
                 <div className="p-4 border-b border-gray-200">
-                    <h3 className="font-bold text-gray-900 mb-4">Chat History</h3>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-gray-900">Chat History</h3>
+                        <button
+                            onClick={() => setIsSidebarOpen(false)}
+                            className="lg:hidden p-2 -mr-2 text-gray-400 hover:bg-gray-100 rounded-lg"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
                     <div className="relative">
                         <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input

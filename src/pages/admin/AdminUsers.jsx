@@ -224,8 +224,8 @@ export default function AdminUsers() {
                     </div>
                 </div>
 
-                <div className="overflow-visible">
-                    <table className="w-full text-left">
+                <div className="overflow-x-auto min-h-[300px]">
+                    <table className="w-full text-left whitespace-nowrap">
                         <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-medium">
                             <tr>
                                 <th className="px-6 py-3">User</th>
