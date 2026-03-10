@@ -1542,13 +1542,20 @@ Gunakan emoji untuk mempercantik. Tulis ringkas tapi informatif.`;
                                     </CardContent>
                                 </Card>
 
-                                <Card className="flex-shrink-0 w-[280px] md:w-auto md:flex-1 bg-gradient-to-b from-purple-900/20 to-transparent border-purple-500/20">
-                                    <CardHeader className="p-3 md:p-4">
-                                        <h3 className="font-bold flex items-center gap-2 text-purple-400 text-sm md:text-base">
-                                            <Brain className="w-4 h-4" /> AI Match Tips
-                                        </h3>
+                                <Card className={`flex-shrink-0 w-[280px] md:w-auto md:flex-1 bg-gradient-to-b from-purple-900/20 to-transparent border-purple-500/20 ${aiInsightExpanded ? 'fixed inset-0 z-[120] m-0 w-full h-[100dvh] max-w-none rounded-none flex flex-col bg-[#0a0a0a] from-transparent to-transparent border-none' : ''}`}>
+                                    <CardHeader className={`p-3 md:p-4 ${aiInsightExpanded ? 'border-b border-white/10 shrink-0 bg-white/5' : ''}`}>
+                                        <div className="flex items-center justify-between w-full">
+                                            <h3 className="font-bold flex items-center gap-2 text-purple-400 text-sm md:text-base">
+                                                <Brain className="w-4 h-4" /> AI Match Tips
+                                            </h3>
+                                            {aiInsightExpanded && (
+                                                <button onClick={() => setAiInsightExpanded(false)} className="p-1.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition">
+                                                    <X className="w-5 h-5" />
+                                                </button>
+                                            )}
+                                        </div>
                                     </CardHeader>
-                                    <CardContent className="p-3 md:p-4 pt-0 md:pt-0 mt-3">
+                                    <CardContent className={`p-3 md:p-4 pt-0 md:pt-0 mt-3 ${aiInsightExpanded ? 'flex-1 overflow-y-auto !px-4 md:!px-8 !pt-6 !pb-24 !mt-0 relative' : ''}`}>
                                         {aiInsightLoading ? (
                                             <div className="space-y-2">
                                                 <div className="h-3 bg-white/10 rounded animate-pulse w-full"></div>
@@ -1557,8 +1564,8 @@ Gunakan emoji untuk mempercantik. Tulis ringkas tapi informatif.`;
                                                 <p className="text-[10px] text-purple-400 mt-2 animate-pulse">🤖 AI sedang menganalisis...</p>
                                             </div>
                                         ) : aiInsightText ? (
-                                            <div className="space-y-2">
-                                                <div className={`text-xs md:text-sm text-gray-300 leading-relaxed ${!aiInsightExpanded && aiInsightText.length > 100 ? 'max-h-[60px] overflow-hidden relative' : ''}`}>
+                                            <div className={`space-y-2 ${aiInsightExpanded ? 'flex flex-col h-full max-w-4xl mx-auto' : ''}`}>
+                                                <div className={`text-xs md:text-sm text-gray-300 leading-relaxed ${aiInsightExpanded ? 'flex-1 pb-8' : (!aiInsightExpanded && aiInsightText.length > 100 ? 'max-h-[60px] overflow-hidden relative' : '')}`}>
                                                     <ReactMarkdown
                                                         remarkPlugins={[remarkGfm]}
                                                         components={{
@@ -1590,31 +1597,14 @@ Gunakan emoji untuk mempercantik. Tulis ringkas tapi informatif.`;
                                                         <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#0d0d1a] to-transparent"></div>
                                                     )}
                                                 </div>
-                                                {aiInsightText.length > 100 && (
+                                                {!aiInsightExpanded && aiInsightText.length > 100 && (
                                                     <button
-                                                        onClick={() => setAiInsightExpanded(!aiInsightExpanded)}
+                                                        onClick={() => setAiInsightExpanded(true)}
                                                         className="text-[10px] md:text-xs text-purple-400 hover:text-purple-300 font-medium transition"
                                                     >
-                                                        {aiInsightExpanded ? 'Sembunyikan' : 'Baca Selengkapnya \u2192'}
+                                                        Baca Selengkapnya &rarr;
                                                     </button>
                                                 )}
-                                                <button
-                                                    onClick={handleInsightRequest}
-                                                    className="w-full mt-2 text-[10px] md:text-xs bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 py-1.5 rounded-lg border border-purple-500/20 transition font-medium flex items-center justify-center gap-1.5"
-                                                    disabled={aiInsightLoading}
-                                                >
-                                                    <RefreshCw className={`w-3 h-3 ${aiInsightLoading ? 'animate-spin' : ''}`} />
-                                                    {aiInsightLoading ? 'Menganalisis...' : (
-                                                        <>
-                                                            Generate Ulang
-                                                            {insightCoinCost > 0 && (
-                                                                <span className="bg-purple-500/20 px-1.5 py-0.5 rounded-full text-[9px] md:text-[10px] flex items-center gap-1 ml-1">
-                                                                    <img src="/coin.png" className="w-2.5 h-2.5 inline" alt="coin" />{insightCoinCost}
-                                                                </span>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                </button>
                                             </div>
                                         ) : nextMatchAnalysis?.noMatch ? (
                                             <div className="text-center py-2">
@@ -1634,6 +1624,24 @@ Gunakan emoji untuk mempercantik. Tulis ringkas tapi informatif.`;
                                             </button>
                                         )}
                                     </CardContent>
+                                    {/* Sticky Bottom Context specific to AI Match Tips */}
+                                    {aiInsightText && !aiInsightLoading && (
+                                        <div className={`${aiInsightExpanded ? 'fixed bottom-0 left-0 right-0 p-4 border-t border-white/10 bg-[#0a0a0a] z-10' : 'px-3 md:px-4 pb-3 md:pb-4'}`}>
+                                            <button
+                                                onClick={handleInsightRequest}
+                                                className={`w-full text-[10px] md:text-xs bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg border border-purple-500/20 transition font-medium flex items-center justify-center gap-1.5 ${aiInsightExpanded ? 'py-3 max-w-4xl mx-auto block' : 'py-1.5'}`}
+                                                disabled={aiInsightLoading}
+                                            >
+                                                <RefreshCw className={`w-3 h-3 ${aiInsightLoading ? 'animate-spin' : ''}`} />
+                                                Generate Ulang
+                                                {insightCoinCost > 0 && (
+                                                    <span className="bg-purple-500/20 px-1.5 py-0.5 rounded-full text-[9px] md:text-[10px] flex items-center gap-1 ml-1 h-inline-block">
+                                                        <img src="/coin.png" className="w-2.5 h-2.5 inline" alt="coin" />{insightCoinCost}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        </div>
+                                    )}
                                 </Card>
                             </div>
                         </div>
