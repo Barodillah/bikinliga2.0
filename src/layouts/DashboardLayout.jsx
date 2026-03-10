@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import ChatWidget from '../components/ChatWidget'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
 
 const sidebarLinks = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, exact: true },
@@ -32,6 +33,9 @@ export default function DashboardLayout() {
     const [notifications, setNotifications] = useState([])
     const [unreadCount, setUnreadCount] = useState(0)
 
+    const toast = useToast()
+    const initialLoadRef = useRef(false)
+
     // Fetch Notifications
     const fetchNotifications = async () => {
         if (!user) return
@@ -41,8 +45,22 @@ export default function DashboardLayout() {
                 headers: { Authorization: `Bearer ${token}` }
             })
             if (response.data.success) {
-                setNotifications(response.data.data)
+                const fetchedNotifications = response.data.data;
+                setNotifications(fetchedNotifications)
                 setUnreadCount(response.data.unreadCount)
+
+                if (!initialLoadRef.current && response.data.unreadCount > 0) {
+                    // Filter yang belum dibaca
+                    const unreadList = fetchedNotifications.filter(n => !n.is_read);
+
+                    // Munculkan toast satu per satu (kasih sedikit jeda agar animasi bagus)
+                    unreadList.forEach((notif, index) => {
+                        setTimeout(() => {
+                            toast.info(notif.title || notif.message, 5000)
+                        }, index * 400); // 400ms delay antar toast
+                    });
+                }
+                initialLoadRef.current = true
             }
         } catch (error) {
             console.error('Failed to fetch notifications:', error)

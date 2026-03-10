@@ -245,17 +245,22 @@ router.post('/analyze', async (req, res) => {
 // Get History
 router.get('/history', async (req, res) => {
     try {
-        const userId = req.user ? req.user.id : null;
-        const sql = 'SELECT id, title, created_at FROM chat_sessions WHERE user_id = ? ORDER BY created_at DESC';
-        const sessions = await query(sql, [userId]);
+        const sql = `
+            SELECT cs.id, cs.title, cs.created_at, cs.user_id, u.username
+            FROM chat_sessions cs
+            LEFT JOIN users u ON cs.user_id = u.id
+            ORDER BY cs.updated_at DESC
+        `;
+        const sessions = await query(sql);
 
-        // Improve: Fetch last message for preview
+        // Fetch last message for preview
         const formattedSessions = await Promise.all(sessions.map(async session => {
             const [lastMsg] = await query('SELECT content FROM chat_messages WHERE session_id = ? ORDER BY created_at DESC LIMIT 1', [session.id]);
             return {
                 id: session.id,
                 title: session.title,
                 date: session.created_at,
+                username: session.username || 'Unknown',
                 preview: lastMsg ? (lastMsg.content.substring(0, 50) + '...') : 'No messages'
             };
         }));

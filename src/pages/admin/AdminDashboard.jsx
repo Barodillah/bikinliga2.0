@@ -250,10 +250,19 @@ export default function AdminDashboard() {
 
                         <div className="flex items-center justify-between mt-4">
                             <span className="text-sm text-gray-600">Database Usage</span>
-                            <span className="text-sm font-medium text-blue-600">{statsData?.db_usage || 0}%</span>
+                            <span className={`text-sm font-medium ${(statsData?.db_usage || 0) > 90 ? 'text-red-600' :
+                                    (statsData?.db_usage || 0) > 70 ? 'text-yellow-600' : 'text-blue-600'
+                                }`}>
+                                {statsData?.db_usage || 0}% {statsData?.db_size_mb ? `(${statsData.db_size_mb} MB / ${statsData.db_max_mb} MB)` : ''}
+                            </span>
                         </div>
                         <div className="w-full bg-gray-100 rounded-full h-2">
-                            <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${statsData?.db_usage || 0}%` }}></div>
+                            <div
+                                className={`h-2 rounded-full transition-all duration-500 ${(statsData?.db_usage || 0) > 90 ? 'bg-red-500' :
+                                        (statsData?.db_usage || 0) > 70 ? 'bg-yellow-500' : 'bg-blue-500'
+                                    }`}
+                                style={{ width: `${statsData?.db_usage || 0}%` }}
+                            ></div>
                         </div>
                     </div>
                 </div>

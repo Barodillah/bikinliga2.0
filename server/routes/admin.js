@@ -40,13 +40,26 @@ router.get('/dashboard-stats', async (req, res) => {
             healthStatus = 'High Load';
         }
 
+        // Database Usage Calculation (real data from MySQL)
+        const [dbSize] = await query(`
+            SELECT 
+                ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS size_mb
+            FROM information_schema.TABLES 
+            WHERE table_schema = DATABASE()
+        `);
+        const dbSizeMB = dbSize?.size_mb || 0;
+        const dbMaxMB = parseInt(process.env.DB_MAX_SIZE_MB) || 1024; // Default 1GB
+        const dbUsagePercent = Math.min(Math.round((dbSizeMB / dbMaxMB) * 100), 100);
+
         res.json({
             success: true,
             data: {
                 ...stats,
                 system_health: healthStatus,
                 server_load: memUsagePercent,
-                db_usage: 45 // Placeholder as requested, or could be real query count if available
+                db_usage: dbUsagePercent,
+                db_size_mb: dbSizeMB,
+                db_max_mb: dbMaxMB
             }
         });
     } catch (error) {
@@ -416,6 +429,34 @@ router.get('/history/filters', async (req, res) => {
     } catch (error) {
         console.error('Error fetching history filters:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch filter options' });
+    }
+});
+
+// Send Message to User (admin_message)
+router.post('/send-message', async (req, res) => {
+    try {
+        const { user_id, title, message } = req.body;
+
+        if (!user_id || !title || !message) {
+            return res.status(400).json({ success: false, message: 'user_id, title, and message are required' });
+        }
+
+        await createNotification(
+            user_id,
+            'admin_message',
+            title,
+            message,
+            { from: 'admin' }
+        );
+
+        res.json({ success: true, message: 'Message sent successfully' });
+
+        if (req.user && req.user.id) {
+            await logActivity(req.user.id, 'Admin Send Message', `Admin sent message to user ${user_id}: ${title}`, user_id, 'user');
+        }
+    } catch (error) {
+        console.error('Send Message Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to send message' });
     }
 });
 

@@ -253,6 +253,7 @@ export default function AdminAIAnalysis() {
                                         {new Date(item.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                                     </span>
                                 </div>
+                                <span className="inline-block text-[10px] text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded mb-1">{item.username}</span>
                                 <p className="text-xs text-gray-500 line-clamp-2">{item.preview}</p>
                                 <div className="mt-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition">
                                     <span className="text-[10px] text-indigo-600 font-medium">Open</span>

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import Modal from '../ui/Modal'
-import { Save, Wallet, UserCog, Award } from 'lucide-react'
+import { Save, Wallet, UserCog, Award, MessageSquare, Send } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { api } from '../../utils/api'
+import { useToast } from '../../contexts/ToastContext'
 
 export default function UserSettingModal({ isOpen, onClose, user, onUpdate, onAdjustWallet }) {
     const [formData, setFormData] = useState({
@@ -12,9 +14,14 @@ export default function UserSettingModal({ isOpen, onClose, user, onUpdate, onAd
         amount: 0,
         reason: ''
     })
+    const [messageForm, setMessageForm] = useState({
+        title: '',
+        message: ''
+    })
     const [loading, setLoading] = useState(false)
-    const [activeTab, setActiveTab] = useState('profile') // profile, wallet
+    const [activeTab, setActiveTab] = useState('profile')
     const { user: currentUser } = useAuth()
+    const toast = useToast()
 
     useEffect(() => {
         if (user) {
@@ -23,6 +30,7 @@ export default function UserSettingModal({ isOpen, onClose, user, onUpdate, onAd
                 subscription_plan: user.subscription_plan || 'free'
             })
             setWalletAdjustment({ amount: 0, reason: '' })
+            setMessageForm({ title: '', message: '' })
         }
     }, [user])
 
@@ -52,6 +60,30 @@ export default function UserSettingModal({ isOpen, onClose, user, onUpdate, onAd
         }
     }
 
+    const handleSendMessage = async (e) => {
+        e.preventDefault()
+        setLoading(true)
+        try {
+            const res = await api.post('/api/admin/send-message', {
+                user_id: user.id,
+                title: messageForm.title,
+                message: messageForm.message
+            })
+            if (res.success || (res.data && res.data.success)) {
+                toast.success('Pesan berhasil dikirim ke ' + user.name)
+                setMessageForm({ title: '', message: '' })
+                onClose()
+            } else {
+                toast.error('Gagal mengirim pesan')
+            }
+        } catch (error) {
+            console.error('Failed to send message:', error)
+            toast.error('Gagal mengirim pesan: ' + error.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     if (!isOpen || !user) return null
 
     return (
@@ -76,6 +108,16 @@ export default function UserSettingModal({ isOpen, onClose, user, onUpdate, onAd
                 >
                     <Wallet className="w-4 h-4" />
                     Wallet Adjustment
+                </button>
+                <button
+                    onClick={() => setActiveTab('message')}
+                    className={`pb-2 px-4 text-sm font-medium transition flex items-center gap-2 ${activeTab === 'message'
+                        ? 'border-b-2 border-neonGreen text-neonGreen'
+                        : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    <MessageSquare className="w-4 h-4" />
+                    Message
                 </button>
             </div>
 
@@ -138,7 +180,7 @@ export default function UserSettingModal({ isOpen, onClose, user, onUpdate, onAd
                         </button>
                     </div>
                 </form>
-            ) : (
+            ) : activeTab === 'wallet' ? (
                 <form onSubmit={handleWalletAdjust} className="space-y-4">
                     <div className="bg-gray-50 p-4 rounded-lg flex items-center justify-between border border-gray-200">
                         <span className="text-sm font-medium text-gray-600">Current Balance</span>
@@ -157,26 +199,19 @@ export default function UserSettingModal({ isOpen, onClose, user, onUpdate, onAd
                                 pattern="[0-9\-]*"
                                 value={walletAdjustment.amount === 0 && walletAdjustment.amount !== '-' ? '' : walletAdjustment.amount}
                                 onChange={(e) => {
-                                    // Hanya izinkan angka dan tanda minus di awal
                                     let val = e.target.value.replace(/[^0-9-]/g, '');
-
-                                    // Pastikan minus hanya ada di awal
                                     if (val.indexOf('-') > 0) {
                                         val = val.replace(/-/g, '');
                                     }
-
-                                    // Jika value cuma '-', simpan sebagai string sementara
                                     if (val === '-') {
                                         setWalletAdjustment({ ...walletAdjustment, amount: '-' });
                                         return;
                                     }
-
-                                    // Kalau kosong, jadi 0
                                     setWalletAdjustment({ ...walletAdjustment, amount: val === '' ? 0 : parseInt(val) || 0 });
                                 }}
                                 className={`w-full pl-4 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 transition ${(typeof walletAdjustment.amount === 'number' && walletAdjustment.amount >= 0) || walletAdjustment.amount === ''
-                                        ? 'border-gray-300 focus:border-neonGreen focus:ring-neonGreen/20 text-black'
-                                        : 'border-red-300 focus:border-red-500 focus:ring-red-500/20 text-red-600'
+                                    ? 'border-gray-300 focus:border-neonGreen focus:ring-neonGreen/20 text-black'
+                                    : 'border-red-300 focus:border-red-500 focus:ring-red-500/20 text-red-600'
                                     }`}
                                 placeholder="Enter amount (negative to subtract)"
                             />
@@ -215,6 +250,64 @@ export default function UserSettingModal({ isOpen, onClose, user, onUpdate, onAd
                                 <>
                                     <Wallet className="w-4 h-4" />
                                     Confirm Adjustment
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </form>
+            ) : (
+                <form onSubmit={handleSendMessage} className="space-y-4">
+                    <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                        <div className="flex items-center gap-2 text-indigo-700 text-sm font-medium">
+                            <MessageSquare className="w-4 h-4" />
+                            Kirim pesan ke <span className="font-bold">{user.name}</span>
+                        </div>
+                        <p className="text-xs text-indigo-500 mt-1">Pesan akan muncul sebagai notifikasi di akun user.</p>
+                    </div>
+
+
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                        <input
+                            type="text"
+                            value={messageForm.title}
+                            onChange={(e) => setMessageForm({ ...messageForm, title: e.target.value })}
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neonGreen/20 focus:border-neonGreen"
+                            placeholder="Judul pesan, misal: Pengumuman Penting"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                        <textarea
+                            value={messageForm.message}
+                            onChange={(e) => setMessageForm({ ...messageForm, message: e.target.value })}
+                            required
+                            rows="4"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neonGreen/20 focus:border-neonGreen"
+                            placeholder="Tulis isi pesan untuk user..."
+                        />
+                    </div>
+
+                    <div className="flex justify-end pt-4">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 mr-2"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={loading || !messageForm.title.trim() || !messageForm.message.trim()}
+                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+                        >
+                            {loading ? 'Sending...' : (
+                                <>
+                                    <Send className="w-4 h-4" />
+                                    Send Message
                                 </>
                             )}
                         </button>
