@@ -519,7 +519,7 @@ export default function TopUp() {
 
     const handlePaymentConfirm = async (e) => {
         e.preventDefault()
-        setIsLoadingTx(true) // Reuse loading state or add new one
+        setIsLoadingTx(true)
 
         try {
             const token = localStorage.getItem('token')
@@ -539,9 +539,33 @@ export default function TopUp() {
             })
 
             const data = await response.json()
-            if (data.success && data.data.payment_url) {
-                // Redirect to DOKU Checkout
-                window.location.href = data.data.payment_url
+            if (data.success && data.data.token) {
+                // Close payment modal before opening Snap
+                setShowPaymentModal(false)
+
+                // Open Midtrans Snap popup
+                window.snap.pay(data.data.token, {
+                    onSuccess: function (result) {
+                        console.log('Payment success:', result)
+                        success('Pembayaran berhasil! Koin akan ditambahkan.')
+                        if (typeof refreshWallet === 'function') refreshWallet()
+                        if (typeof refreshUser === 'function') refreshUser()
+                        // Re-fetch transactions
+                        setTimeout(() => window.location.reload(), 2000)
+                    },
+                    onPending: function (result) {
+                        console.log('Payment pending:', result)
+                        success('Pembayaran sedang diproses. Silakan selesaikan pembayaran.')
+                    },
+                    onError: function (result) {
+                        console.log('Payment error:', result)
+                        toastError('Pembayaran gagal. Silakan coba lagi.')
+                    },
+                    onClose: function () {
+                        console.log('Payment popup closed')
+                        toastError('Pembayaran dibatalkan.')
+                    }
+                })
             } else {
                 throw new Error(data.message || 'Gagal membuat pembayaran')
             }
@@ -590,7 +614,7 @@ export default function TopUp() {
 
         try {
             const token = localStorage.getItem('token');
-            // Untuk DOKU Checkout, Invoice Number disimpan di kolom reference_id.
+            // Untuk Midtrans Snap, Order ID disimpan di kolom reference_id.
             // Di mapping frontend, reference_id di-map ke property 'method'.
             const invoiceNumber = selectedTx.method;
             const response = await authFetch(`${API_URL}/user/topup/status/${invoiceNumber}`, {

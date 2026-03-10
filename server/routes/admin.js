@@ -4,7 +4,7 @@ import { unlockAchievement } from '../utils/achievements.js';
 
 import { createNotification, createBulkNotifications } from '../utils/notifications.js';
 import { logActivity } from '../utils/activity.js';
-import { checkOrderStatus } from '../utils/doku.js';
+import { getTransactionStatus } from '../utils/midtrans.js';
 import { getAndRecordCurrentPrice } from '../utils/economy.js';
 
 const router = express.Router();
@@ -627,15 +627,15 @@ router.get('/transactions/claim', async (req, res) => {
     }
 });
 
-// GET /admin/transactions/doku-status/:invoiceNumber - Check DOKU order status
-router.get('/transactions/doku-status/:invoiceNumber', async (req, res) => {
+// GET /admin/transactions/midtrans-status/:orderId - Check Midtrans order status
+router.get('/transactions/midtrans-status/:orderId', async (req, res) => {
     try {
-        const { invoiceNumber } = req.params;
-        const dokuData = await checkOrderStatus(invoiceNumber);
-        res.json({ success: true, data: dokuData });
+        const { orderId } = req.params;
+        const midtransData = await getTransactionStatus(orderId);
+        res.json({ success: true, data: midtransData });
     } catch (error) {
-        console.error('DOKU status check error:', error);
-        res.status(500).json({ success: false, message: 'Failed to check DOKU status' });
+        console.error('Midtrans status check error:', error);
+        res.status(500).json({ success: false, message: 'Failed to check Midtrans status' });
     }
 });
 

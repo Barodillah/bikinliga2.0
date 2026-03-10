@@ -6,8 +6,8 @@ export default function AdminDashboard() {
     const [statsData, setStatsData] = useState(null)
     const [recentActivity, setRecentActivity] = useState([])
     const [loading, setLoading] = useState(true)
-    const [dokuRevenue, setDokuRevenue] = useState(0)
-    const [dokuLoading, setDokuLoading] = useState(true)
+    const [midtransRevenue, setMidtransRevenue] = useState(0)
+    const [midtransLoading, setMidtransLoading] = useState(true)
 
     useEffect(() => {
         const fetchData = async () => {
@@ -36,23 +36,23 @@ export default function AdminDashboard() {
 
                 if (topupRes.success || (topupRes.data && topupRes.data.success)) {
                     const topupData = topupRes.success ? topupRes.data : topupRes.data.data
-                    await calculateDokuRevenue(topupData)
+                    await calculateMidtransRevenue(topupData)
                 } else {
-                    setDokuLoading(false)
+                    setMidtransLoading(false)
                 }
             } catch (error) {
                 console.error('Error fetching dashboard data:', error)
-                setDokuLoading(false)
+                setMidtransLoading(false)
             } finally {
                 setLoading(false)
             }
         }
 
-        const calculateDokuRevenue = async (transactions) => {
+        const calculateMidtransRevenue = async (transactions) => {
             try {
                 const withRef = transactions.filter(t => t.reference_id)
                 if (withRef.length === 0) {
-                    setDokuLoading(false)
+                    setMidtransLoading(false)
                     return
                 }
 
@@ -65,12 +65,12 @@ export default function AdminDashboard() {
                 for (const chunk of chunks) {
                     const promises = chunk.map(async (t) => {
                         try {
-                            const res = await api.get(`/api/admin/transactions/doku-status/${t.reference_id}`)
+                            const res = await api.get(`/api/admin/transactions/midtrans-status/${t.reference_id}`)
                             if (res.success && res.data) {
                                 results[t.reference_id] = res.data
                             }
                         } catch (err) {
-                            console.error(`Failed to fetch DOKU status for ${t.reference_id}:`, err)
+                            console.error(`Failed to fetch Midtrans status for ${t.reference_id}:`, err)
                         }
                     })
                     await Promise.all(promises)
@@ -82,12 +82,14 @@ export default function AdminDashboard() {
                     let nominal = null
 
                     if (item.reference_id && results[item.reference_id]) {
-                        const doku = results[item.reference_id]
-                        const dokuTxStatus = doku?.transaction?.status
-                        if (dokuTxStatus) {
-                            realStatus = dokuTxStatus.toLowerCase()
+                        const mt = results[item.reference_id]
+                        const txStatus = mt?.transaction_status
+                        if (txStatus) {
+                            if (txStatus === 'settlement' || txStatus === 'capture') realStatus = 'success'
+                            else if (txStatus === 'pending') realStatus = 'pending'
+                            else realStatus = 'failed'
                         }
-                        const amount = doku?.order?.amount
+                        const amount = mt?.gross_amount
                         if (amount) {
                             nominal = parseInt(amount)
                         }
@@ -99,11 +101,11 @@ export default function AdminDashboard() {
                     return sum
                 }, 0)
 
-                setDokuRevenue(totalRev)
+                setMidtransRevenue(totalRev)
             } catch (error) {
-                console.error('Error calculating DOKU revenue:', error)
+                console.error('Error calculating Midtrans revenue:', error)
             } finally {
-                setDokuLoading(false)
+                setMidtransLoading(false)
             }
         }
 
@@ -129,7 +131,7 @@ export default function AdminDashboard() {
         },
         {
             title: 'Total Revenue',
-            value: dokuLoading ? 'Loading...' : `Rp ${dokuRevenue.toLocaleString('id-ID')}`,
+            value: midtransLoading ? 'Loading...' : `Rp ${midtransRevenue.toLocaleString('id-ID')}`,
             change: 'From Top Up',
             icon: Banknote,
             color: 'text-green-600',

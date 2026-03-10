@@ -2,7 +2,7 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { query, getConnection } from '../config/db.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { createCheckoutSession, verifyNotificationSignature, checkOrderStatus } from '../utils/doku.js';
+import { createSnapTransaction, verifySignatureKey, getTransactionStatus, mapMidtransStatus } from '../utils/midtrans.js';
 import { getAndRecordCurrentPrice } from '../utils/economy.js';
 
 const router = express.Router();
@@ -520,7 +520,7 @@ router.get('/public/:username', async (req, res) => {
     }
 });
 
-// POST /api/user/topup/create-payment - Create DOKU payment session
+// POST /api/user/topup/create-payment - Create Midtrans Snap payment session
 router.post('/topup/create-payment', authMiddleware, async (req, res) => {
     try {
         const userId = req.user.id;
@@ -532,13 +532,13 @@ router.post('/topup/create-payment', authMiddleware, async (req, res) => {
 
         const connection = await getConnection();
         try {
-            console.log('DEBUG DOKU: Creating payment for user', userId, 'amount', amount);
+            console.log('MIDTRANS: Creating payment for user', userId, 'amount', amount);
             await connection.beginTransaction();
 
             // 1. Get Wallet
             const [wallets] = await connection.execute('SELECT id FROM wallets WHERE user_id = ?', [userId]);
             if (wallets.length === 0) {
-                console.error('DEBUG DOKU: Wallet not found for user', userId);
+                console.error('MIDTRANS: Wallet not found for user', userId);
                 throw new Error('Wallet tidak ditemukan');
             }
             const walletId = wallets[0].id;
@@ -547,49 +547,50 @@ router.post('/topup/create-payment', authMiddleware, async (req, res) => {
             const txId = `TX-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
             const invoiceNumber = `INV-${Date.now()}`;
 
-            console.log('DEBUG DOKU: Creating transaction', txId, 'invoice', invoiceNumber);
+            console.log('MIDTRANS: Creating transaction', txId, 'order_id', invoiceNumber);
             await connection.execute(
                 `INSERT INTO transactions (id, wallet_id, type, amount, category, description, status, reference_id) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                 [txId, walletId, 'topup', coins, 'Deposit', `Top Up ${coins} Coins - ${package_name}`, 'pending', invoiceNumber]
             );
 
-            // 3. Create DOKU Checkout Session
-            console.log('DEBUG DOKU: Calling DOKU API...');
-            const checkoutData = await createCheckoutSession({
+            // 3. Create Midtrans Snap Transaction
+            console.log('MIDTRANS: Calling Midtrans Snap API...');
+            const snapResponse = await createSnapTransaction({
+                orderId: invoiceNumber,
                 amount: amount,
-                invoiceNumber: invoiceNumber,
                 callbackUrl: `${process.env.VITE_BASE_URL}/dashboard/topup?status=check&invoice=${invoiceNumber}`,
-                customerId: userId.toString(),
                 customerName: req.user.name,
                 customerEmail: req.user.email,
                 customerPhone: req.user.phone || '08123456789',
-                lineItems: [
+                itemDetails: [
                     {
+                        id: invoiceNumber,
                         name: `Top Up ${coins} Coins`,
-                        price: amount,
+                        price: parseInt(amount),
                         quantity: 1
                     }
                 ]
             });
-            console.log('DEBUG DOKU: DOKU API Response:', JSON.stringify(checkoutData));
+            console.log('MIDTRANS: Snap API Response:', JSON.stringify(snapResponse));
 
-            if (checkoutData && checkoutData.response && checkoutData.response.payment && checkoutData.response.payment.url) {
+            if (snapResponse && snapResponse.token) {
                 await connection.commit();
                 res.json({
                     success: true,
                     data: {
-                        payment_url: checkoutData.response.payment.url,
+                        token: snapResponse.token,
+                        redirect_url: snapResponse.redirect_url,
                         invoice_number: invoiceNumber,
                         transaction_id: txId
                     }
                 });
             } else {
-                console.error('DEBUG DOKU: DOKU API Error response:', checkoutData);
-                throw new Error(checkoutData.message || (checkoutData.error ? JSON.stringify(checkoutData.error) : 'Gagal membuat sesi pembayaran DOKU'));
+                console.error('MIDTRANS: Snap API Error response:', snapResponse);
+                throw new Error('Gagal membuat sesi pembayaran Midtrans');
             }
         } catch (error) {
-            console.error('DEBUG DOKU: Caught error in route:', error);
+            console.error('MIDTRANS: Caught error in route:', error);
             await connection.rollback();
             throw error;
         } finally {
@@ -601,22 +602,32 @@ router.post('/topup/create-payment', authMiddleware, async (req, res) => {
     }
 });
 
-// POST /api/user/topup/webhook - DOKU Webhook Notification
+// POST /api/user/topup/webhook - Midtrans Webhook Notification
 router.post('/topup/webhook', async (req, res) => {
     try {
         const body = req.body;
-        const headers = req.headers;
 
-        console.log('DOKU WEBHOOK RECEIVED:', JSON.stringify(body));
+        console.log('MIDTRANS WEBHOOK RECEIVED:', JSON.stringify(body));
 
-        // Signature Verification (Optional but recommended)
-        // const isValid = verifyNotificationSignature(headers, body, process.env.DOKU_SECRET_KEY);
-        // if (!isValid) return res.status(401).send('Invalid Signature');
+        // Signature Verification
+        const isValid = verifySignatureKey(body);
+        if (!isValid) {
+            console.error('MIDTRANS WEBHOOK: Invalid signature!');
+            return res.status(401).send('Invalid Signature');
+        }
 
-        const invoiceNumber = body.order?.invoice_number;
-        const status = body.transaction?.status;
+        const orderId = body.order_id;
+        const transactionStatus = body.transaction_status;
+        const fraudStatus = body.fraud_status;
 
-        if (status === 'SUCCESS' && invoiceNumber) {
+        // Map Midtrans status to internal status
+        const internalStatus = mapMidtransStatus(transactionStatus);
+
+        // Only process if payment is successful (settlement/capture with accept fraud status)
+        const isSuccess = internalStatus === 'success' && (!fraudStatus || fraudStatus === 'accept');
+        const isFailed = internalStatus === 'failed';
+
+        if ((isSuccess || isFailed) && orderId) {
             const connection = await getConnection();
             try {
                 await connection.beginTransaction();
@@ -624,27 +635,37 @@ router.post('/topup/webhook', async (req, res) => {
                 // 1. Find Transaction
                 const [txs] = await connection.execute(
                     'SELECT id, wallet_id, amount, status FROM transactions WHERE reference_id = ? AND type = "topup"',
-                    [invoiceNumber]
+                    [orderId]
                 );
 
                 if (txs.length > 0 && txs[0].status === 'pending') {
                     const tx = txs[0];
-                    const coinsToReceive = tx.amount;
 
-                    // 2. Update Wallet
-                    await connection.execute(
-                        'UPDATE wallets SET balance = balance + ? WHERE id = ?',
-                        [coinsToReceive, tx.wallet_id]
-                    );
+                    if (isSuccess) {
+                        // 2. Update Wallet
+                        await connection.execute(
+                            'UPDATE wallets SET balance = balance + ? WHERE id = ?',
+                            [tx.amount, tx.wallet_id]
+                        );
 
-                    // 3. Mark Transaction as Success
-                    await connection.execute(
-                        'UPDATE transactions SET status = "success" WHERE id = ?',
-                        [tx.id]
-                    );
+                        // 3. Mark Transaction as Success
+                        await connection.execute(
+                            'UPDATE transactions SET status = "success" WHERE id = ?',
+                            [tx.id]
+                        );
+
+                        console.log('TOPUP SUCCESS VIA WEBHOOK:', orderId);
+                    } else if (isFailed) {
+                        // Mark Transaction as Failed
+                        await connection.execute(
+                            'UPDATE transactions SET status = "failed" WHERE id = ?',
+                            [tx.id]
+                        );
+
+                        console.log('TOPUP FAILED VIA WEBHOOK:', orderId, transactionStatus);
+                    }
 
                     await connection.commit();
-                    console.log('TOPUP SUCCESS VIA WEBHOOK:', invoiceNumber);
                 }
             } catch (error) {
                 await connection.rollback();
@@ -654,7 +675,7 @@ router.post('/topup/webhook', async (req, res) => {
             }
         }
 
-        // DOKU expects 200 OK
+        // Midtrans expects 200 OK
         res.status(200).send('OK');
     } catch (error) {
         console.error('Webhook route error:', error);
@@ -682,13 +703,13 @@ router.get('/topup/status/:invoice', authMiddleware, async (req, res) => {
 
             const localTx = txs[0];
 
-            // Jika status masih pending di DB, kita cek ke DOKU
+            // Jika status masih pending di DB, cek ke Midtrans
             if (localTx.status === 'pending') {
                 try {
-                    const dokuStatus = await checkOrderStatus(invoice);
-                    const realStatus = dokuStatus?.transaction?.status; // 'SUCCESS', 'FAILED', 'PENDING'
+                    const midtransResponse = await getTransactionStatus(invoice);
+                    const realStatus = mapMidtransStatus(midtransResponse.transaction_status);
 
-                    if (realStatus === 'SUCCESS') {
+                    if (realStatus === 'success') {
                         // Update status transaksi & tambah koin
                         await connection.beginTransaction();
                         try {
@@ -710,7 +731,7 @@ router.get('/topup/status/:invoice', authMiddleware, async (req, res) => {
                             await connection.rollback();
                             throw txError;
                         }
-                    } else if (realStatus === 'FAILED' || realStatus === 'EXPIRED') {
+                    } else if (realStatus === 'failed') {
                         // Update status jadi failed
                         await connection.execute(
                             'UPDATE transactions SET status = "failed" WHERE id = ?',
@@ -718,9 +739,9 @@ router.get('/topup/status/:invoice', authMiddleware, async (req, res) => {
                         );
                         return res.json({ success: true, status: 'failed' });
                     }
-                } catch (dokuError) {
-                    console.error('Failed checking status to DOKU:', dokuError);
-                    // Jika gagal cek ke DOKU, kita kembalikan status DB saat ini
+                } catch (midtransError) {
+                    console.error('Failed checking status to Midtrans:', midtransError);
+                    // Jika gagal cek ke Midtrans, kembalikan status DB saat ini
                 }
             }
 

@@ -8,9 +8,9 @@ export default function AdminTransaction() {
     const [spendData, setSpendData] = useState([])
     const [claimData, setClaimData] = useState([])
     const [statsData, setStatsData] = useState(null)
-    const [dokuStatuses, setDokuStatuses] = useState({}) // keyed by reference_id
+    const [midtransStatuses, setMidtransStatuses] = useState({}) // keyed by reference_id
     const [loading, setLoading] = useState(true)
-    const [dokuLoading, setDokuLoading] = useState({}) // keyed by reference_id
+    const [midtransLoading, setMidtransLoading] = useState({}) // keyed by reference_id
 
     const [topupPage, setTopupPage] = useState(1)
     const [spendPage, setSpendPage] = useState(1)
@@ -34,8 +34,8 @@ export default function AdminTransaction() {
             if (statsRes.success) setStatsData(statsRes.data)
             if (topupRes.success) {
                 setTopupData(topupRes.data)
-                // Fetch DOKU status for topup rows that have reference_id
-                fetchDokuStatuses(topupRes.data)
+                // Fetch Midtrans status for topup rows that have reference_id
+                fetchMidtransStatuses(topupRes.data)
             }
             if (spendRes.success) setSpendData(spendRes.data)
             if (claimRes.success) setClaimData(claimRes.data)
@@ -46,17 +46,17 @@ export default function AdminTransaction() {
         }
     }
 
-    const fetchDokuStatuses = async (transactions) => {
-        // Only fetch for rows with reference_id and status pending or we want fresh data
+    const fetchMidtransStatuses = async (transactions) => {
+        // Only fetch for rows with reference_id
         const withRef = transactions.filter(t => t.reference_id)
         if (withRef.length === 0) return
 
         const loadingState = {}
         withRef.forEach(t => { loadingState[t.reference_id] = true })
-        setDokuLoading(loadingState)
+        setMidtransLoading(loadingState)
 
         const results = {}
-        // Fetch all DOKU statuses in parallel (max 10 at a time to avoid hammering)
+        // Fetch all Midtrans statuses in parallel (max 10 at a time)
         const chunks = []
         for (let i = 0; i < withRef.length; i += 10) {
             chunks.push(withRef.slice(i, i + 10))
@@ -65,63 +65,67 @@ export default function AdminTransaction() {
         for (const chunk of chunks) {
             const promises = chunk.map(async (t) => {
                 try {
-                    const res = await api.get(`/api/admin/transactions/doku-status/${t.reference_id}`)
+                    const res = await api.get(`/api/admin/transactions/midtrans-status/${t.reference_id}`)
                     if (res.success && res.data) {
                         results[t.reference_id] = res.data
                     }
                 } catch (err) {
-                    console.error(`Failed to fetch DOKU status for ${t.reference_id}:`, err)
+                    console.error(`Failed to fetch Midtrans status for ${t.reference_id}:`, err)
                 }
             })
             await Promise.all(promises)
         }
 
-        setDokuStatuses(results)
-        setDokuLoading({})
+        setMidtransStatuses(results)
+        setMidtransLoading({})
     }
 
-    // Extract payment method from DOKU response
-    const getDokuMethod = (referenceId) => {
-        const doku = dokuStatuses[referenceId]
-        if (!doku) return null
-        // DOKU response structure: { transaction: { status, ... }, channel: { id: 'EMONEY_OVO' }, ... }
-        const channelId = doku?.channel?.id || doku?.service?.id || null
-        if (channelId) {
-            // Convert channel ID to readable name
-            const channelMap = {
-                'EMONEY_OVO': 'OVO',
-                'EMONEY_DANA': 'DANA',
-                'EMONEY_SHOPEEPAY': 'ShopeePay',
-                'EMONEY_LINKAJA': 'LinkAja',
-                'QRIS': 'QRIS',
-                'VIRTUAL_ACCOUNT_BCA': 'BCA VA',
-                'VIRTUAL_ACCOUNT_BNI': 'BNI VA',
-                'VIRTUAL_ACCOUNT_BRI': 'BRI VA',
-                'VIRTUAL_ACCOUNT_MANDIRI': 'Mandiri VA',
-                'VIRTUAL_ACCOUNT_PERMATA': 'Permata VA',
-                'VIRTUAL_ACCOUNT_CIMB': 'CIMB VA',
-                'CREDIT_CARD': 'Credit Card',
+    // Extract payment method from Midtrans response
+    const getMidtransMethod = (referenceId) => {
+        const mt = midtransStatuses[referenceId]
+        if (!mt) return null
+        // Midtrans response: { payment_type: 'bank_transfer', ... }
+        const paymentType = mt?.payment_type || null
+        if (paymentType) {
+            const methodMap = {
+                'credit_card': 'Credit Card',
+                'cstore': 'Convenience Store',
+                'bank_transfer': 'Bank Transfer',
+                'echannel': 'Mandiri Bill',
+                'bca_klikpay': 'BCA KlikPay',
+                'bca_klikbca': 'BCA KlikBCA',
+                'bri_epay': 'BRI E-Pay',
+                'cimb_clicks': 'CIMB Clicks',
+                'danamon_online': 'Danamon Online',
+                'qris': 'QRIS',
+                'gopay': 'GoPay',
+                'shopeepay': 'ShopeePay',
+                'akulaku': 'Akulaku',
+                'kredivo': 'Kredivo',
             }
-            return channelMap[channelId] || channelId
+            return methodMap[paymentType] || paymentType
         }
         return null
     }
 
-    // Extract nominal IDR from DOKU response
-    const getDokuNominal = (referenceId) => {
-        const doku = dokuStatuses[referenceId]
-        if (!doku) return null
-        const amount = doku?.order?.amount
+    // Extract nominal IDR from Midtrans response
+    const getMidtransNominal = (referenceId) => {
+        const mt = midtransStatuses[referenceId]
+        if (!mt) return null
+        const amount = mt?.gross_amount
         return amount ? parseInt(amount) : null
     }
 
-    // Extract status from DOKU response
-    const getDokuStatus = (referenceId, dbStatus) => {
-        const doku = dokuStatuses[referenceId]
-        if (!doku) return dbStatus // fallback to DB status
-        const dokuTxStatus = doku?.transaction?.status
-        if (dokuTxStatus) {
-            return dokuTxStatus.toLowerCase() // 'SUCCESS' -> 'success', 'PENDING' -> 'pending', 'FAILED' -> 'failed'
+    // Extract status from Midtrans response
+    const getMidtransStatus = (referenceId, dbStatus) => {
+        const mt = midtransStatuses[referenceId]
+        if (!mt) return dbStatus // fallback to DB status
+        const txStatus = mt?.transaction_status
+        if (txStatus) {
+            // Map Midtrans statuses to simple statuses
+            if (txStatus === 'settlement' || txStatus === 'capture') return 'success'
+            if (txStatus === 'pending') return 'pending'
+            return 'failed' // expire, cancel, deny, failure
         }
         return dbStatus
     }
@@ -144,9 +148,9 @@ export default function AdminTransaction() {
 
     // Calculate total revenue from successful top ups
     const totalRevenue = topupData.reduce((sum, item) => {
-        const realStatus = item.reference_id ? getDokuStatus(item.reference_id, item.status) : item.status
+        const realStatus = item.reference_id ? getMidtransStatus(item.reference_id, item.status) : item.status
         if ((realStatus || '').toLowerCase() === 'success') {
-            const nominal = item.reference_id ? getDokuNominal(item.reference_id) : null
+            const nominal = item.reference_id ? getMidtransNominal(item.reference_id) : null
             return sum + (nominal ? parseInt(nominal) : 0)
         }
         return sum
@@ -315,10 +319,10 @@ export default function AdminTransaction() {
                                 </tr>
                             ) : (
                                 currentTopupData.map((item) => {
-                                    const realStatus = item.reference_id ? getDokuStatus(item.reference_id, item.status) : item.status
-                                    const method = item.reference_id ? getDokuMethod(item.reference_id) : null
-                                    const nominal = item.reference_id ? getDokuNominal(item.reference_id) : null
-                                    const isLoadingDoku = dokuLoading[item.reference_id]
+                                    const realStatus = item.reference_id ? getMidtransStatus(item.reference_id, item.status) : item.status
+                                    const method = item.reference_id ? getMidtransMethod(item.reference_id) : null
+                                    const nominal = item.reference_id ? getMidtransNominal(item.reference_id) : null
+                                    const isLoadingMt = midtransLoading[item.reference_id]
 
                                     return (
                                         <tr key={item.id} className="hover:bg-gray-50 transition">
@@ -327,7 +331,7 @@ export default function AdminTransaction() {
                                             </td>
                                             <td className="px-6 py-4 text-sm text-gray-600 font-medium">{item.user_name}</td>
                                             <td className="px-6 py-4 text-sm text-gray-500">
-                                                {isLoadingDoku ? (
+                                                {isLoadingMt ? (
                                                     <Loader2 className="w-4 h-4 animate-spin text-gray-300" />
                                                 ) : (
                                                     method || <span className="text-gray-300">-</span>
@@ -335,7 +339,7 @@ export default function AdminTransaction() {
                                             </td>
                                             <td className="px-6 py-4 text-xs text-gray-400">{formatDate(item.created_at)}</td>
                                             <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                                                {isLoadingDoku ? (
+                                                {isLoadingMt ? (
                                                     <Loader2 className="w-4 h-4 animate-spin text-gray-300" />
                                                 ) : (
                                                     nominal ? `Rp ${nominal.toLocaleString('id-ID')}` : <span className="text-gray-300">-</span>
@@ -348,7 +352,7 @@ export default function AdminTransaction() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                {isLoadingDoku ? (
+                                                {isLoadingMt ? (
                                                     <Loader2 className="w-4 h-4 animate-spin text-gray-300" />
                                                 ) : (
                                                     <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${getStatusBadge(realStatus)}`}>
