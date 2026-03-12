@@ -957,6 +957,7 @@ export default function TournamentDetail() {
     const [isWelcomePromptOpen, setIsWelcomePromptOpen] = useState(false)
     const [newsList, setNewsList] = useState([])
     const [isNewsLoading, setIsNewsLoading] = useState(false)
+    const [isSavingNews, setIsSavingNews] = useState(false)
     const [currentNewsIdForComments, setCurrentNewsIdForComments] = useState(null)
     const [commentsMap, setCommentsMap] = useState({})
 
@@ -2131,6 +2132,8 @@ export default function TournamentDetail() {
             }
         }
 
+        setIsSavingNews(true)
+
         try {
             const response = await authFetch(`/api/tournaments/${id}/news`, {
                 method: 'POST',
@@ -2169,6 +2172,8 @@ export default function TournamentDetail() {
         } catch (err) {
             console.error('Post news error:', err)
             showError('Terjadi kesalahan sistem')
+        } finally {
+            setIsSavingNews(false)
         }
     }
 
@@ -2907,7 +2912,7 @@ export default function TournamentDetail() {
                             onClose={() => setIsNewsModalOpen(false)}
                             title={newNews.is_welcome ? "Buat Pesan Selamat Datang" : "Tambah Berita"}
                         >
-                            <form onSubmit={handleSaveNews} className="space-y-4" noValidate>
+                            <form onSubmit={handleSaveNews} className="space-y-4">
                                 {/* Title Input - Visible only for Regular News */}
                                 {!newNews.is_welcome && (
                                     <div>
@@ -3061,11 +3066,11 @@ export default function TournamentDetail() {
                                 )}
 
                                 <div className="flex justify-end gap-3 pt-4">
-                                    <Button variant="ghost" type="button" onClick={() => setIsNewsModalOpen(false)}>
+                                    <Button variant="ghost" type="button" onClick={() => setIsNewsModalOpen(false)} disabled={isSavingNews}>
                                         Batal
                                     </Button>
-                                    <Button type="submit" className="bg-neonGreen text-black">
-                                        Publish
+                                    <Button type="submit" className="bg-neonGreen text-black" disabled={isSavingNews} isLoading={isSavingNews}>
+                                        {isSavingNews ? 'Memproses...' : 'Publish'}
                                     </Button>
                                 </div>
                             </form>
