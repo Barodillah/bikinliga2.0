@@ -443,7 +443,9 @@ export default function DashboardLayout() {
                             >
                                 <Bell className="w-6 h-6" />
                                 {unreadCount > 0 && (
-                                    <span className="absolute top-0 right-0 h-3 w-3 rounded-full bg-neonPink border-2 border-cardBg flex items-center justify-center"></span>
+                                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-neonPink border-[1.5px] border-cardBg flex items-center justify-center text-[10px] font-bold text-white">
+                                        {unreadCount > 99 ? '99+' : unreadCount}
+                                    </span>
                                 )}
                             </button>
 

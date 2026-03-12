@@ -840,6 +840,98 @@ function PlayerCarousel({ players }) {
     )
 }
 
+function PotView({ tournamentData, rankings }) {
+    if (!tournamentData) return null;
+
+    const maxParticipants = parseInt(tournamentData.max_participants || tournamentData.maxParticipants || tournamentData.players || 0, 10);
+    const approvedParticipants = (tournamentData.participants || []).filter(p => p.status === 'approved');
+
+    // Urutkan berdasarkan waktu daftar (paling cepat)
+    const sortedParticipants = [...approvedParticipants].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const validParticipants = sortedParticipants.slice(0, maxParticipants);
+
+    // Hitung pot (2 atau 4)
+    const potCount = maxParticipants === 36 ? 4 : (maxParticipants <= 18 ? 2 : Math.max(2, Math.ceil(maxParticipants / 9)));
+    const potSize = 9;
+
+    // Tambahkan data ranking ke participant (berdasarkan user_id)
+    const participantsWithRank = validParticipants.map(p => {
+        const r = rankings.find(rank => String(rank.user_id) === String(p.user_id));
+        return {
+            ...p,
+            total_points: r ? (parseInt(r.total_points) || 0) : 0,
+            has_rank: !!(r && parseInt(r.total_points) > 0)
+        };
+    });
+
+    const ranked = participantsWithRank.filter(p => p.has_rank).sort((a, b) => b.total_points - a.total_points);
+    const unranked = participantsWithRank.filter(p => !p.has_rank);
+
+    const orderedForPot = [...ranked, ...unranked];
+
+    const pots = [];
+    for (let i = 0; i < potCount; i++) {
+        pots.push(orderedForPot.slice(i * potSize, (i + 1) * potSize));
+    }
+
+    return (
+        <div className="space-y-6 animate-fadeIn">
+            <div className="bg-blue-900/40 border border-blue-500/30 rounded-xl p-4 flex gap-3 text-sm text-blue-200">
+                <Info className="w-5 h-5 flex-shrink-0 text-blue-400" />
+                <div>
+                    <span className="font-bold text-blue-300 block mb-1">Sistem Pembagian POT</span>
+                    Pembagian tim berdasarkan ranking pendaftar yang sudah diapprove ({maxParticipants} slot). Tim yang memiliki poin ranking diurutkan terlebih dahulu mengisi POT teratas, sisanya diisi oleh tim tanpa poin sesuai urutan mendaftar.
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {pots.map((pot, pIndex) => (
+                    <Card key={pIndex} hover={false} className="min-w-0 flex flex-col h-full bg-gradient-to-b from-white/5 to-transparent border-t-4 border-t-neonGreen">
+                        <CardHeader className="py-3 px-4 bg-black/20 border-b border-white/5 flex items-center justify-between">
+                            <h4 className="font-bold text-white flex items-center gap-2">
+                                <Target className="w-4 h-4 text-neonGreen" />
+                                POT {pIndex + 1}
+                            </h4>
+                            <span className="text-xs font-mono text-gray-500">{pot.length} Tim</span>
+                        </CardHeader>
+                        <CardContent className="p-3 flex-1">
+                            {pot.length === 0 ? (
+                                <div className="text-center py-6 text-gray-500 text-xs italic">Kosong</div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {pot.map((p, i) => (
+                                        <div key={p.id} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition">
+                                            <div className="text-xs font-mono text-gray-500 w-4">{i + 1}.</div>
+                                            {p.logo_url ? (
+                                                <img src={p.logo_url} alt={p.team_name} className="w-7 h-7 rounded-sm object-contain bg-white/10 p-0.5" />
+                                            ) : (
+                                                <div className="w-7 h-7 rounded-sm bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-[10px] font-bold text-blue-400">
+                                                    {(p.team_name || p.name || 'T').charAt(0).toUpperCase()}
+                                                </div>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-xs font-bold text-white truncate leading-tight">{p.team_name || p.name}</div>
+                                                <div className="text-[10px] text-gray-400 leading-tight flex justify-between items-center pr-1 mt-1">
+                                                    <span className="truncate mr-2 font-mono">{p.name}</span>
+                                                    {p.total_points > 0 ? (
+                                                        <span className="text-yellow-500 font-mono font-bold bg-yellow-500/10 px-1 py-[1px] rounded flex items-center gap-1"><Trophy className="w-2.5 h-2.5" /> {p.total_points}</span>
+                                                    ) : (
+                                                        <span className="text-gray-500">-</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 // Helper functions omitted for brevity
 
 export default function TournamentDetail() {
@@ -874,6 +966,8 @@ export default function TournamentDetail() {
     const [topScorers, setTopScorers] = useState([])
     const [statistics, setStatistics] = useState(null)
     const [statisticsLoading, setStatisticsLoading] = useState(false)
+    const [rankings, setRankings] = useState([])
+    const [rankingsLoading, setRankingsLoading] = useState(false)
     const [winnerData, setWinnerData] = useState(null)
     const [showScrollTop, setShowScrollTop] = useState(false)
 
@@ -1895,6 +1989,26 @@ export default function TournamentDetail() {
             }
             fetchTopScorers()
         }
+
+        if (activeTab === 'pot' && id) {
+            const fetchRankings = async () => {
+                setRankingsLoading(true)
+                try {
+                    const response = await authFetch('/api/rankings')
+                    const data = await response.json()
+                    if (data.success) {
+                        setRankings(data.data)
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch rankings:', err)
+                } finally {
+                    setRankingsLoading(false)
+                }
+            }
+            if (rankings.length === 0) {
+                fetchRankings()
+            }
+        }
     }, [activeTab, id])
 
     // Fetch News when tab is active
@@ -1984,6 +2098,10 @@ export default function TournamentDetail() {
             const tabs = [
                 { id: 'players', label: 'Pendaftar', icon: Users },
             ]
+
+            if (tournamentData.type === 'new_ucl') {
+                tabs.push({ id: 'pot', label: 'POT', icon: Target })
+            }
 
             if (canGenerateFixtures) {
                 tabs.push({ id: 'fixtures', label: 'Jadwal', icon: Calendar })
@@ -2736,6 +2854,19 @@ export default function TournamentDetail() {
             </div>
 
             {/* Tab Content */}
+
+            {/* Pembagian POT */}
+            {activeTab === 'pot' && (
+                <div className="space-y-4 animate-fadeIn">
+                    {rankingsLoading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <Loader2 className="w-8 h-8 animate-spin text-neonGreen" />
+                        </div>
+                    ) : (
+                        <PotView tournamentData={tournamentData} rankings={rankings} />
+                    )}
+                </div>
+            )}
 
             {/* League News */}
             {
