@@ -61,8 +61,20 @@ const TopScorerList = React.forwardRef(({ compact = false, scorers = [], highlig
                     {/* Top 1 Highlight Card */}
                     <div className="md:col-span-3">
                         <Card className="bg-gradient-to-r from-neonGreen/10 to-transparent border-neonGreen/50 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-8 opacity-10">
-                                <Trophy className="w-48 h-48 text-neonGreen" />
+                            <div className="absolute top-0 right-0 p-8 opacity-60">
+                                {topScorer.team_logo || topScorer.logo ? (
+                                    <img
+                                        src={topScorer.team_logo || topScorer.logo}
+                                        alt={topScorer.team_name || topScorer.team}
+                                        className="w-48 h-48 object-contain filter drop-shadow-2xl"
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = 'https://www.efootballdb.com/img/players/player_noface.png'; // Fallback if logo broken
+                                        }}
+                                    />
+                                ) : (
+                                    <Trophy className="w-48 h-48 text-neonGreen" />
+                                )}
                             </div>
                             <CardContent className="flex items-center gap-6 relative z-10 p-6">
                                 <div className="w-24 h-24 md:w-32 md:h-32 rounded-full ring-4 ring-neonGreen/50 bg-black flex items-center justify-center shadow-[0_0_30px_rgba(34,197,94,0.3)] overflow-hidden">

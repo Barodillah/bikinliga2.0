@@ -1312,8 +1312,9 @@ router.get('/:idOrSlug/top-scorers', optionalAuth, async (req, res) => {
             `SELECT 
                 me.player_name as name,
                 me.participant_id,
-                p.name as team_name,
-                p.user_id,
+                MAX(p.name) as team_name,
+                MAX(p.logo_url) as team_logo,
+                MAX(p.user_id) as user_id,
                 COUNT(me.id) as goals,
                 COUNT(DISTINCT me.match_id) as matches
              FROM match_events me
