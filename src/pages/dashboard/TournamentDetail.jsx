@@ -2143,21 +2143,6 @@ export default function TournamentDetail() {
             const data = await response.json()
 
             if (data.success) {
-                // UPDATE user phone if it was null
-                if (payload.is_welcome && !user?.phone && payload.contact_info) {
-                    try {
-                        await authFetch(`/api/auth/profile`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                name: user.name,
-                                username: user.username,
-                                phone: payload.contact_info
-                            })
-                        })
-                    } catch (e) { console.error('Failed to update phone on welcome news', e) }
-                }
-
                 showSuccess('Berita berhasil dipublish')
                 // Refresh list
                 const refreshRes = await authFetch(`/api/tournaments/${id}/news`)

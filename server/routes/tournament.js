@@ -2908,6 +2908,14 @@ VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
             [newsId, tournament.id, title, content, contact_info || null, group_link || null, is_welcome ? 1 : 0, open_thread ? 1 : 0]
         );
 
+        // 4. Update User Phone if null
+        if (contact_info) {
+            const [userRows] = await connection.query('SELECT phone FROM users WHERE id = ?', [req.user.id]);
+            if (userRows.length > 0 && !userRows[0].phone) {
+                await connection.query('UPDATE users SET phone = ? WHERE id = ?', [contact_info, req.user.id]);
+            }
+        }
+
         res.status(201).json({ success: true, message: 'Berita berhasil dipublish', data: { id: newsId } });
 
     } catch (error) {
