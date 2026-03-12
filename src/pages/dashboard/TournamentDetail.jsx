@@ -954,6 +954,7 @@ export default function TournamentDetail() {
 
     // News & Social State
     const [isNewsModalOpen, setIsNewsModalOpen] = useState(false)
+    const [isWelcomePromptOpen, setIsWelcomePromptOpen] = useState(false)
     const [newsList, setNewsList] = useState([])
     const [isNewsLoading, setIsNewsLoading] = useState(false)
     const [currentNewsIdForComments, setCurrentNewsIdForComments] = useState(null)
@@ -1916,6 +1917,26 @@ export default function TournamentDetail() {
         }
     }, [activeTab, id])
 
+    // Checking welcome news for draft prompt
+    React.useEffect(() => {
+        if (isDraft && isOrganizer && id) {
+            const checkWelcomeNews = async () => {
+                try {
+                    const response = await authFetch(`/api/tournaments/${id}/news`)
+                    const data = await response.json()
+                    if (data.success) {
+                        setNewsList(data.data)
+                        const hasWelcome = data.data.some(n => n.is_welcome)
+                        if (!hasWelcome) {
+                            setIsWelcomePromptOpen(true)
+                        }
+                    }
+                } catch (err) { }
+            }
+            checkWelcomeNews()
+        }
+    }, [isDraft, isOrganizer, id])
+
 
 
 
@@ -2119,6 +2140,21 @@ export default function TournamentDetail() {
             const data = await response.json()
 
             if (data.success) {
+                // UPDATE user phone if it was null
+                if (payload.is_welcome && !user?.phone && payload.contact_info) {
+                    try {
+                        await authFetch(`/api/auth/profile`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: user.name,
+                                username: user.username,
+                                phone: payload.contact_info
+                            })
+                        })
+                    } catch (e) { console.error('Failed to update phone on welcome news', e) }
+                }
+
                 showSuccess('Berita berhasil dipublish')
                 // Refresh list
                 const refreshRes = await authFetch(`/api/tournaments/${id}/news`)
@@ -2186,7 +2222,7 @@ export default function TournamentDetail() {
             title: isFirst ? `Selamat Datang di ${tournamentData.name}` : '',
             content: isFirst ? `Halo peserta! Selamat datang di ${tournamentData.name}. Turnamen ini akan segera dimulai. Silakan hubungi admin di bawah ini jika ada pertanyaan, atau bergabung ke grup WhatsApp kami untuk update terbaru.` : '',
             is_welcome: isFirst,
-            contact_info: '',
+            contact_info: isFirst && user?.phone ? user.phone : '',
             group_link: '',
             open_thread: false
         })
@@ -2892,7 +2928,8 @@ export default function TournamentDetail() {
                                                 ...prev,
                                                 is_welcome: true,
                                                 title: `Selamat Datang di ${tournamentData.name}`,
-                                                content: `Halo peserta! Selamat datang di ${tournamentData.name}. Turnamen ini akan segera dimulai. Silakan hubungi admin di bawah ini jika ada pertanyaan, atau bergabung ke grup WhatsApp kami untuk update terbaru.`
+                                                content: `Halo peserta! Selamat datang di ${tournamentData.name}. Turnamen ini akan segera dimulai. Silakan hubungi admin di bawah ini jika ada pertanyaan, atau bergabung ke grup WhatsApp kami untuk update terbaru.`,
+                                                contact_info: user?.phone || ''
                                             }))}
                                             className={`cursor-pointer p-3 rounded-xl border transition-all ${newNews.is_welcome
                                                 ? 'border-neonGreen bg-neonGreen/10 ring-1 ring-neonGreen'
@@ -2946,13 +2983,14 @@ export default function TournamentDetail() {
                                         <div>
                                             <h4 className="text-sm font-bold text-neonGreen mb-3 flex items-center gap-2">
                                                 <Info className="w-4 h-4" />
-                                                Informasi Kontak (Optional)
+                                                Informasi Kontak <span className="text-red-500">*</span>
                                             </h4>
                                             <label className="block text-sm font-medium text-gray-400 mb-1">Nomor WhatsApp Admin</label>
                                             <Input
                                                 value={newNews.contact_info}
                                                 onChange={(e) => setNewNews({ ...newNews, contact_info: e.target.value })}
                                                 placeholder="Contoh: 628123456789 (Gunakan format internasional)"
+                                                required
                                             />
                                         </div>
                                         <div>
@@ -4374,6 +4412,36 @@ export default function TournamentDetail() {
 
                     <div className="flex justify-end pt-2">
                         <Button onClick={() => setIsDetailModalOpen(false)}>Tutup</Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Welcome Prompt Modal */}
+            <Modal
+                isOpen={isWelcomePromptOpen}
+                onClose={() => navigate('/dashboard/tournaments')}
+                title="Lengkapi Welcome Info"
+            >
+                <div className="space-y-4 pt-2">
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 text-blue-400 flex items-start gap-3">
+                        <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-bold mb-1">Pesan Sambutan Wajib</p>
+                            <p className="text-sm text-blue-400/80">Mohon lengkapi "Welcome Info" beserta kontak referensi agar komunikasi dengan peserta lebih mudah sebelum dan sesudah turnamen dimulai.</p>
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-white/10">
+                        <Button onClick={() => navigate('/dashboard/tournaments')} variant="ghost" type="button">Nanti Saja</Button>
+                        <Button onClick={() => {
+                            setIsWelcomePromptOpen(false)
+                            // Note: if on another tab, we might need to change activeTab to 'news'
+                            setActiveTab('news')
+                            setTimeout(() => {
+                                handleOpenCreateNews()
+                            }, 100)
+                        }} type="button" className="bg-neonGreen text-black hover:bg-[#2eaa16]">
+                            Buat Welcome Info
+                        </Button>
                     </div>
                 </div>
             </Modal>
