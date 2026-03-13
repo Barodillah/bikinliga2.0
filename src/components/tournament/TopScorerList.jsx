@@ -61,7 +61,7 @@ const TopScorerList = React.forwardRef(({ compact = false, scorers = [], highlig
                     {/* Top 1 Highlight Card */}
                     <div className="md:col-span-3">
                         <Card className="bg-gradient-to-r from-neonGreen/10 to-transparent border-neonGreen/50 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-8 opacity-60">
+                            <div className="absolute top-0 right-0 p-8 opacity-40">
                                 {topScorer.team_logo || topScorer.logo ? (
                                     <img
                                         src={topScorer.team_logo || topScorer.logo}
