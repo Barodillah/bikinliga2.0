@@ -114,6 +114,10 @@ export async function getTransactionStatus(orderId) {
         console.log('MIDTRANS: Status response for', orderId, ':', statusResponse.transaction_status);
         return statusResponse;
     } catch (error) {
+        if (error.httpStatusCode === 404 || (error.data && error.data.status_code === '404')) {
+            console.log(`MIDTRANS: Transaction ${orderId} is not fully created in midtrans yet (404).`);
+            return { transaction_status: 'pending' }; // Treat 404 from midtrans as still pending
+        }
         console.error('MIDTRANS: Check status error:', error.message);
         throw error;
     }

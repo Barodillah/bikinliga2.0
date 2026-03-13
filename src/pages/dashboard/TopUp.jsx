@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { authFetch } from '../../utils/api'
 import { Crown, Zap, History, PlayCircle, Plus, AlertCircle, ArrowRightLeft, Loader2, CheckCircle2, Star } from 'lucide-react'
 import { useAds } from '../../contexts/AdContext'
@@ -531,7 +531,7 @@ export default function TopUp() {
                 },
                 body: JSON.stringify({
                     amount: selectedPackage.amountIdr,
-                    coins: selectedPackage.coins + (selectedPackage.bonus || 0),
+                    coins: Number(selectedPackage.coins) + Number(selectedPackage.bonus || 0),
                     package_name: selectedPackage.name,
                     billing: billingDetails
                 }),

@@ -591,6 +591,19 @@ router.post('/topup/create-payment', authMiddleware, async (req, res) => {
 
             if (snapResponse && snapResponse.token) {
                 await connection.commit();
+                
+                // Send Invoice Email immediately on submit
+                if (customerEmail) {
+                    sendInvoiceEmail(customerEmail, {
+                        invoiceNumber: invoiceNumber,
+                        amount: amount,
+                        coins: coins,
+                        packageName: package_name || 'Top Up Coins',
+                        date: new Date().toLocaleString('id-ID'),
+                        customerName: customerName || 'Pelanggan'
+                    }).catch(err => console.error('Immediate email send failed', err));
+                }
+
                 res.json({
                     success: true,
                     data: {
@@ -670,19 +683,6 @@ router.post('/topup/webhook', async (req, res) => {
                         );
 
                         console.log('TOPUP SUCCESS VIA WEBHOOK:', orderId);
-                        
-                        // Send Invoice Email
-                        const customerEmail = body.custom_field1;
-                        if (customerEmail) {
-                            sendInvoiceEmail(customerEmail, {
-                                invoiceNumber: orderId,
-                                amount: body.gross_amount,
-                                coins: tx.amount,
-                                packageName: body.custom_field3 || 'Top Up Coins',
-                                date: new Date().toLocaleString('id-ID'),
-                                customerName: body.custom_field2 || 'Pelanggan'
-                            });
-                        }
                     } else if (isFailed) {
                         // Mark Transaction as Failed
                         await connection.execute(
@@ -754,20 +754,6 @@ router.get('/topup/status/:invoice', authMiddleware, async (req, res) => {
                             );
 
                             await connection.commit();
-                            
-                            // Send Invoice Email if it wasn't already caught by Webhook
-                            const customerEmail = midtransResponse.custom_field1;
-                            if (customerEmail) {
-                                sendInvoiceEmail(customerEmail, {
-                                    invoiceNumber: invoice,
-                                    amount: midtransResponse.gross_amount,
-                                    coins: localTx.amount,
-                                    packageName: midtransResponse.custom_field3 || 'Top Up Coins',
-                                    date: new Date().toLocaleString('id-ID'),
-                                    customerName: midtransResponse.custom_field2 || 'Pelanggan'
-                                });
-                            }
-                            
                             return res.json({ success: true, status: 'success' });
                         } catch (txError) {
                             await connection.rollback();
