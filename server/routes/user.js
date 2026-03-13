@@ -4,6 +4,7 @@ import { query, getConnection } from '../config/db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { createSnapTransaction, verifySignatureKey, getTransactionStatus, mapMidtransStatus } from '../utils/midtrans.js';
 import { getAndRecordCurrentPrice } from '../utils/economy.js';
+import { sendInvoiceEmail } from '../utils/mailer.js';
 
 const router = express.Router();
 
@@ -524,7 +525,7 @@ router.get('/public/:username', async (req, res) => {
 router.post('/topup/create-payment', authMiddleware, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { amount, coins, package_name } = req.body;
+        const { amount, coins, package_name, billing } = req.body;
 
         if (!amount || amount < 10000) {
             return res.status(400).json({ success: false, message: 'Minimal pembayaran Rp 10.000' });
@@ -554,15 +555,29 @@ router.post('/topup/create-payment', authMiddleware, async (req, res) => {
                 [txId, walletId, 'topup', coins, 'Deposit', `Top Up ${coins} Coins - ${package_name}`, 'pending', invoiceNumber]
             );
 
-            // 3. Create Midtrans Snap Transaction
+            // 3. Prepare Customer Details
+            const customerName = billing?.fullName || req.user.name;
+            const customerEmail = billing?.email || req.user.email;
+            const customerPhone = billing?.phone || req.user.phone || '08123456789';
+
+            // 4. Create Midtrans Snap Transaction
             console.log('MIDTRANS: Calling Midtrans Snap API...');
             const snapResponse = await createSnapTransaction({
                 orderId: invoiceNumber,
                 amount: amount,
                 callbackUrl: `${process.env.VITE_BASE_URL}/dashboard/topup?status=check&invoice=${invoiceNumber}`,
-                customerName: req.user.name,
-                customerEmail: req.user.email,
-                customerPhone: req.user.phone || '08123456789',
+                customerName: customerName,
+                customerEmail: customerEmail,
+                customerPhone: customerPhone,
+                billingAddress: billing ? {
+                    first_name: customerName,
+                    email: customerEmail,
+                    phone: customerPhone,
+                    address: billing.address || '',
+                    city: billing.city || '',
+                    postal_code: billing.zipCode || '',
+                    country_code: 'IDN'
+                } : undefined,
                 itemDetails: [
                     {
                         id: invoiceNumber,
@@ -655,6 +670,19 @@ router.post('/topup/webhook', async (req, res) => {
                         );
 
                         console.log('TOPUP SUCCESS VIA WEBHOOK:', orderId);
+                        
+                        // Send Invoice Email
+                        const customerEmail = body.custom_field1;
+                        if (customerEmail) {
+                            sendInvoiceEmail(customerEmail, {
+                                invoiceNumber: orderId,
+                                amount: body.gross_amount,
+                                coins: tx.amount,
+                                packageName: body.custom_field3 || 'Top Up Coins',
+                                date: new Date().toLocaleString('id-ID'),
+                                customerName: body.custom_field2 || 'Pelanggan'
+                            });
+                        }
                     } else if (isFailed) {
                         // Mark Transaction as Failed
                         await connection.execute(
@@ -726,6 +754,20 @@ router.get('/topup/status/:invoice', authMiddleware, async (req, res) => {
                             );
 
                             await connection.commit();
+                            
+                            // Send Invoice Email if it wasn't already caught by Webhook
+                            const customerEmail = midtransResponse.custom_field1;
+                            if (customerEmail) {
+                                sendInvoiceEmail(customerEmail, {
+                                    invoiceNumber: invoice,
+                                    amount: midtransResponse.gross_amount,
+                                    coins: localTx.amount,
+                                    packageName: midtransResponse.custom_field3 || 'Top Up Coins',
+                                    date: new Date().toLocaleString('id-ID'),
+                                    customerName: midtransResponse.custom_field2 || 'Pelanggan'
+                                });
+                            }
+                            
                             return res.json({ success: true, status: 'success' });
                         } catch (txError) {
                             await connection.rollback();

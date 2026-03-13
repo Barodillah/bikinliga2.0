@@ -48,6 +48,10 @@ export async function createSnapTransaction(params) {
         }
         if (params.customerEmail) parameter.customer_details.email = params.customerEmail;
         if (params.customerPhone) parameter.customer_details.phone = params.customerPhone;
+        // Also add billing address if available
+        if (params.billingAddress) {
+            parameter.customer_details.billing_address = params.billingAddress;
+        }
     }
 
     // Add item details if provided
@@ -60,6 +64,13 @@ export async function createSnapTransaction(params) {
         parameter.callbacks = {
             finish: params.callbackUrl
         };
+    }
+
+    // Add custom fields
+    if (params.customFields) {
+        if (params.customFields.custom_field1) parameter.custom_field1 = params.customFields.custom_field1;
+        if (params.customFields.custom_field2) parameter.custom_field2 = params.customFields.custom_field2;
+        if (params.customFields.custom_field3) parameter.custom_field3 = params.customFields.custom_field3;
     }
 
     console.log('MIDTRANS: Creating Snap transaction...', {
