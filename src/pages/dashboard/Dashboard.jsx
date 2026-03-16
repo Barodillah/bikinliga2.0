@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Trophy, Calendar, Users, TrendingUp, ArrowRight, BarChart2, Search, BookOpen } from 'lucide-react'
+import { Plus, Trophy, Calendar, Users, TrendingUp, ArrowRight, BarChart2, Search, BookOpen, Star, Gamepad2, Flame, TrendingDown, Minus, Swords, ArrowDown, ArrowUp } from 'lucide-react'
 import Card, { CardContent, CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import AdSlot from '../../components/ui/AdSlot'
 import AdaptiveLogo from '../../components/ui/AdaptiveLogo'
+import UserBadge from '../../components/ui/UserBadge'
 import { useToast } from '../../contexts/ToastContext'
+import { useAuth } from '../../contexts/AuthContext'
 import { authFetch } from '../../utils/api'
 import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
 
@@ -40,6 +42,8 @@ export default function Dashboard() {
     const [joinedTournaments, setJoinedTournaments] = useState([]);
     const [upcomingMatches, setUpcomingMatches] = useState([]);
     const [quickActions, setQuickActions] = useState(null);
+    const [userStats, setUserStats] = useState(null);
+    const { user } = useAuth();
 
     const [runTour, setRunTour] = useState(false);
     const [tourSteps, setTourSteps] = useState([
@@ -96,6 +100,7 @@ export default function Dashboard() {
                     setJoinedTournaments(data.data.joinedTournaments || []);
                     setUpcomingMatches(data.data.upcomingMatches);
                     setQuickActions(data.data.quickActions);
+                    setUserStats(data.data.userStats);
                 } else {
                     throw new Error(data.message);
                 }
@@ -545,64 +550,126 @@ export default function Dashboard() {
 
                     {/* Joined Tournaments / CTA Section */}
                     {joinedTournaments.length > 0 ? (
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between px-1">
-                                <h2 className="text-lg font-display font-bold">Kompetisi Diikuti</h2>
-                                <Link to="/dashboard/competitions?tab=participating" className="text-sm text-neonGreen hover:text-neonGreen/80 flex items-center gap-1">
-                                    Lihat Semua <ArrowRight className="w-4 h-4" />
-                                </Link>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {joinedTournaments.map((tournament) => (
-                                    <Link
-                                        key={tournament.id}
-                                        to={`/dashboard/competitions/${tournament.slug || tournament.id}/view`}
-                                        className="block group"
-                                    >
-                                        <Card className="h-full hover:border-neonGreen/30 transition-all p-4 relative overflow-hidden">
-                                            <div className="flex items-start justify-between mb-4">
-                                                <AdaptiveLogo
-                                                    src={tournament.logo_url}
-                                                    alt={tournament.name}
-                                                    className="w-12 h-12"
-                                                    fallbackSize="w-6 h-6"
-                                                />
-                                                <span className={`text-[10px] px-2 py-1 rounded-full whitespace-nowrap ${tournament.user_status === 'approved' ? 'bg-neonGreen/20 text-neonGreen' :
-                                                    tournament.user_status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                        'bg-red-500/20 text-red-400'
-                                                    }`}>
-                                                    {tournament.user_status === 'approved' ? 'Disetujui' :
-                                                        tournament.user_status === 'pending' ? 'Menunggu' :
-                                                            tournament.user_status}
-                                                </span>
-                                            </div>
-
-                                            <h3 className="font-display font-bold text-base mb-1 truncate group-hover:text-blue-400 transition">{tournament.name}</h3>
-                                            <p className="text-xs text-gray-500 capitalize mb-4">{tournament.type.replace('_', ' ')}</p>
-
-                                            {tournament.total_matches > 0 ? (
-                                                <div>
-                                                    <div className="flex justify-between text-[10px] text-gray-400 mb-1">
-                                                        <span>Progress</span>
-                                                        <span>{Math.round((tournament.played_matches / tournament.total_matches) * 100)}%</span>
+                        <div className="space-y-8">
+                            {/* Personal Stats Section */}
+                            {userStats && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between px-1">
+                                        <h2 className="text-lg font-display font-bold">Statistik Anda</h2>
+                                        <Link to={`/dashboard/profile/${user?.username}`} className="text-sm text-neonGreen hover:text-neonGreen/80 flex items-center gap-1">
+                                            Lihat Profil <ArrowRight className="w-4 h-4" />
+                                        </Link>
+                                    </div>
+                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                                        <StatCard
+                                            label="Total Points"
+                                            value={userStats.stats?.total_points || 0}
+                                            icon={Star}
+                                            color="text-yellow-400"
+                                            bg="bg-yellow-400/10"
+                                            trend={(() => {
+                                                const diff = (userStats.stats?.total_points || 0) - (userStats.stats?.previous_points_daily || 0);
+                                                return diff > 0 ? `+${diff} Hari Ini` : diff < 0 ? `${diff} Hari Ini` : `0 Hari Ini`;
+                                            })()}
+                                        />
+                                        <Link to="/dashboard/ranking" className="block w-full h-full">
+                                            <StatCard
+                                                label="Ranking Saat ini"
+                                                value={
+                                                    <div className="flex items-center gap-1">
+                                                        {userStats.current_rank ? `#${userStats.current_rank}` : '-'}
+                                                        {userStats.rank_change < 0 ? (
+                                                            <ArrowDown className="w-4 h-4 text-red-500" />
+                                                        ) : userStats.rank_change > 0 ? (
+                                                            <ArrowUp className="w-4 h-4 text-green-500" />
+                                                        ) : null}
                                                     </div>
-                                                    <div className="w-full bg-white/5 rounded-full h-1">
-                                                        <div
-                                                            className="bg-neonGreen h-1 rounded-full transition-all duration-500"
-                                                            style={{ width: `${(tournament.played_matches / tournament.total_matches) * 100}%` }}
-                                                        ></div>
+                                                }
+                                                icon={BarChart2}
+                                                color="text-blue-400 group-hover:text-white transition-colors"
+                                                bg="bg-blue-400/10 group-hover:bg-blue-500/20 transition-colors"
+                                            />
+                                        </Link>
+                                        {(user?.preferences?.showWinRate !== false) && (
+                                            <StatCard
+                                                label="Win Rate"
+                                                value={`${userStats.stats?.win_rate || 0}%`}
+                                                icon={Trophy}
+                                                color="text-neonGreen"
+                                                bg="bg-neonGreen/10"
+                                            />
+                                        )}
+                                        <StatCard
+                                            label={userStats.streak?.type ? `${userStats.streak.type} Streak` : "Streak"}
+                                            value={userStats.streak?.count ? `${userStats.streak.count}x` : "0x"}
+                                            valueClassName={userStats.streak?.type === 'Win' ? "text-green-400" : userStats.streak?.type === 'Lose' ? "text-red-400" : userStats.streak?.type === 'Draw' ? "text-yellow-400" : "text-gray-400"}
+                                            icon={userStats.streak?.type === 'Win' ? Flame : userStats.streak?.type === 'Lose' ? TrendingDown : userStats.streak?.type === 'Draw' ? Minus : Swords}
+                                            color={userStats.streak?.type === 'Win' ? "text-green-400" : userStats.streak?.type === 'Lose' ? "text-red-400" : userStats.streak?.type === 'Draw' ? "text-yellow-400" : "text-gray-400"}
+                                            bg={userStats.streak?.type === 'Win' ? "bg-green-400/10" : userStats.streak?.type === 'Lose' ? "bg-red-400/10" : userStats.streak?.type === 'Draw' ? "bg-yellow-400/10" : "bg-gray-400/10"}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between px-1">
+                                    <h2 className="text-lg font-display font-bold">Kompetisi Diikuti</h2>
+                                    <Link to="/dashboard/competitions?tab=participating" className="text-sm text-neonGreen hover:text-neonGreen/80 flex items-center gap-1">
+                                        Lihat Semua <ArrowRight className="w-4 h-4" />
+                                    </Link>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {joinedTournaments.map((tournament) => (
+                                        <Link
+                                            key={tournament.id}
+                                            to={`/dashboard/competitions/${tournament.slug || tournament.id}/view`}
+                                            className="block group"
+                                        >
+                                            <Card className="h-full hover:border-neonGreen/30 transition-all p-4 relative overflow-hidden">
+                                                <div className="flex items-start justify-between mb-4">
+                                                    <AdaptiveLogo
+                                                        src={tournament.logo_url}
+                                                        alt={tournament.name}
+                                                        className="w-12 h-12"
+                                                        fallbackSize="w-6 h-6"
+                                                    />
+                                                    <span className={`text-[10px] px-2 py-1 rounded-full whitespace-nowrap ${tournament.user_status === 'approved' ? 'bg-neonGreen/20 text-neonGreen' :
+                                                        tournament.user_status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                            'bg-red-500/20 text-red-400'
+                                                        }`}>
+                                                        {tournament.user_status === 'approved' ? 'Disetujui' :
+                                                            tournament.user_status === 'pending' ? 'Menunggu' :
+                                                                tournament.user_status}
+                                                    </span>
+                                                </div>
+
+                                                <h3 className="font-display font-bold text-base mb-1 truncate group-hover:text-blue-400 transition">{tournament.name}</h3>
+                                                <p className="text-xs text-gray-500 capitalize mb-4">{tournament.type.replace('_', ' ')}</p>
+
+                                                {tournament.total_matches > 0 ? (
+                                                    <div>
+                                                        <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+                                                            <span>Progress</span>
+                                                            <span>{Math.round((tournament.played_matches / tournament.total_matches) * 100)}%</span>
+                                                        </div>
+                                                        <div className="w-full bg-white/5 rounded-full h-1">
+                                                            <div
+                                                                className="bg-neonGreen h-1 rounded-full transition-all duration-500"
+                                                                style={{ width: `${(tournament.played_matches / tournament.total_matches) * 100}%` }}
+                                                            ></div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ) : (
-                                                <div className="pt-2 border-t border-white/5 mt-auto">
-                                                    <div className="text-xs text-gray-500">Belum ada pertandingan</div>
-                                                </div>
-                                            )}
-                                        </Card>
-                                    </Link >
-                                ))}
+                                                ) : (
+                                                    <div className="pt-2 border-t border-white/5 mt-auto">
+                                                        <div className="text-xs text-gray-500">Belum ada pertandingan</div>
+                                                    </div>
+                                                )}
+                                            </Card>
+                                        </Link >
+                                    ))}
+                                </div >
                             </div >
-                        </div >
+                        </div>
                     ) : (
                         <div className="w-full relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-white/10 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
                             <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
@@ -627,5 +694,24 @@ export default function Dashboard() {
                 </>
             )}
         </div >
+    )
+}
+
+function StatCard({ label, value, icon: Icon, color, bg, trend, valueClassName }) {
+    return (
+        <Card className="p-4 sm:p-5 flex flex-col justify-between hover:border-white/20 transition group h-full">
+            <div className="flex justify-between items-start mb-2">
+                <div className={`p-2 rounded-lg ${bg} ${color}`}>
+                    <Icon className="w-5 h-5" />
+                </div>
+                {trend && <span className="text-[10px] text-gray-400 font-mono">{trend}</span>}
+            </div>
+            <div>
+                <div className={`text-2xl font-display font-bold ${valueClassName || 'text-white'} mb-1`}>
+                    {value}
+                </div>
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider">{label}</div>
+            </div>
+        </Card>
     )
 }
