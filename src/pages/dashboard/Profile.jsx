@@ -4,7 +4,7 @@ import {
     Trophy, Medal, Star, Shield, Gamepad2, Calendar, Swords,
     ArrowLeft, Twitch, Instagram, Twitter, AlertCircle,
     Loader2, TrendingUp, MapPin, ExternalLink, Check,
-    Crown, Coins, Gem, Users, UserPlus, Rocket, Mail
+    Crown, Coins, Gem, Users, UserPlus, Rocket, Mail, Flame, TrendingDown, Minus
 } from 'lucide-react'
 import AdSlot from '../../components/ui/AdSlot'
 import { authFetch } from '../../utils/api'
@@ -77,6 +77,7 @@ export default function Profile() {
                     stats: statsData.success ? statsData.stats : null,
                     history: statsData.success ? statsData.history : [],
                     achievements: achievementsData.success ? achievementsData.achievements : [],
+                    streak: statsData.success ? statsData.streak : null,
                     // DO NOT overwrite recentMatchesDetails. It comes correctly from profileData.data
                 }
 
@@ -257,12 +258,12 @@ export default function Profile() {
                     bg="bg-blue-400/10"
                 />
                 <StatCard
-                    label="Goal Diff"
-                    value={user.stats?.goal_difference || 0}
-                    valueClassName={user.stats?.goal_difference > 0 ? "text-green-400" : "text-red-400"}
-                    icon={Swords}
-                    color="text-purple-400"
-                    bg="bg-purple-400/10"
+                    label={user.streak?.type ? `${user.streak.type} Streak` : "Streak"}
+                    value={user.streak?.count ? `${user.streak.count}x` : "0x"}
+                    valueClassName={user.streak?.type === 'Win' ? "text-green-400" : user.streak?.type === 'Lose' ? "text-red-400" : user.streak?.type === 'Draw' ? "text-yellow-400" : "text-gray-400"}
+                    icon={user.streak?.type === 'Win' ? Flame : user.streak?.type === 'Lose' ? TrendingDown : user.streak?.type === 'Draw' ? Minus : Swords}
+                    color={user.streak?.type === 'Win' ? "text-green-400" : user.streak?.type === 'Lose' ? "text-red-400" : user.streak?.type === 'Draw' ? "text-yellow-400" : "text-gray-400"}
+                    bg={user.streak?.type === 'Win' ? "bg-green-400/10" : user.streak?.type === 'Lose' ? "bg-red-400/10" : user.streak?.type === 'Draw' ? "bg-yellow-400/10" : "bg-gray-400/10"}
                 />
             </div>
 

@@ -195,7 +195,93 @@ router.get('/stats', authMiddleware, async (req, res) => {
                     WHERE p.user_id = ? AND p.status = 'approved'
                     ORDER BY t.created_at DESC
                     LIMIT 3
-                `, [userId])
+                `, [userId]),
+                userStats: await (async () => {
+                    // Fetch user statistics
+                    const [stats] = await query('SELECT total_points, total_matches, win_rate, previous_points_daily, goal_difference, goals_for FROM user_statistics WHERE user_id = ?', [userId]);
+                    
+                    let current_rank = '-';
+                    let rank_change = 0;
+                    if (stats) {
+                        const rankQuery = await query(`
+                            SELECT COUNT(*) + 1 as current_rank
+                            FROM user_statistics
+                            WHERE total_points > ?
+                            OR (total_points = ? AND win_rate > ?)
+                            OR (total_points = ? AND win_rate = ? AND goal_difference > ?)
+                            OR (total_points = ? AND win_rate = ? AND goal_difference = ? AND goals_for > ?)
+                        `, [stats.total_points, stats.total_points, stats.win_rate, stats.total_points, stats.win_rate, stats.goal_difference, stats.total_points, stats.win_rate, stats.goal_difference, stats.goals_for]);
+                        
+                        if (rankQuery && rankQuery.length > 0) {
+                            current_rank = rankQuery[0].current_rank;
+                        }
+
+                        // Fetch rank history for trend
+                        const history = await query(`
+                            SELECT rank_position
+                            FROM user_statistics_history
+                            WHERE user_id = ? AND rank_position IS NOT NULL
+                            ORDER BY recorded_at DESC
+                            LIMIT 2
+                        `, [userId]);
+
+                        if (history && history.length >= 2) {
+                            const newRank = history[0].rank_position;
+                            const oldRank = history[1].rank_position;
+                            if (oldRank && newRank) rank_change = oldRank - newRank;
+                        } else if (history && history.length === 1 && current_rank !== '-') {
+                            const newRank = history[0].rank_position;
+                            if (newRank && current_rank !== newRank) rank_change = newRank - current_rank;
+                        }
+                    }
+
+                    // Fetch matches for streak
+                    const matches = await query(`
+                        SELECT m.id, m.home_score, m.away_score, m.status,
+                                p1.user_id as home_user_id, p2.user_id as away_user_id
+                        FROM matches m
+                        JOIN participants p1 ON m.home_participant_id = p1.id
+                        JOIN participants p2 ON m.away_participant_id = p2.id
+                        WHERE (p1.user_id = ? OR p2.user_id = ?)
+                        AND m.status = 'completed'
+                        ORDER BY m.updated_at DESC
+                        LIMIT 50
+                    `, [userId, userId]);
+
+                    let streakType = null;
+                    let streakCount = 0;
+                    let streakActive = true;
+
+                    for (let i = 0; i < matches.length; i++) {
+                        const m = matches[i];
+                        const isHome = m.home_user_id == userId;
+                        const myScore = isHome ? (m.home_score || 0) : (m.away_score || 0);
+                        const opScore = isHome ? (m.away_score || 0) : (m.home_score || 0);
+
+                        let result = 'Draw';
+                        if (myScore > opScore) result = 'Win';
+                        else if (myScore < opScore) result = 'Lose';
+
+                        if (streakActive) {
+                            if (streakType === null) {
+                                streakType = result;
+                                streakCount = 1;
+                            } else if (streakType === result) {
+                                streakCount++;
+                            } else {
+                                streakActive = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    return {
+                        stats: stats || null,
+                        current_rank,
+                        rank_change,
+                        streak: { type: streakType, count: streakCount }
+                    };
+                })()
             }
         });
 

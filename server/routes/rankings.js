@@ -107,7 +107,7 @@ router.get('/user/:username', async (req, res) => {
         );
         const totalTournaments = tournaments[0].count;
 
-        const [matches] = await db.query(
+        const [allMatches] = await db.query(
             `SELECT m.id, m.home_score, m.away_score, m.status, m.created_at,
                     p1.user_id as home_user_id, p1.name as home_name,
                     p2.user_id as away_user_id, p2.name as away_name
@@ -117,21 +117,47 @@ router.get('/user/:username', async (req, res) => {
              WHERE (p1.user_id = ? OR p2.user_id = ?)
              AND m.status = 'completed'
              ORDER BY m.updated_at DESC
-             LIMIT 5`,
+             LIMIT 50`,
             [userId, userId]
         );
 
-        const recent_matches = matches.map(m => {
+        let streakType = null;
+        let streakCount = 0;
+        let streakActive = true;
+        
+        const recent_matches = [];
+
+        for (let i = 0; i < allMatches.length; i++) {
+            const m = allMatches[i];
             const isHome = m.home_user_id === userId;
             const myScore = isHome ? (m.home_score || 0) : (m.away_score || 0);
             const opScore = isHome ? (m.away_score || 0) : (m.home_score || 0);
 
-            if (myScore > opScore) return 'Win';
-            if (myScore < opScore) return 'Lose';
-            return 'Draw';
-        });
+            let result = 'Draw';
+            if (myScore > opScore) result = 'Win';
+            else if (myScore < opScore) result = 'Lose';
 
-        res.json({ success: true, stats: stats[0] || null, history, recent_matches, totalTournaments });
+            if (i < 5) recent_matches.push(result);
+
+            if (streakActive) {
+                if (streakType === null) {
+                    streakType = result;
+                    streakCount = 1;
+                } else if (streakType === result) {
+                    streakCount++;
+                } else {
+                    streakActive = false;
+                }
+            }
+
+            if (!streakActive && i >= 4) {
+                break;
+            }
+        }
+        
+        const streak = { type: streakType, count: streakCount };
+
+        res.json({ success: true, stats: stats[0] || null, history, recent_matches, streak, totalTournaments });
     } catch (error) {
         console.error('Fetch user stats error:', error);
         res.status(500).json({ success: false, message: 'Server Error' });
