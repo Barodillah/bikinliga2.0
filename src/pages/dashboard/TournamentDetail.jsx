@@ -417,8 +417,7 @@ function EditParticipantModal({ isOpen, onClose, participant, onSave, onDelete, 
 
                                 if (ligaName === formData.league) {
                                     const formattedTeamID = String(teamID).padStart(6, '0')
-                                    // Default to _r_w_l (regular white logo?) which is most reliable
-                                    const logoUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedTeamID}_r_w_l.png.webp`
+                                    const logoUrl = `https://cuma.click/support_bikinliga/logos/e_${formattedTeamID}.webp`
 
                                     filteredTeams.push({
                                         id: teamID,
@@ -588,21 +587,7 @@ function EditParticipantModal({ isOpen, onClose, participant, onSave, onDelete, 
                             alt="Team Logo"
                             className="w-10 h-10 object-contain"
                             onError={(e) => {
-                                // Fallback logic same as AddPlayer
-                                const currentSrc = e.target.src
-                                let newUrl = ''
-
-                                if (currentSrc.includes('_r_w_l')) {
-                                    newUrl = currentSrc.replace('_r_w_l', '_f_l')
-                                } else if (currentSrc.includes('_f_l')) {
-                                    newUrl = currentSrc.replace('_f_l', '_r_l')
-                                }
-
-                                if (newUrl) {
-                                    e.target.src = newUrl
-                                    // IMPORTANT: Update state so the valid URL is saved!
-                                    setFormData(prev => ({ ...prev, logo_url: newUrl }))
-                                }
+                                e.target.style.display = 'none'
                             }}
                         />
                         <span className="text-sm text-gray-400">Logo Preview</span>

@@ -176,8 +176,7 @@ export default function AddPlayer() {
 
                                 if (ligaName === formData.league) {
                                     const formattedTeamID = String(teamID).padStart(6, '0')
-                                    // Use standard logo format: _r_w_l
-                                    const logoUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedTeamID}_r_w_l.png.webp`
+                                    const logoUrl = `https://cuma.click/support_bikinliga/logos/e_${formattedTeamID}.webp`
 
                                     filteredTeams.push({
                                         id: teamID,
@@ -488,22 +487,7 @@ export default function AddPlayer() {
                                         alt={formData.team}
                                         className="w-10 h-10 object-contain"
                                         onError={(e) => {
-                                            // Try alternate logo format on error
-                                            const formattedId = String(formData.teamId).padStart(6, '0')
-                                            let newUrl = ''
-
-                                            // Fallback chain: _r_w_l -> _f_l -> _r_l
-                                            if (e.target.src.includes('_r_w_l')) {
-                                                newUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_f_l.png.webp`
-                                            } else if (e.target.src.includes('_f_l')) {
-                                                newUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_r_l.png.webp`
-                                            }
-
-                                            if (newUrl) {
-                                                e.target.src = newUrl
-                                                // IMPORTANT: Update state so the valid URL is saved!
-                                                setFormData(prev => ({ ...prev, teamLogo: newUrl }))
-                                            }
+                                            e.target.style.display = 'none'
                                         }}
                                     />
                                     <span className="text-sm text-gray-400">Logo Preview</span>

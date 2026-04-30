@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { authFetch } from '../../utils/api'
 import ReactJoyride, { EVENTS, STATUS } from 'react-joyride'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
@@ -257,7 +257,7 @@ export default function JoinCompetition() {
 
                                 if (ligaName === formData.league) {
                                     const formattedTeamID = String(teamID).padStart(6, '0')
-                                    const logoUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedTeamID}_r_w_l.png.webp`
+                                    const logoUrl = `https://cuma.click/support_bikinliga/logos/e_${formattedTeamID}.webp`
 
                                     filteredTeams.push({
                                         id: teamID,
@@ -978,21 +978,7 @@ export default function JoinCompetition() {
                                                                     alt={formData.team}
                                                                     className="w-10 h-10 object-contain"
                                                                     onError={(e) => {
-                                                                        const formattedId = String(formData.teamId).padStart(6, '0')
-                                                                        let newUrl = ''
-
-                                                                        // Fallback chain similar to register form: _r_w_l -> _f_l -> _r_l
-                                                                        if (e.target.src.includes('_r_w_l')) {
-                                                                            newUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_f_l.png.webp`
-                                                                        } else if (e.target.src.includes('_f_l')) {
-                                                                            newUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_r_l.png.webp`
-                                                                        }
-
-                                                                        if (newUrl) {
-                                                                            e.target.src = newUrl
-                                                                            // IMPORTANT: Update state so the valid URL is saved!
-                                                                            setFormData(prev => ({ ...prev, teamLogo: newUrl }))
-                                                                        }
+                                                                        e.target.style.display = 'none'
                                                                     }}
                                                                 />
                                                                 <span className="font-medium">{formData.team}</span>
@@ -1115,22 +1101,7 @@ export default function JoinCompetition() {
                                                                     alt={formData.team}
                                                                     className="w-10 h-10 object-contain"
                                                                     onError={(e) => {
-                                                                        // Try alternate logo format on error
-                                                                        const formattedId = String(formData.teamId).padStart(6, '0')
-                                                                        let newUrl = ''
-
-                                                                        // Fallback chain: _r_w_l -> _f_l -> _r_l
-                                                                        if (e.target.src.includes('_r_w_l')) {
-                                                                            newUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_f_l.png.webp`
-                                                                        } else if (e.target.src.includes('_f_l')) {
-                                                                            newUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedId}_r_l.png.webp`
-                                                                        }
-
-                                                                        if (newUrl) {
-                                                                            e.target.src = newUrl
-                                                                            // IMPORTANT: Update state so the valid URL is saved!
-                                                                            setFormData(prev => ({ ...prev, teamLogo: newUrl }))
-                                                                        }
+                                                                        e.target.style.display = 'none'
                                                                     }}
                                                                 />
                                                                 <span className="font-medium">{formData.team}</span>
@@ -1812,7 +1783,7 @@ function EditParticipantModal({ isOpen, onClose, participant, onSave }) {
 
                                 if (ligaName === formData.league) {
                                     const formattedTeamID = String(teamID).padStart(6, '0')
-                                    const logoUrl = `https://api.efootballdb.com/assets/2022/clubs/e_${formattedTeamID}_r_w_l.png.webp`
+                                    const logoUrl = `https://cuma.click/support_bikinliga/logos/e_${formattedTeamID}.webp`
 
                                     filteredTeams.push({
                                         id: teamID,
